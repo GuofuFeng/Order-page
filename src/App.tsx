@@ -51,30 +51,31 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('order');
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
   const [inputText, setInputText] = useState('');
-  const [generatedItems, setGeneratedItems] = useState<{
+  const [pendingBets, setPendingBets] = useState<{
     id: string;
     text: string;
     numberDeltas: Record<number, number>;
     zodiacDeltas: Record<string, number>;
     total: number;
   }[]>([]);
-  const [deletedItemsHistory, setDeletedItemsHistory] = useState<{
+  const [deletedBetsHistory, setDeletedBetsHistory] = useState<{
     item: any;
     index: number;
   }[]>([]);
   const [amount, setAmount] = useState<number | ''>('');
   const [cumulativeAmounts, setCumulativeAmounts] = useState<Record<number, number>>({});
   const [textParsedBets, setTextParsedBets] = useState<Record<number, number>>({});
+  const [textParsedZodiacBets, setTextParsedZodiacBets] = useState<Record<string, number>>({});
   
   const amountInputRef = useRef<HTMLInputElement>(null);
   
   const [zodiacBetAmounts, setZodiacBetAmounts] = useState<Record<string, number | ''>>({});
   const [zodiacCumulativeAmounts, setZodiacCumulativeAmounts] = useState<Record<string, number>>({});
   
-  // Final confirmed orders for the table
-  const [confirmedOrders, setConfirmedOrders] = useState<{ content: string; total: number; timestamp: number }[]>([]);
+  // Final confirmed bets for the table
+  const [confirmedBets, setConfirmedBets] = useState<{ content: string; total: number; timestamp: number }[]>([]);
 
-  const currentTotal = useMemo(() => generatedItems.reduce((sum, item) => sum + item.total, 0), [generatedItems]);
+  const currentPendingTotal = useMemo(() => pendingBets.reduce((sum, item) => sum + item.total, 0), [pendingBets]);
 
   const top5Numbers = useMemo(() => {
     const entries = (Object.entries(cumulativeAmounts) as [string, number][])
@@ -93,24 +94,28 @@ export default function App() {
   // Folding state for past orders
   const [isPastOrdersExpanded, setIsPastOrdersExpanded] = useState(false);
 
-  // Draw Page state
   const [drawNumbers, setDrawNumbers] = useState<(number | '')[]>(Array(7).fill(''));
+  const [isDrawLocked, setIsDrawLocked] = useState(false);
 
   // Persistence: Load from localStorage on mount
   useEffect(() => {
-    const savedOrders = localStorage.getItem('confirmedOrders');
+    const savedBets = localStorage.getItem('confirmedBets');
     const savedCumulative = localStorage.getItem('cumulativeAmounts');
     const savedZodiacCumulative = localStorage.getItem('zodiacCumulativeAmounts');
+    const savedDrawNumbers = localStorage.getItem('drawNumbers');
+    const savedIsDrawLocked = localStorage.getItem('isDrawLocked');
 
-    if (savedOrders) setConfirmedOrders(JSON.parse(savedOrders));
+    if (savedBets) setConfirmedBets(JSON.parse(savedBets));
     if (savedCumulative) setCumulativeAmounts(JSON.parse(savedCumulative));
     if (savedZodiacCumulative) setZodiacCumulativeAmounts(JSON.parse(savedZodiacCumulative));
+    if (savedDrawNumbers) setDrawNumbers(JSON.parse(savedDrawNumbers));
+    if (savedIsDrawLocked) setIsDrawLocked(JSON.parse(savedIsDrawLocked));
   }, []);
 
   // Persistence: Save to localStorage on change
   useEffect(() => {
-    localStorage.setItem('confirmedOrders', JSON.stringify(confirmedOrders));
-  }, [confirmedOrders]);
+    localStorage.setItem('confirmedBets', JSON.stringify(confirmedBets));
+  }, [confirmedBets]);
 
   useEffect(() => {
     localStorage.setItem('cumulativeAmounts', JSON.stringify(cumulativeAmounts));
@@ -120,11 +125,19 @@ export default function App() {
     localStorage.setItem('zodiacCumulativeAmounts', JSON.stringify(zodiacCumulativeAmounts));
   }, [zodiacCumulativeAmounts]);
 
+  useEffect(() => {
+    localStorage.setItem('drawNumbers', JSON.stringify(drawNumbers));
+  }, [drawNumbers]);
+
+  useEffect(() => {
+    localStorage.setItem('isDrawLocked', JSON.stringify(isDrawLocked));
+  }, [isDrawLocked]);
+
   const todayBeijing = useMemo(() => getBeijingDateString(Date.now()), []);
 
-  // Split orders into Today and Past
-  const todayOrders = useMemo(() => confirmedOrders.filter(o => getBeijingDateString(o.timestamp) === todayBeijing), [confirmedOrders, todayBeijing]);
-  const pastOrders = useMemo(() => confirmedOrders.filter(o => getBeijingDateString(o.timestamp) !== todayBeijing), [confirmedOrders, todayBeijing]);
+  // Split bets into Today and Past
+  const todayBets = useMemo(() => confirmedBets.filter(o => getBeijingDateString(o.timestamp) === todayBeijing), [confirmedBets, todayBeijing]);
+  const pastBets = useMemo(() => confirmedBets.filter(o => getBeijingDateString(o.timestamp) !== todayBeijing), [confirmedBets, todayBeijing]);
 
 
   // Parsing logic for textarea input
@@ -135,19 +148,20 @@ export default function App() {
         setSelectedNumbers(new Set());
         setAmount('');
         setTextParsedBets({});
+        setTextParsedZodiacBets({});
         return;
       }
 
-      // Enhanced Pattern: matches anything before "各" as prefix, and digits after "各" as amount
-      // Supports zodiacs like "鼠狗虎各20" and numbers with any separators like "01.02.03各20"
-      const regex = /([^各\n]+)各(\d+)/g;
+      // 1. Existing "各" Pattern for numbers and zodiac-to-numbers
+      const regexEach = /([^各\n]+)各(\d+)/g;
       let match;
       const newSelected = new Set<number>();
       const newParsedBets: Record<number, number> = {};
+      const newParsedZodiacBets: Record<string, number> = {};
       let lastAmount: number | '' = '';
       let anyPatternFound = false;
 
-      while ((match = regex.exec(inputText)) !== null) {
+      while ((match = regexEach.exec(inputText)) !== null) {
         anyPatternFound = true;
         const prefix = match[1];
         const amtStr = match[2];
@@ -155,7 +169,7 @@ export default function App() {
         
         const currentNums: number[] = [];
 
-        // 1. Check for zodiac names in the prefix
+        // Check for zodiac names in the prefix
         zodiacs.forEach((z, idx) => {
           if (prefix.includes(z)) {
             for (let i = idx + 1; i <= 49; i += 12) {
@@ -164,7 +178,7 @@ export default function App() {
           }
         });
 
-        // 2. Check for numbers in the prefix (fuzzy matching any digits)
+        // Check for numbers in the prefix
         const numMatches = prefix.match(/\d+/g);
         if (numMatches) {
           numMatches.forEach(nStr => {
@@ -184,15 +198,30 @@ export default function App() {
         }
       }
 
-      // If we found at least one valid "各" pattern, sync the UI to the text
+      // 2. New "平肖" Pattern for direct zodiac betting
+      // Matches "平肖狗1000" or "平狗1000"
+      const regexPingXiao = /(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊])(\d+)/g;
+      while ((match = regexPingXiao.exec(inputText)) !== null) {
+        anyPatternFound = true;
+        const zodiacName = match[1];
+        const amtStr = match[2];
+        const parsedAmt = parseInt(amtStr);
+        if (!isNaN(parsedAmt)) {
+          newParsedZodiacBets[zodiacName] = (newParsedZodiacBets[zodiacName] || 0) + parsedAmt;
+        }
+      }
+
+      // If we found at least one valid pattern, sync the UI to the text
       if (anyPatternFound) {
         setSelectedNumbers(newSelected);
         setAmount(lastAmount);
         setTextParsedBets(newParsedBets);
+        setTextParsedZodiacBets(newParsedZodiacBets);
       } else {
         setSelectedNumbers(new Set());
         setAmount('');
         setTextParsedBets({});
+        setTextParsedZodiacBets({});
       }
     };
 
@@ -251,20 +280,22 @@ export default function App() {
     amountInputRef.current?.focus();
   };
 
-  // Merged confirm function
-  const handleConfirm = () => {
-    const itemsToAdd: typeof generatedItems = [];
+  // Add to pending bets list
+  const handleAddToPending = () => {
+    const itemsToAdd: typeof pendingBets = [];
     const newCumulative = { ...cumulativeAmounts };
     const newZodiacCumulative = { ...zodiacCumulativeAmounts };
     const newZodiacBetAmounts = { ...zodiacBetAmounts };
     
     let hasAction = false;
 
-    // 1. Handle text input
+    // 1. Handle text input (Numbers and Zodiacs)
     if (inputText.trim()) {
       const numberDeltas: Record<number, number> = {};
+      const zodiacDeltas: Record<string, number> = {};
       let addedTotal = 0;
       
+      // Process parsed numbers
       (Object.entries(textParsedBets) as [string, number][]).forEach(([numStr, amt]) => {
         const num = parseInt(numStr);
         numberDeltas[num] = (numberDeltas[num] || 0) + amt;
@@ -272,12 +303,19 @@ export default function App() {
         newCumulative[num] = (newCumulative[num] || 0) + amt;
       });
 
+      // Process parsed zodiacs
+      (Object.entries(textParsedZodiacBets) as [string, number][]).forEach(([z, amt]) => {
+        zodiacDeltas[z] = (zodiacDeltas[z] || 0) + amt;
+        addedTotal += amt;
+        newZodiacCumulative[z] = (newZodiacCumulative[z] || 0) + amt;
+      });
+
       if (addedTotal > 0 || inputText.trim()) {
         itemsToAdd.push({
           id: Math.random().toString(36).substr(2, 9),
           text: inputText.trim(),
           numberDeltas,
-          zodiacDeltas: {},
+          zodiacDeltas,
           total: addedTotal
         });
         hasAction = true;
@@ -317,16 +355,20 @@ export default function App() {
       }
     }
 
-    // 3. Handle zodiac bets
+    // 3. Handle manual zodiac bets (that aren't already in textParsedZodiacBets)
     let hasNegativeZodiac = false;
     zodiacs.forEach(z => {
       const val = zodiacBetAmounts[z];
+      const parsedVal = textParsedZodiacBets[z];
+      
       if (val !== undefined && val !== '') {
         if (val < 0) {
           hasNegativeZodiac = true;
           return;
         }
         
+        if (parsedVal !== undefined) return; 
+
         const zodiacDeltas = { [z]: val as number };
         newZodiacCumulative[z] = (newZodiacCumulative[z] || 0) + (val as number);
         newZodiacBetAmounts[z] = '';
@@ -348,7 +390,7 @@ export default function App() {
     }
 
     if (hasAction) {
-      setGeneratedItems(prev => [...prev, ...itemsToAdd]);
+      setPendingBets(prev => [...prev, ...itemsToAdd]);
       setCumulativeAmounts(newCumulative);
       setZodiacCumulativeAmounts(newZodiacCumulative);
       setZodiacBetAmounts(newZodiacBetAmounts);
@@ -356,16 +398,17 @@ export default function App() {
       setAmount('');
       setInputText('');
       setTextParsedBets({});
+      setTextParsedZodiacBets({});
     } else {
       alert('请先选择数字或生肖并输入金额');
     }
   };
 
-  const deleteGeneratedItem = (id: string) => {
-    const index = generatedItems.findIndex(item => item.id === id);
+  const deletePendingBet = (id: string) => {
+    const index = pendingBets.findIndex(item => item.id === id);
     if (index === -1) return;
 
-    const itemToDelete = generatedItems[index];
+    const itemToDelete = pendingBets[index];
     
     // Revert cumulative amounts
     const newCumulative = { ...cumulativeAmounts };
@@ -381,14 +424,14 @@ export default function App() {
     setCumulativeAmounts(newCumulative);
     setZodiacCumulativeAmounts(newZodiacCumulative);
     
-    setGeneratedItems(prev => prev.filter(item => item.id !== id));
-    setDeletedItemsHistory(prev => [...prev, { item: itemToDelete, index }]);
+    setPendingBets(prev => prev.filter(item => item.id !== id));
+    setDeletedBetsHistory(prev => [...prev, { item: itemToDelete, index }]);
   };
 
-  const undoDeleteGeneratedItem = () => {
-    if (deletedItemsHistory.length === 0) return;
+  const undoDeletePendingBet = () => {
+    if (deletedBetsHistory.length === 0) return;
 
-    const lastDeleted = deletedItemsHistory[deletedItemsHistory.length - 1];
+    const lastDeleted = deletedBetsHistory[deletedBetsHistory.length - 1];
     const itemToRestore = lastDeleted.item;
     
     // Restore cumulative amounts
@@ -405,35 +448,35 @@ export default function App() {
     setCumulativeAmounts(newCumulative);
     setZodiacCumulativeAmounts(newZodiacCumulative);
 
-    const newGeneratedItems = [...generatedItems];
-    newGeneratedItems.splice(lastDeleted.index, 0, itemToRestore);
-    setGeneratedItems(newGeneratedItems);
+    const newPendingBets = [...pendingBets];
+    newPendingBets.splice(lastDeleted.index, 0, itemToRestore);
+    setPendingBets(newPendingBets);
     
-    setDeletedItemsHistory(prev => prev.slice(0, -1));
+    setDeletedBetsHistory(prev => prev.slice(0, -1));
   };
 
-  // Final submit to table
-  const handleFinalSubmit = () => {
-    if (generatedItems.length === 0) {
-      alert('输出框中没有内容可以提交');
+  // Final confirm bets to table
+  const handleConfirmBets = () => {
+    if (pendingBets.length === 0) {
+      alert('待确认区域没有内容可以提交');
       return;
     }
     
-    const finalContent = generatedItems.map(item => item.text).join('\n');
-    setConfirmedOrders(prev => [...prev, { content: finalContent, total: currentTotal, timestamp: Date.now() }]);
-    setGeneratedItems([]);
-    setDeletedItemsHistory([]);
+    const finalContent = pendingBets.map(item => item.text).join('\n');
+    setConfirmedBets(prev => [...prev, { content: finalContent, total: currentPendingTotal, timestamp: Date.now() }]);
+    setPendingBets([]);
+    setDeletedBetsHistory([]);
   };
 
   const handleExportExcel = () => {
-    if (confirmedOrders.length === 0) {
-      alert('没有订单可以导出');
+    if (confirmedBets.length === 0) {
+      alert('没有注单可以导出');
       return;
     }
 
     // Prepare data with specific column order: Content, Index, Total
-    const data = confirmedOrders.map((order, index) => ({
-      '订单内容': order.content,
+    const data = confirmedBets.map((order, index) => ({
+      '注单内容': order.content,
       '序号': index + 1,
       '总金额': order.total
     }));
@@ -441,7 +484,7 @@ export default function App() {
     const ws = XLSX.utils.json_to_sheet(data);
 
     // Add summary after 3 empty rows
-    const totalSum = confirmedOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalSum = confirmedBets.reduce((sum, order) => sum + order.total, 0);
     const summaryRowIndex = data.length + 4; // +1 for header, +3 for gap
     
     XLSX.utils.sheet_add_aoa(ws, [
@@ -456,30 +499,30 @@ export default function App() {
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Confirmed Orders');
-    XLSX.writeFile(wb, 'confirmed_orders.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Confirmed Bets');
+    XLSX.writeFile(wb, 'confirmed_bets.xlsx');
   };
 
-  const handleAddManualOrder = () => {
+  const handleAddManualBet = () => {
     if (!manualContent.trim() || manualTotal === '') {
-      alert('请填写订单内容和金额');
+      alert('请填写注单内容和金额');
       return;
     }
-    setConfirmedOrders(prev => [...prev, { content: manualContent, total: Number(manualTotal), timestamp: Date.now() }]);
+    setConfirmedBets(prev => [...prev, { content: manualContent, total: Number(manualTotal), timestamp: Date.now() }]);
     setManualContent('');
     setManualTotal('');
     setIsAddingManual(false);
   };
 
-  const deleteOrder = (index: number) => {
-    const newOrders = [...confirmedOrders];
-    newOrders.splice(index, 1);
-    setConfirmedOrders(newOrders);
+  const deleteConfirmedBet = (index: number) => {
+    const newBets = [...confirmedBets];
+    newBets.splice(index, 1);
+    setConfirmedBets(newBets);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleConfirm();
+      handleAddToPending();
     }
   };
 
@@ -510,9 +553,9 @@ export default function App() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${currentPage === 'confirm' ? 'bg-stone-800 text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            订单确认页
-            {confirmedOrders.length > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{confirmedOrders.length}</span>
+            注单确认页
+            {confirmedBets.length > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{confirmedBets.length}</span>
             )}
           </button>
         </nav>
@@ -648,7 +691,7 @@ export default function App() {
                     </div>
                     <button
                       id="confirm-button"
-                      onClick={handleConfirm}
+                      onClick={handleAddToPending}
                       className="px-6 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide"
                     >
                       确认
@@ -660,13 +703,13 @@ export default function App() {
               <section className="relative flex-grow min-h-0">
                 <textarea
                   id="input-textarea"
-                  placeholder="输入备注或格式如 '鼠狗虎各20' 或 '47.48.23各20'..."
+                  placeholder="输入备注或格式如 '鼠狗虎各20' 或 '47.48.23各20' 或 '平肖狗1000'..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      handleConfirm();
+                      handleAddToPending();
                     }
                   }}
                   className="w-full h-full p-4 bg-white border border-stone-200 rounded-xl shadow-sm focus:ring-2 focus:ring-stone-200 focus:border-stone-400 outline-none transition-all resize-none text-stone-700 text-sm"
@@ -703,7 +746,7 @@ export default function App() {
                             type="number"
                             min="0"
                             placeholder="金额"
-                            value={zodiacBetAmounts[z] || ''}
+                            value={zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '' ? zodiacBetAmounts[z] : (textParsedZodiacBets[z] || '')}
                             onKeyDown={handleKeyDown}
                             onChange={(e) => {
                               const val = e.target.value === '' ? '' : Number(e.target.value);
@@ -711,16 +754,29 @@ export default function App() {
                                 setZodiacBetAmounts(prev => ({ ...prev, [z]: val }));
                               }
                             }}
-                            className="w-full p-2 pr-7 bg-stone-50 border border-stone-100 rounded-lg text-xs focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all"
+                            className={`w-full p-2 pr-7 border rounded-lg text-xs outline-none transition-all ${
+                              textParsedZodiacBets[z] 
+                                ? 'bg-amber-50 border-amber-200 focus:ring-amber-200 focus:bg-white' 
+                                : 'bg-stone-50 border-stone-100 focus:ring-stone-200 focus:bg-white'
+                            }`}
                           />
-                          {zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '' && (
+                          {(zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || textParsedZodiacBets[z] ? (
                             <button 
-                              onClick={() => setZodiacBetAmounts(prev => ({ ...prev, [z]: '' }))}
+                              onClick={() => {
+                                if (zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') {
+                                  setZodiacBetAmounts(prev => ({ ...prev, [z]: '' }));
+                                } else {
+                                  // If it's from text, we can't easily "clear" it without clearing text, 
+                                  // but we can set manual to 0 or something. 
+                                  // For now, let's just clear manual.
+                                  setZodiacBetAmounts(prev => ({ ...prev, [z]: '' }));
+                                }
+                              }}
                               className="absolute right-1.5 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500 transition-colors"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex justify-between items-center px-1">
@@ -737,7 +793,7 @@ export default function App() {
               <section className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex flex-col flex-grow min-h-0">
                 <div className="mb-3 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
-                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">待确认订单</h2>
+                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">待确认注单</h2>
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
                 
@@ -745,16 +801,16 @@ export default function App() {
                   id="output-container"
                   className="flex-grow bg-stone-50 border border-stone-100 rounded-xl p-3 overflow-y-auto flex flex-col gap-1.5 mb-4"
                 >
-                  {generatedItems.length === 0 ? (
+                  {pendingBets.length === 0 ? (
                     <div className="h-full flex items-center justify-center">
                       <span className="text-stone-400 text-[11px] italic">暂无内容...</span>
                     </div>
                   ) : (
-                    generatedItems.map((item) => (
+                    pendingBets.map((item) => (
                       <div key={item.id} className="group flex items-start justify-between gap-2 p-2 bg-white rounded-lg shadow-sm border border-stone-100 hover:border-stone-300 transition-all">
                         <span className="text-stone-600 font-mono text-[11px] leading-relaxed whitespace-pre-wrap flex-grow">{item.text}</span>
                         <button 
-                          onClick={() => deleteGeneratedItem(item.id)}
+                          onClick={() => deletePendingBet(item.id)}
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all shrink-0"
                           title="删除此条"
                         >
@@ -766,9 +822,9 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {deletedItemsHistory.length > 0 && (
+                  {deletedBetsHistory.length > 0 && (
                     <button 
-                      onClick={undoDeleteGeneratedItem}
+                      onClick={undoDeletePendingBet}
                       className="text-[10px] font-bold text-stone-400 hover:text-stone-600 flex items-center justify-center gap-1 transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -778,11 +834,11 @@ export default function App() {
                   
                   <div className="flex items-center justify-between px-1 mb-1">
                     <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
-                    <span className="text-sm font-black text-emerald-600">¥ {currentTotal.toLocaleString()}</span>
+                    <span className="text-sm font-black text-emerald-600">¥ {currentPendingTotal.toLocaleString()}</span>
                   </div>
 
                   <button
-                    onClick={handleFinalSubmit}
+                    onClick={handleConfirmBets}
                     className="w-full py-2.5 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all font-bold text-xs flex items-center justify-center gap-2"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
@@ -797,11 +853,13 @@ export default function App() {
           <div className="flex-grow flex flex-col items-center justify-center gap-12">
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-light tracking-widest text-stone-800">开奖号码录入</h1>
-              <p className="text-stone-400 text-sm">请输入 1-49 之间的数字</p>
+              <p className="text-stone-400 text-sm">
+                {isDrawLocked ? '号码已锁定，点击下方按钮解锁后可修改' : '请输入 1-49 之间的数字'}
+              </p>
             </div>
 
-            <div className="flex items-center gap-6 bg-white p-12 rounded-[40px] shadow-xl border border-stone-100">
-              {/* First 6 Numbers */}
+            <div className={`flex items-center gap-6 bg-white p-12 rounded-[40px] shadow-xl border transition-all ${isDrawLocked ? 'border-amber-200 bg-stone-50/30' : 'border-stone-100'}`}>
+              {/* First 6 Numbers (Normal Numbers / 平码) */}
               <div className="flex gap-4">
                 {drawNumbers.slice(0, 6).map((num, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-4">
@@ -809,8 +867,10 @@ export default function App() {
                       <input
                         type="text"
                         inputMode="numeric"
+                        readOnly={isDrawLocked}
                         value={num === '' ? '' : formatNumber(num)}
                         onChange={(e) => {
+                          if (isDrawLocked) return;
                           const rawVal = e.target.value.replace(/\D/g, '');
                           const val = rawVal === '' ? '' : Number(rawVal);
                           if (val === '' || (val >= 1 && val <= 49)) {
@@ -822,9 +882,10 @@ export default function App() {
                         className={`
                           w-20 h-20 rounded-full border-2 text-center text-2xl font-bold outline-none transition-all
                           ${num ? `${getNumberColor(num)} text-white shadow-lg` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
+                          ${isDrawLocked ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
                         `}
                       />
-                      {num && (
+                      {num && !isDrawLocked && (
                         <button 
                           onClick={() => {
                             const newDraw = [...drawNumbers];
@@ -849,14 +910,16 @@ export default function App() {
               {/* Separator */}
               <div className="w-px h-32 bg-stone-200 mx-2"></div>
 
-              {/* Special Number (7th) */}
+              {/* Special Number (7th / 特码) */}
               <div className="flex flex-col items-center gap-4">
                 <div className="relative group">
                   <input
                     type="text"
                     inputMode="numeric"
+                    readOnly={isDrawLocked}
                     value={drawNumbers[6] === '' ? '' : formatNumber(drawNumbers[6])}
                     onChange={(e) => {
+                      if (isDrawLocked) return;
                       const rawVal = e.target.value.replace(/\D/g, '');
                       const val = rawVal === '' ? '' : Number(rawVal);
                       if (val === '' || (val >= 1 && val <= 49)) {
@@ -868,9 +931,10 @@ export default function App() {
                     className={`
                       w-24 h-24 rounded-full border-4 text-center text-3xl font-black outline-none transition-all
                       ${drawNumbers[6] ? `${getNumberColor(drawNumbers[6])} text-white shadow-xl rotate-3` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
+                      ${isDrawLocked ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
                     `}
                   />
-                  {drawNumbers[6] && (
+                  {drawNumbers[6] && !isDrawLocked && (
                     <button 
                       onClick={() => {
                         const newDraw = [...drawNumbers];
@@ -891,24 +955,44 @@ export default function App() {
               </div>
             </div>
 
-            <button 
-              onClick={() => setDrawNumbers(Array(7).fill(''))}
-              className="px-8 py-3 bg-stone-100 text-stone-500 rounded-full hover:bg-stone-200 transition-all text-sm font-bold flex items-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-              重置开奖号码
-            </button>
+            <div className="flex items-center gap-4">
+              <button 
+                disabled={isDrawLocked}
+                onClick={() => setDrawNumbers(Array(7).fill(''))}
+                className={`px-8 py-3 rounded-full transition-all text-sm font-bold flex items-center gap-2 ${isDrawLocked ? 'bg-stone-50 text-stone-300 cursor-not-allowed' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                重置开奖号码
+              </button>
+
+              <button 
+                onClick={() => setIsDrawLocked(!isDrawLocked)}
+                className={`px-8 py-3 rounded-full transition-all text-sm font-bold flex items-center gap-2 shadow-md ${isDrawLocked ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-stone-800 text-white hover:bg-stone-900'}`}
+              >
+                {isDrawLocked ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    解锁号码
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                    锁定号码
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         ) : (
-          /* Order Confirmation Page */
+          /* Betting Confirmation Page (注单确认页) */
           <div className="flex-grow flex flex-col gap-6">
             <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-stone-800">订单确认</h1>
+              <h1 className="text-2xl font-bold text-stone-800">注单确认</h1>
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end mr-4">
-                  <span className="text-[10px] text-stone-400 uppercase tracking-widest">下单总金额</span>
+                  <span className="text-[10px] text-stone-400 uppercase tracking-widest">下注总金额</span>
                   <span className="text-xl font-bold text-emerald-600">
-                    ¥ {confirmedOrders.reduce((sum, o) => sum + o.total, 0).toLocaleString()}
+                    ¥ {confirmedBets.reduce((sum, o) => sum + o.total, 0).toLocaleString()}
                   </span>
                 </div>
                 <button
@@ -933,7 +1017,7 @@ export default function App() {
                 <thead>
                   <tr className="bg-stone-50 border-b border-stone-200">
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-20">序号</th>
-                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest">订单内容</th>
+                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest">注单内容</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">总金额</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32 text-center">操作</th>
                   </tr>
@@ -942,11 +1026,11 @@ export default function App() {
                   {isAddingManual && (
                     <tr className="bg-stone-50/50">
                       <td className="px-6 py-4 text-sm font-mono text-stone-400 italic">
-                        {confirmedOrders.length + 1}
+                        {confirmedBets.length + 1}
                       </td>
                       <td className="px-6 py-4">
                         <textarea
-                          placeholder="输入订单内容..."
+                          placeholder="输入注单内容..."
                           value={manualContent}
                           onChange={(e) => setManualContent(e.target.value)}
                           className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none resize-none h-20"
@@ -963,7 +1047,7 @@ export default function App() {
                       </td>
                       <td className="px-6 py-4 text-center space-y-2">
                         <button 
-                          onClick={handleAddManualOrder}
+                          onClick={handleAddManualBet}
                           className="w-full px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors"
                         >
                           确认添加
@@ -982,14 +1066,14 @@ export default function App() {
                     </tr>
                   )}
                   
-                  {/* Today's Orders */}
-                  {todayOrders.length === 0 && !isAddingManual && pastOrders.length === 0 ? (
+                  {/* Today's Bets */}
+                  {todayBets.length === 0 && !isAddingManual && pastBets.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认订单</td>
+                      <td colSpan={4} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
                     </tr>
                   ) : (
-                    [...todayOrders].reverse().map((order) => {
-                      const originalIdx = confirmedOrders.indexOf(order);
+                    [...todayBets].reverse().map((order) => {
+                      const originalIdx = confirmedBets.indexOf(order);
                       return (
                         <tr key={originalIdx} className="hover:bg-stone-50 transition-colors">
                           <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
@@ -997,9 +1081,9 @@ export default function App() {
                           <td className="px-6 py-4 text-sm font-bold text-emerald-600">¥ {order.total.toLocaleString()}</td>
                           <td className="px-6 py-4 text-center">
                             <button 
-                              onClick={() => deleteOrder(originalIdx)}
+                              onClick={() => deleteConfirmedBet(originalIdx)}
                               className="text-red-400 hover:text-red-600 transition-colors p-1"
-                              title="删除订单"
+                              title="删除注单"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                             </button>
@@ -1009,8 +1093,8 @@ export default function App() {
                     })
                   )}
 
-                  {/* Past Orders Section */}
-                  {pastOrders.length > 0 && (
+                  {/* Past Bets Section */}
+                  {pastBets.length > 0 && (
                     <>
                       <tr 
                         className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
@@ -1026,12 +1110,12 @@ export default function App() {
                             >
                               <polyline points="6 9 12 15 18 9"/>
                             </svg>
-                            过往订单 ({pastOrders.length})
+                            过往注单 ({pastBets.length})
                           </div>
                         </td>
                       </tr>
-                      {isPastOrdersExpanded && [...pastOrders].reverse().map((order) => {
-                        const originalIdx = confirmedOrders.indexOf(order);
+                      {isPastOrdersExpanded && [...pastBets].reverse().map((order) => {
+                        const originalIdx = confirmedBets.indexOf(order);
                         return (
                           <tr key={originalIdx} className="bg-stone-50/30 hover:bg-stone-50 transition-colors opacity-75">
                             <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
@@ -1039,9 +1123,9 @@ export default function App() {
                             <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
                             <td className="px-6 py-4 text-center">
                               <button 
-                                onClick={() => deleteOrder(originalIdx)}
+                                onClick={() => deleteConfirmedBet(originalIdx)}
                                 className="text-stone-300 hover:text-red-400 transition-colors p-1"
-                                title="删除订单"
+                                title="删除注单"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                               </button>
