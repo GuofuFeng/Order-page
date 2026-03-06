@@ -1,20 +1,22 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🚀 如何再次打开并运行本项目
 
-# Run and deploy your AI Studio app
+如果您关闭了当前页面，可以通过以下步骤重新回到编辑环境并运行网页：
 
-This contains everything you need to run your app locally.
+### 1. 重新进入编辑环境
+1.  登录 [Google AI Studio](https://aistudio.google.com/)。
+2.  在您的项目列表或最近活动中找到本项目（名称：**Minimalist Number Grid**）。
+3.  点击进入即可恢复当前的编辑状态和代码。
 
-View your app in AI Studio: https://ai.studio/apps/0bf64484-982e-458e-9e26-6231d0cdc744
+### 2. 运行网页 (Preview)
+1.  进入编辑环境后，系统会自动启动开发服务器。
+2.  在右侧的 **Preview** 窗口中即可看到运行中的网页。
+3.  如果预览没有自动加载，请确保终端运行了 `npm run dev`。
 
-## Run Locally
+### 3. 从 GitHub 同步
+本项目的代码已推送至您的 GitHub 仓库。如果您在其他地方修改了代码，AI Studio 会提示您进行同步。
 
-**Prerequisites:**  Node.js
+---
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 🔗 快速链接
+*   **开发预览地址 (App URL):** https://ais-dev-mamarngwpffivccpewvrml-130080972175.europe-west2.run.app
+*   **分享预览地址 (Shared App URL):** https://ais-pre-mamarngwpffivccpewvrml-130080972175.europe-west2.run.app
