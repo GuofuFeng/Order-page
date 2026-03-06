@@ -19,7 +19,7 @@ export default function App() {
   const [zodiacCumulativeAmounts, setZodiacCumulativeAmounts] = useState<Record<string, number>>({});
   
   // Final confirmed orders for the table
-  const [confirmedOrders, setConfirmedOrders] = useState<{ content: string; total: number }[]>([]);
+  const [confirmedOrders, setConfirmedOrders] = useState<{ content: string; total: number; timestamp: number }[]>([]);
   const [currentTotal, setCurrentTotal] = useState(0);
 
   // Manual entry state
@@ -27,8 +27,51 @@ export default function App() {
   const [manualContent, setManualContent] = useState('');
   const [manualTotal, setManualTotal] = useState<number | ''>('');
 
+  // Folding state for past orders
+  const [isPastOrdersExpanded, setIsPastOrdersExpanded] = useState(false);
+
   const numbers = Array.from({ length: 49 }, (_, i) => i + 1);
   const zodiacs = ['马', '蛇', '龙', '兔', '虎', '牛', '鼠', '猪', '狗', '鸡', '猴', '羊'];
+
+  // Persistence: Load from localStorage on mount
+  useEffect(() => {
+    const savedOrders = localStorage.getItem('confirmedOrders');
+    const savedCumulative = localStorage.getItem('cumulativeAmounts');
+    const savedZodiacCumulative = localStorage.getItem('zodiacCumulativeAmounts');
+
+    if (savedOrders) setConfirmedOrders(JSON.parse(savedOrders));
+    if (savedCumulative) setCumulativeAmounts(JSON.parse(savedCumulative));
+    if (savedZodiacCumulative) setZodiacCumulativeAmounts(JSON.parse(savedZodiacCumulative));
+  }, []);
+
+  // Persistence: Save to localStorage on change
+  useEffect(() => {
+    localStorage.setItem('confirmedOrders', JSON.stringify(confirmedOrders));
+  }, [confirmedOrders]);
+
+  useEffect(() => {
+    localStorage.setItem('cumulativeAmounts', JSON.stringify(cumulativeAmounts));
+  }, [cumulativeAmounts]);
+
+  useEffect(() => {
+    localStorage.setItem('zodiacCumulativeAmounts', JSON.stringify(zodiacCumulativeAmounts));
+  }, [zodiacCumulativeAmounts]);
+
+  // Helper to get Beijing Date String (YYYY-MM-DD)
+  const getBeijingDateString = (timestamp: number) => {
+    return new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date(timestamp)).replace(/\//g, '-');
+  };
+
+  const todayBeijing = getBeijingDateString(Date.now());
+
+  // Split orders into Today and Past
+  const todayOrders = confirmedOrders.filter(o => getBeijingDateString(o.timestamp) === todayBeijing);
+  const pastOrders = confirmedOrders.filter(o => getBeijingDateString(o.timestamp) !== todayBeijing);
 
   // Parsing logic for textarea input
   useEffect(() => {
@@ -168,7 +211,7 @@ export default function App() {
     }
     
     // Submit the entire outputText as a single "batch"
-    setConfirmedOrders(prev => [...prev, { content: outputText, total: currentTotal }]);
+    setConfirmedOrders(prev => [...prev, { content: outputText, total: currentTotal, timestamp: Date.now() }]);
     setOutputText('');
     setCurrentTotal(0);
     // Removed alert as requested
@@ -214,7 +257,7 @@ export default function App() {
       alert('请填写订单内容和金额');
       return;
     }
-    setConfirmedOrders(prev => [...prev, { content: manualContent, total: Number(manualTotal) }]);
+    setConfirmedOrders(prev => [...prev, { content: manualContent, total: Number(manualTotal), timestamp: Date.now() }]);
     setManualContent('');
     setManualTotal('');
     setIsAddingManual(false);
@@ -538,14 +581,15 @@ export default function App() {
                       </td>
                     </tr>
                   )}
-                  {confirmedOrders.length === 0 && !isAddingManual ? (
+                  
+                  {/* Today's Orders */}
+                  {todayOrders.length === 0 && !isAddingManual && pastOrders.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认订单</td>
                     </tr>
                   ) : (
-                    [...confirmedOrders].reverse().map((order, idx) => {
-                      // Calculate original index for deletion
-                      const originalIdx = confirmedOrders.length - 1 - idx;
+                    [...todayOrders].reverse().map((order) => {
+                      const originalIdx = confirmedOrders.indexOf(order);
                       return (
                         <tr key={originalIdx} className="hover:bg-stone-50 transition-colors">
                           <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
@@ -563,6 +607,49 @@ export default function App() {
                         </tr>
                       );
                     })
+                  )}
+
+                  {/* Past Orders Section */}
+                  {pastOrders.length > 0 && (
+                    <>
+                      <tr 
+                        className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
+                        onClick={() => setIsPastOrdersExpanded(!isPastOrdersExpanded)}
+                      >
+                        <td colSpan={4} className="px-6 py-3">
+                          <div className="flex items-center gap-2 text-xs font-bold text-stone-400 uppercase tracking-widest">
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="14" height="14" 
+                              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                              className={`transition-transform duration-200 ${isPastOrdersExpanded ? 'rotate-180' : ''}`}
+                            >
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                            过往订单 ({pastOrders.length})
+                          </div>
+                        </td>
+                      </tr>
+                      {isPastOrdersExpanded && [...pastOrders].reverse().map((order) => {
+                        const originalIdx = confirmedOrders.indexOf(order);
+                        return (
+                          <tr key={originalIdx} className="bg-stone-50/30 hover:bg-stone-50 transition-colors opacity-75">
+                            <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
+                            <td className="px-6 py-4 text-sm text-stone-500 whitespace-pre-wrap italic">{order.content}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-center">
+                              <button 
+                                onClick={() => deleteOrder(originalIdx)}
+                                className="text-stone-300 hover:text-red-400 transition-colors p-1"
+                                title="删除订单"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
                   )}
                 </tbody>
               </table>
