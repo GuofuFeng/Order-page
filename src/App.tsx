@@ -5,10 +5,48 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 const numbers = Array.from({ length: 49 }, (_, i) => i + 1);
 const zodiacs = ['马', '蛇', '龙', '兔', '虎', '牛', '鼠', '猪', '狗', '鸡', '猴', '羊'];
+const lotteryTypes = ['新澳', '老澳', '香港', 'cc', '老cc'];
+
+// Helper to convert Chinese numbers to Arabic numerals
+const chineseToNumber = (chStr: string): number => {
+  const chMap: Record<string, number> = {
+    '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+    '壹': 1, '贰': 2, '叁': 3, '肆': 4, '伍': 5, '陆': 6, '柒': 7, '捌': 8, '玖': 9, '拾': 10,
+    '两': 2, '廿': 20, '卅': 30, '百': 100, '佰': 100, '千': 1000, '仟': 1000, '万': 10000
+  };
+  
+  if (!isNaN(Number(chStr))) return Number(chStr);
+  
+  let total = 0;
+  let temp = 0;
+  let lastUnit = 1;
+  
+  for (let i = 0; i < chStr.length; i++) {
+    const char = chStr[i];
+    const val = chMap[char];
+    
+    if (val === undefined) continue;
+    
+    if (val >= 10) {
+      if (temp === 0) temp = 1;
+      if (val > lastUnit) {
+        total = (total + temp) * val;
+        temp = 0;
+      } else {
+        total += temp * val;
+        temp = 0;
+      }
+      lastUnit = val;
+    } else {
+      temp = val;
+    }
+  }
+  return total + temp;
+};
 
 // Helper to get Beijing Date String (YYYY-MM-DD)
 const getBeijingDateString = (timestamp: number) => {
@@ -57,6 +95,7 @@ export default function App() {
     numberDeltas: Record<number, number>;
     zodiacDeltas: Record<string, number>;
     total: number;
+    lotteryType: string;
   }[]>([]);
   const [deletedBetsHistory, setDeletedBetsHistory] = useState<{
     item: any;
@@ -72,8 +111,15 @@ export default function App() {
   const [zodiacBetAmounts, setZodiacBetAmounts] = useState<Record<string, number | ''>>({});
   const [zodiacCumulativeAmounts, setZodiacCumulativeAmounts] = useState<Record<string, number>>({});
   
+  const [selectedLotteryType, setSelectedLotteryType] = useState<string>(lotteryTypes[0]);
+
   // Final confirmed bets for the table
-  const [confirmedBets, setConfirmedBets] = useState<{ content: string; total: number; timestamp: number }[]>([]);
+  const [confirmedBets, setConfirmedBets] = useState<{ 
+    content: string; 
+    total: number; 
+    timestamp: number;
+    lotteryType: string;
+  }[]>([]);
 
   const currentPendingTotal = useMemo(() => pendingBets.reduce((sum, item) => sum + item.total, 0), [pendingBets]);
 
@@ -94,8 +140,17 @@ export default function App() {
   // Folding state for past orders
   const [isPastOrdersExpanded, setIsPastOrdersExpanded] = useState(false);
 
-  const [drawNumbers, setDrawNumbers] = useState<(number | '')[]>(Array(7).fill(''));
-  const [isDrawLocked, setIsDrawLocked] = useState(false);
+  // Editing state for confirmed bets
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [editingTotal, setEditingTotal] = useState<number | ''>('');
+
+  const [drawNumbers, setDrawNumbers] = useState<Record<string, (number | '')[]>>(
+    lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: Array(7).fill('') }), {})
+  );
+  const [isDrawLocked, setIsDrawLocked] = useState<Record<string, boolean>>(
+    lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: false }), {})
+  );
 
   // Persistence: Load from localStorage on mount
   useEffect(() => {
@@ -104,12 +159,14 @@ export default function App() {
     const savedZodiacCumulative = localStorage.getItem('zodiacCumulativeAmounts');
     const savedDrawNumbers = localStorage.getItem('drawNumbers');
     const savedIsDrawLocked = localStorage.getItem('isDrawLocked');
+    const savedSelectedLotteryType = localStorage.getItem('selectedLotteryType');
 
     if (savedBets) setConfirmedBets(JSON.parse(savedBets));
     if (savedCumulative) setCumulativeAmounts(JSON.parse(savedCumulative));
     if (savedZodiacCumulative) setZodiacCumulativeAmounts(JSON.parse(savedZodiacCumulative));
     if (savedDrawNumbers) setDrawNumbers(JSON.parse(savedDrawNumbers));
     if (savedIsDrawLocked) setIsDrawLocked(JSON.parse(savedIsDrawLocked));
+    if (savedSelectedLotteryType) setSelectedLotteryType(savedSelectedLotteryType);
   }, []);
 
   // Persistence: Save to localStorage on change
@@ -133,6 +190,10 @@ export default function App() {
     localStorage.setItem('isDrawLocked', JSON.stringify(isDrawLocked));
   }, [isDrawLocked]);
 
+  useEffect(() => {
+    localStorage.setItem('selectedLotteryType', selectedLotteryType);
+  }, [selectedLotteryType]);
+
   const todayBeijing = useMemo(() => getBeijingDateString(Date.now()), []);
 
   // Split bets into Today and Past
@@ -152,20 +213,25 @@ export default function App() {
         return;
       }
 
-      // 1. Existing "各" Pattern for numbers and zodiac-to-numbers
-      const regexEach = /([^各\n]+)各(\d+)/g;
-      let match;
+      // Pre-process: replace "免" with "兔"
+      const processedText = inputText.replace(/免/g, '兔');
+
       const newSelected = new Set<number>();
       const newParsedBets: Record<number, number> = {};
       const newParsedZodiacBets: Record<string, number> = {};
       let lastAmount: number | '' = '';
       let anyPatternFound = false;
 
-      while ((match = regexEach.exec(inputText)) !== null) {
+      // 1. "各" Pattern for numbers and zodiac-to-numbers
+      // Handles "各", "各号", and flexible symbols/spaces after "各"
+      const regexEach = /([^各\n]+)各(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[一二三四五六七八九十百千万]+)/g;
+      let match;
+
+      while ((match = regexEach.exec(processedText)) !== null) {
         anyPatternFound = true;
         const prefix = match[1];
         const amtStr = match[2];
-        const parsedAmt = parseInt(amtStr);
+        const parsedAmt = chineseToNumber(amtStr);
         
         const currentNums: number[] = [];
 
@@ -189,7 +255,7 @@ export default function App() {
           });
         }
 
-        if (!isNaN(parsedAmt)) {
+        if (!isNaN(parsedAmt) && parsedAmt > 0) {
           lastAmount = parsedAmt;
           currentNums.forEach(n => {
             newSelected.add(n);
@@ -198,15 +264,55 @@ export default function App() {
         }
       }
 
-      // 2. New "平肖" Pattern for direct zodiac betting
-      // Matches "平肖狗1000" or "平狗1000"
-      const regexPingXiao = /(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊])(\d+)/g;
-      while ((match = regexPingXiao.exec(inputText)) !== null) {
+      // 2. "包" Pattern: "兔包100" or "包兔100" -> 100 divided by the number of numbers in that zodiac
+      const regexBao = /([马蛇龙兔虎牛鼠猪狗鸡猴羊])包(\d+|[一二三四五六七八九十百千万]+)|包(?:[\s\W\u4e00-\u9fa5]*?)([马蛇龙兔虎牛鼠猪狗鸡猴羊])(\d+|[一二三四五六七八九十百千万]+)/g;
+      while ((match = regexBao.exec(processedText)) !== null) {
         anyPatternFound = true;
-        const zodiacName = match[1];
+        const zodiacName = match[1] || match[3];
+        const amtStr = match[2] || match[4];
+        const totalAmt = chineseToNumber(amtStr);
+        
+        if (!isNaN(totalAmt) && totalAmt > 0) {
+          const zodiacIdx = zodiacs.indexOf(zodiacName);
+          const zodiacNums: number[] = [];
+          for (let i = zodiacIdx + 1; i <= 49; i += 12) {
+            zodiacNums.push(i);
+          }
+          
+          const perNumAmt = Math.floor(totalAmt / zodiacNums.length);
+          zodiacNums.forEach(n => {
+            newSelected.add(n);
+            newParsedBets[n] = (newParsedBets[n] || 0) + perNumAmt;
+          });
+          lastAmount = perNumAmt;
+        }
+      }
+
+      // 3. "平" Pattern for direct zodiac betting
+      // Matches "平肖狗1000", "平狗1000", "狗平1000"
+      // New: "猪狗牛平各1000", "平猪狗牛各1000"
+      const regexPingMulti = /(?:平肖|平)?([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平肖|平)?各(\d+|[一二三四五六七八九十百千万]+)/g;
+      while ((match = regexPingMulti.exec(processedText)) !== null) {
+        anyPatternFound = true;
+        const zodiacNames = match[1];
         const amtStr = match[2];
-        const parsedAmt = parseInt(amtStr);
-        if (!isNaN(parsedAmt)) {
+        const parsedAmt = chineseToNumber(amtStr);
+        if (!isNaN(parsedAmt) && parsedAmt > 0) {
+          for (const zName of zodiacNames) {
+            if (zodiacs.includes(zName)) {
+              newParsedZodiacBets[zName] = (newParsedZodiacBets[zName] || 0) + parsedAmt;
+            }
+          }
+        }
+      }
+
+      const regexPingSingle = /(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊])(\d+|[一二三四五六七八九十百千万]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊])平(\d+|[一二三四五六七八九十百千万]+)/g;
+      while ((match = regexPingSingle.exec(processedText)) !== null) {
+        anyPatternFound = true;
+        const zodiacName = match[1] || match[3];
+        const amtStr = match[2] || match[4];
+        const parsedAmt = chineseToNumber(amtStr);
+        if (!isNaN(parsedAmt) && parsedAmt > 0) {
           newParsedZodiacBets[zodiacName] = (newParsedZodiacBets[zodiacName] || 0) + parsedAmt;
         }
       }
@@ -390,7 +496,14 @@ export default function App() {
     }
 
     if (hasAction) {
-      setPendingBets(prev => [...prev, ...itemsToAdd]);
+      const lotteryPrefix = `【${selectedLotteryType}】`;
+      const finalItemsToAdd = itemsToAdd.map(item => ({
+        ...item,
+        text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`,
+        lotteryType: selectedLotteryType
+      }));
+      
+      setPendingBets(prev => [...prev, ...finalItemsToAdd]);
       setCumulativeAmounts(newCumulative);
       setZodiacCumulativeAmounts(newZodiacCumulative);
       setZodiacBetAmounts(newZodiacBetAmounts);
@@ -463,44 +576,125 @@ export default function App() {
     }
     
     const finalContent = pendingBets.map(item => item.text).join('\n');
-    setConfirmedBets(prev => [...prev, { content: finalContent, total: currentPendingTotal, timestamp: Date.now() }]);
+    // Collect all unique lottery types from pendingBets
+    const uniqueLotteryTypes = Array.from(new Set(pendingBets.map(item => item.lotteryType)));
+    const lotteryTypeDisplay = uniqueLotteryTypes.map(type => `【${type}】`).join('');
+    
+    setConfirmedBets(prev => [...prev, { 
+      content: finalContent, 
+      total: currentPendingTotal, 
+      timestamp: Date.now(),
+      lotteryType: lotteryTypeDisplay
+    }]);
     setPendingBets([]);
     setDeletedBetsHistory([]);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (confirmedBets.length === 0) {
       alert('没有注单可以导出');
       return;
     }
 
-    // Prepare data with specific column order: Content, Index, Total
-    const data = confirmedBets.map((order, index) => ({
-      '注单内容': order.content,
-      '序号': index + 1,
-      '总金额': order.total
-    }));
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Confirmed Bets');
 
-    const ws = XLSX.utils.json_to_sheet(data);
-
-    // Add summary after 3 empty rows
-    const totalSum = confirmedBets.reduce((sum, order) => sum + order.total, 0);
-    const summaryRowIndex = data.length + 4; // +1 for header, +3 for gap
-    
-    XLSX.utils.sheet_add_aoa(ws, [
-      ['总下注', totalSum]
-    ], { origin: `A${summaryRowIndex}` });
-
-    // Set column widths for better visibility
-    ws['!cols'] = [
-      { wch: 50 }, // Content
-      { wch: 10 }, // Index
-      { wch: 15 }  // Total
+    // Define columns
+    worksheet.columns = [
+      { header: '序号', key: 'index', width: 10 },
+      { header: '彩种', key: 'type', width: 15 },
+      { header: '注单内容', key: 'content', width: 60 },
+      { header: '总金额', key: 'total', width: 15 },
+      { header: '下单时间', key: 'time', width: 25 }
     ];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Confirmed Bets');
-    XLSX.writeFile(wb, 'confirmed_bets.xlsx');
+    // Style header
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Add data
+    confirmedBets.forEach((order, index) => {
+      const row = worksheet.addRow({
+        index: index + 1,
+        type: order.lotteryType,
+        content: '', // Will be set as rich text
+        total: order.total,
+        time: new Date(order.timestamp).toLocaleString()
+      });
+
+      // Handle rich text for content (highlighting)
+      const contentCell = row.getCell('content');
+      const lines = order.content.split('\n');
+      const richText: any[] = [];
+
+      lines.forEach((line, lineIdx) => {
+        let currentLotteryType = '';
+        const match = line.match(/^【(.+?)】/);
+        if (match) {
+          currentLotteryType = match[1];
+        } else if (order.lotteryType && !order.lotteryType.includes('】【')) {
+          currentLotteryType = order.lotteryType.replace(/[【】]/g, '');
+        }
+
+        const draw = drawNumbers[currentLotteryType];
+        const locked = isDrawLocked[currentLotteryType];
+
+        // Split line into parts to highlight
+        // We look for numbers 01-49 and zodiac names
+        const parts = line.split(/(\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])/);
+        
+        parts.forEach(part => {
+          if (!part) return;
+          
+          let isWinner = false;
+          if (locked && draw) {
+            // Check if it's a number
+            if (/^\d{1,2}$/.test(part)) {
+              const n = parseInt(part);
+              if (draw.includes(n)) isWinner = true;
+            } 
+            // Check if it's a zodiac
+            else if (zodiacs.includes(part)) {
+              const winningZodiacs = draw.map(n => getZodiacFromNumber(n)).filter(Boolean);
+              if (winningZodiacs.includes(part)) isWinner = true;
+            }
+          }
+
+          richText.push({
+            text: part,
+            font: isWinner ? { color: { argb: 'FFFF0000' }, bold: true } : {}
+          });
+        });
+
+        if (lineIdx < lines.length - 1) {
+          richText.push({ text: '\n' });
+        }
+      });
+
+      contentCell.value = { richText };
+      contentCell.alignment = { wrapText: true, vertical: 'top' };
+    });
+
+    // Add summary
+    const totalSum = confirmedBets.reduce((sum, order) => sum + order.total, 0);
+    worksheet.addRow([]);
+    worksheet.addRow([]);
+    worksheet.addRow(['总下注', '', '', totalSum]);
+    const summaryRow = worksheet.lastRow;
+    if (summaryRow) {
+      summaryRow.getCell(1).font = { bold: true };
+      summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF008000' } };
+    }
+
+    // Generate and download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `confirmed_bets_${new Date().getTime()}.xlsx`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleAddManualBet = () => {
@@ -508,7 +702,12 @@ export default function App() {
       alert('请填写注单内容和金额');
       return;
     }
-    setConfirmedBets(prev => [...prev, { content: manualContent, total: Number(manualTotal), timestamp: Date.now() }]);
+    setConfirmedBets(prev => [...prev, { 
+      content: manualContent, 
+      total: Number(manualTotal), 
+      timestamp: Date.now(),
+      lotteryType: selectedLotteryType
+    }]);
     setManualContent('');
     setManualTotal('');
     setIsAddingManual(false);
@@ -518,6 +717,67 @@ export default function App() {
     const newBets = [...confirmedBets];
     newBets.splice(index, 1);
     setConfirmedBets(newBets);
+  };
+
+  const renderHighlightedText = (text: string, fallbackLotteryType?: string) => {
+    const lines = text.split('\n');
+    return lines.map((line, lineIdx) => {
+      // Detect lottery type from prefix like 【新澳】
+      let currentLotteryType = '';
+      const match = line.match(/^【(.+?)】/);
+      if (match) {
+        currentLotteryType = match[1];
+      } else if (fallbackLotteryType) {
+        // If fallbackLotteryType is something like "【新澳】", extract "新澳"
+        // If it's multiple like "【新澳】【香港】", we can't easily fallback, so we require prefix
+        if (!fallbackLotteryType.includes('】【')) {
+          currentLotteryType = fallbackLotteryType.replace(/[【】]/g, '');
+        }
+      }
+
+      // If no lottery type detected or it's not locked, return plain line
+      if (!currentLotteryType || !isDrawLocked[currentLotteryType]) {
+        return <div key={lineIdx}>{line}</div>;
+      }
+
+      const specialNum = drawNumbers[currentLotteryType][6];
+      const specialZodiac = getZodiacFromNumber(specialNum);
+
+      if (specialNum === '') return <div key={lineIdx}>{line}</div>;
+
+      // Split by "各" or "下单" to separate bet content from amount
+      let betPart = line;
+      let amountPart = '';
+      
+      if (line.includes('各')) {
+        const parts = line.split('各');
+        betPart = parts[0];
+        amountPart = '各' + parts.slice(1).join('各');
+      } else if (line.includes('下单')) {
+        const parts = line.split('下单');
+        betPart = parts[0];
+        amountPart = '下单' + parts.slice(1).join('下单');
+      }
+
+      // Highlight in betPart
+      const formattedSpecialNum = formatNumber(specialNum);
+      
+      // Use a regex to find numbers and zodiacs in the betPart
+      // We want to match the special number or special zodiac
+      const parts = betPart.split(new RegExp(`(${formattedSpecialNum}|${specialZodiac})`, 'g'));
+      
+      return (
+        <div key={lineIdx}>
+          {parts.map((part, partIdx) => {
+            if (part === formattedSpecialNum || part === specialZodiac) {
+              return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-2">{part}</span>;
+            }
+            return <span key={partIdx}>{part}</span>;
+          })}
+          <span className="text-stone-300">{amountPart}</span>
+        </div>
+      );
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -571,8 +831,22 @@ export default function App() {
             {/* 2. Middle Section (Number Grid + Input) */}
             <div className="flex-grow flex flex-col gap-6 min-w-0">
               <section className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0">
-                <div className="mb-4 text-center">
+                <div className="mb-4 flex items-center justify-between">
                   <h1 className="text-xl font-light tracking-tight text-stone-800">数字下单区</h1>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">彩种:</span>
+                    <div className="flex gap-1 bg-stone-100 p-1 rounded-lg">
+                      {lotteryTypes.map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setSelectedLotteryType(type)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-800 text-white shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-12 gap-1.5 mb-3">
@@ -850,137 +1124,128 @@ export default function App() {
           </>
         ) : currentPage === 'draw' ? (
           /* Draw Page (开奖页) */
-          <div className="flex-grow flex flex-col items-center justify-center gap-12">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-light tracking-widest text-stone-800">开奖号码录入</h1>
-              <p className="text-stone-400 text-sm">
-                {isDrawLocked ? '号码已锁定，点击下方按钮解锁后可修改' : '请输入 1-49 之间的数字'}
-              </p>
+          <div className="flex-grow flex flex-col gap-4 overflow-hidden">
+            <div className="flex justify-between items-center shrink-0">
+              <h1 className="text-xl font-bold text-stone-800">开奖号码设置</h1>
+              <p className="text-stone-400 text-xs">锁定号码后，注单确认页将自动高亮对应彩种的中奖号码</p>
             </div>
 
-            <div className={`flex items-center gap-6 bg-white p-12 rounded-[40px] shadow-xl border transition-all ${isDrawLocked ? 'border-amber-200 bg-stone-50/30' : 'border-stone-100'}`}>
-              {/* First 6 Numbers (Normal Numbers / 平码) */}
-              <div className="flex gap-4">
-                {drawNumbers.slice(0, 6).map((num, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-4">
-                    <div className="relative group">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        readOnly={isDrawLocked}
-                        value={num === '' ? '' : formatNumber(num)}
-                        onChange={(e) => {
-                          if (isDrawLocked) return;
-                          const rawVal = e.target.value.replace(/\D/g, '');
-                          const val = rawVal === '' ? '' : Number(rawVal);
-                          if (val === '' || (val >= 1 && val <= 49)) {
-                            const newDraw = [...drawNumbers];
-                            newDraw[idx] = val;
-                            setDrawNumbers(newDraw);
-                          }
-                        }}
-                        className={`
-                          w-20 h-20 rounded-full border-2 text-center text-2xl font-bold outline-none transition-all
-                          ${num ? `${getNumberColor(num)} text-white shadow-lg` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
-                          ${isDrawLocked ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
-                        `}
-                      />
-                      {num && !isDrawLocked && (
+            <div className="flex-grow overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 gap-4">
+                {lotteryTypes.map(type => (
+                  <div key={type} className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col gap-4 relative overflow-hidden">
+                    {/* Background Label */}
+                    <div className="absolute -right-2 -top-2 text-stone-50 font-black text-6xl pointer-events-none select-none">
+                      {type}
+                    </div>
+
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 h-8 bg-stone-800 text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md">
+                          {type[0]}
+                        </span>
+                        <div>
+                          <h2 className="text-sm font-bold text-stone-800">{type}</h2>
+                          <span className={`text-[8px] font-bold uppercase tracking-widest ${isDrawLocked[type] ? 'text-amber-500' : 'text-stone-400'}`}>
+                            {isDrawLocked[type] ? '● 已锁定' : '○ 待录入'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
                         <button 
+                          disabled={isDrawLocked[type]}
                           onClick={() => {
-                            const newDraw = [...drawNumbers];
-                            newDraw[idx] = '';
+                            const newDraw = { ...drawNumbers };
+                            newDraw[type] = Array(7).fill('');
                             setDrawNumbers(newDraw);
                           }}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                          className={`p-1.5 rounded-lg transition-all ${isDrawLocked[type] ? 'text-stone-100 cursor-not-allowed' : 'text-stone-300 hover:bg-stone-50 hover:text-stone-500'}`}
+                          title="重置"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                         </button>
-                      )}
+                        <button 
+                          onClick={() => {
+                            const newLocked = { ...isDrawLocked };
+                            newLocked[type] = !newLocked[type];
+                            setIsDrawLocked(newLocked);
+                          }}
+                          className={`px-4 py-1.5 rounded-lg transition-all text-xs font-bold flex items-center gap-1.5 shadow-sm ${isDrawLocked[type] ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-stone-800 text-white hover:bg-stone-900'}`}
+                        >
+                          {isDrawLocked[type] ? '解锁' : '锁定'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="h-8 flex items-center justify-center">
-                      <span className={`text-lg font-bold transition-all ${num ? 'text-stone-800 scale-110' : 'text-stone-200'}`}>
-                        {getZodiacFromNumber(num) || '—'}
-                      </span>
+
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div className="flex-grow grid grid-cols-6 gap-2">
+                        {drawNumbers[type].slice(0, 6).map((num, idx) => (
+                          <div key={idx} className="flex flex-col items-center gap-1">
+                            <div className="relative group w-10 h-10">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                readOnly={isDrawLocked[type]}
+                                value={num === '' ? '' : formatNumber(num)}
+                                onChange={(e) => {
+                                  if (isDrawLocked[type]) return;
+                                  const rawVal = e.target.value.replace(/\D/g, '');
+                                  const val = rawVal === '' ? '' : Number(rawVal);
+                                  if (val === '' || (val >= 1 && val <= 49)) {
+                                    const newDraw = { ...drawNumbers };
+                                    newDraw[type][idx] = val;
+                                    setDrawNumbers(newDraw);
+                                  }
+                                }}
+                                className={`
+                                  w-full h-full rounded-full border-2 text-center text-xs font-bold outline-none transition-all
+                                  ${num ? `${getNumberColor(num)} text-white shadow-md` : 'bg-stone-50 border-stone-100 text-stone-400 focus:border-stone-300'}
+                                  ${isDrawLocked[type] ? 'cursor-not-allowed opacity-80' : 'cursor-text'}
+                                `}
+                              />
+                            </div>
+                            <span className={`text-[10px] font-bold ${num ? 'text-stone-600' : 'text-stone-200'}`}>
+                              {getZodiacFromNumber(num) || '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="w-px h-12 bg-stone-100"></div>
+
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="relative group">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            readOnly={isDrawLocked[type]}
+                            value={drawNumbers[type][6] === '' ? '' : formatNumber(drawNumbers[type][6])}
+                            onChange={(e) => {
+                              if (isDrawLocked[type]) return;
+                              const rawVal = e.target.value.replace(/\D/g, '');
+                              const val = rawVal === '' ? '' : Number(rawVal);
+                              if (val === '' || (val >= 1 && val <= 49)) {
+                                const newDraw = { ...drawNumbers };
+                                newDraw[type][6] = val;
+                                setDrawNumbers(newDraw);
+                              }
+                            }}
+                            className={`
+                              w-16 h-16 rounded-full border-4 text-center text-xl font-black outline-none transition-all
+                              ${drawNumbers[type][6] ? `${getNumberColor(drawNumbers[type][6])} text-white shadow-lg` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
+                              ${isDrawLocked[type] ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
+                            `}
+                          />
+                        </div>
+                        <span className={`text-[12px] font-black ${drawNumbers[type][6] ? 'text-emerald-600' : 'text-stone-200'}`}>
+                          {getZodiacFromNumber(drawNumbers[type][6]) || '—'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Separator */}
-              <div className="w-px h-32 bg-stone-200 mx-2"></div>
-
-              {/* Special Number (7th / 特码) */}
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative group">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    readOnly={isDrawLocked}
-                    value={drawNumbers[6] === '' ? '' : formatNumber(drawNumbers[6])}
-                    onChange={(e) => {
-                      if (isDrawLocked) return;
-                      const rawVal = e.target.value.replace(/\D/g, '');
-                      const val = rawVal === '' ? '' : Number(rawVal);
-                      if (val === '' || (val >= 1 && val <= 49)) {
-                        const newDraw = [...drawNumbers];
-                        newDraw[6] = val;
-                        setDrawNumbers(newDraw);
-                      }
-                    }}
-                    className={`
-                      w-24 h-24 rounded-full border-4 text-center text-3xl font-black outline-none transition-all
-                      ${drawNumbers[6] ? `${getNumberColor(drawNumbers[6])} text-white shadow-xl rotate-3` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
-                      ${isDrawLocked ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
-                    `}
-                  />
-                  {drawNumbers[6] && !isDrawLocked && (
-                    <button 
-                      onClick={() => {
-                        const newDraw = [...drawNumbers];
-                        newDraw[6] = '';
-                        setDrawNumbers(newDraw);
-                      }}
-                      className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                  )}
-                </div>
-                <div className="h-8 flex items-center justify-center">
-                  <span className={`text-xl font-black transition-all ${drawNumbers[6] ? 'text-emerald-600 scale-125' : 'text-stone-200'}`}>
-                    {getZodiacFromNumber(drawNumbers[6]) || '—'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button 
-                disabled={isDrawLocked}
-                onClick={() => setDrawNumbers(Array(7).fill(''))}
-                className={`px-8 py-3 rounded-full transition-all text-sm font-bold flex items-center gap-2 ${isDrawLocked ? 'bg-stone-50 text-stone-300 cursor-not-allowed' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                重置开奖号码
-              </button>
-
-              <button 
-                onClick={() => setIsDrawLocked(!isDrawLocked)}
-                className={`px-8 py-3 rounded-full transition-all text-sm font-bold flex items-center gap-2 shadow-md ${isDrawLocked ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-stone-800 text-white hover:bg-stone-900'}`}
-              >
-                {isDrawLocked ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    解锁号码
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                    锁定号码
-                  </>
-                )}
-              </button>
             </div>
           </div>
         ) : (
@@ -1017,6 +1282,7 @@ export default function App() {
                 <thead>
                   <tr className="bg-stone-50 border-b border-stone-200">
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-20">序号</th>
+                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-24">彩种</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest">注单内容</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">总金额</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32 text-center">操作</th>
@@ -1027,6 +1293,9 @@ export default function App() {
                     <tr className="bg-stone-50/50">
                       <td className="px-6 py-4 text-sm font-mono text-stone-400 italic">
                         {confirmedBets.length + 1}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{selectedLotteryType}</span>
                       </td>
                       <td className="px-6 py-4">
                         <textarea
@@ -1069,24 +1338,91 @@ export default function App() {
                   {/* Today's Bets */}
                   {todayBets.length === 0 && !isAddingManual && pastBets.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
+                      <td colSpan={5} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
                     </tr>
                   ) : (
                     [...todayBets].reverse().map((order) => {
                       const originalIdx = confirmedBets.indexOf(order);
+                      const isEditing = editingIndex === originalIdx;
+
                       return (
                         <tr key={originalIdx} className="hover:bg-stone-50 transition-colors">
                           <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
-                          <td className="px-6 py-4 text-sm text-stone-700 whitespace-pre-wrap">{order.content}</td>
-                          <td className="px-6 py-4 text-sm font-bold text-emerald-600">¥ {order.total.toLocaleString()}</td>
+                          <td className="px-6 py-4">
+                            <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{order.lotteryType}</span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-stone-700 whitespace-pre-wrap">
+                            {isEditing ? (
+                              <textarea
+                                value={editingContent}
+                                onChange={(e) => setEditingContent(e.target.value)}
+                                className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none resize-none h-24"
+                              />
+                            ) : (
+                              renderHighlightedText(order.content, order.lotteryType)
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold text-emerald-600">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingTotal}
+                                onChange={(e) => setEditingTotal(e.target.value === '' ? '' : Number(e.target.value))}
+                                className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none"
+                              />
+                            ) : (
+                              `¥ ${order.total.toLocaleString()}`
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-center">
-                            <button 
-                              onClick={() => deleteConfirmedBet(originalIdx)}
-                              className="text-red-400 hover:text-red-600 transition-colors p-1"
-                              title="删除注单"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                            </button>
+                            <div className="flex flex-col gap-2 items-center">
+                              {isEditing ? (
+                                <>
+                                  <button 
+                                    onClick={() => {
+                                      const newBets = [...confirmedBets];
+                                      newBets[originalIdx] = {
+                                        ...newBets[originalIdx],
+                                        content: editingContent,
+                                        total: Number(editingTotal) || 0
+                                      };
+                                      setConfirmedBets(newBets);
+                                      setEditingIndex(null);
+                                    }}
+                                    className="w-full px-3 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600"
+                                  >
+                                    保存
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingIndex(null)}
+                                    className="w-full px-3 py-1 bg-stone-200 text-stone-600 rounded-lg text-[10px] font-bold hover:bg-stone-300"
+                                  >
+                                    取消
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingIndex(originalIdx);
+                                      setEditingContent(order.content);
+                                      setEditingTotal(order.total);
+                                    }}
+                                    className="text-stone-400 hover:text-stone-600 transition-colors p-1"
+                                    title="编辑注单"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                  </button>
+                                  <button 
+                                    onClick={() => deleteConfirmedBet(originalIdx)}
+                                    className="text-red-400 hover:text-red-600 transition-colors p-1"
+                                    title="删除注单"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1100,7 +1436,7 @@ export default function App() {
                         className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
                         onClick={() => setIsPastOrdersExpanded(!isPastOrdersExpanded)}
                       >
-                        <td colSpan={4} className="px-6 py-3">
+                        <td colSpan={5} className="px-6 py-3">
                           <div className="flex items-center gap-2 text-xs font-bold text-stone-400 uppercase tracking-widest">
                             <svg 
                               xmlns="http://www.w3.org/2000/svg" 
@@ -1119,7 +1455,12 @@ export default function App() {
                         return (
                           <tr key={originalIdx} className="bg-stone-50/30 hover:bg-stone-50 transition-colors opacity-75">
                             <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
-                            <td className="px-6 py-4 text-sm text-stone-500 whitespace-pre-wrap italic">{order.content}</td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs font-bold text-stone-300 bg-stone-50 px-2 py-1 rounded">{order.lotteryType}</span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-stone-500 whitespace-pre-wrap italic">
+                              {renderHighlightedText(order.content, order.lotteryType)}
+                            </td>
                             <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
                             <td className="px-6 py-4 text-center">
                               <button 
