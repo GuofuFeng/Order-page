@@ -6,47 +6,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
-
-const numbers = Array.from({ length: 49 }, (_, i) => i + 1);
-const zodiacs = ['马', '蛇', '龙', '兔', '虎', '牛', '鼠', '猪', '狗', '鸡', '猴', '羊'];
-const lotteryTypes = ['新澳', '老澳', '香港', 'cc', '老cc'];
-
-// Helper to convert Chinese numbers to Arabic numerals
-const chineseToNumber = (chStr: string): number => {
-  const chMap: Record<string, number> = {
-    '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
-    '壹': 1, '贰': 2, '叁': 3, '肆': 4, '伍': 5, '陆': 6, '柒': 7, '捌': 8, '玖': 9, '拾': 10,
-    '两': 2, '廿': 20, '卅': 30, '百': 100, '佰': 100, '千': 1000, '仟': 1000, '万': 10000
-  };
-  
-  if (!isNaN(Number(chStr))) return Number(chStr);
-  
-  let total = 0;
-  let temp = 0;
-  let lastUnit = 1;
-  
-  for (let i = 0; i < chStr.length; i++) {
-    const char = chStr[i];
-    const val = chMap[char];
-    
-    if (val === undefined) continue;
-    
-    if (val >= 10) {
-      if (temp === 0) temp = 1;
-      if (val > lastUnit) {
-        total = (total + temp) * val;
-        temp = 0;
-      } else {
-        total += temp * val;
-        temp = 0;
-      }
-      lastUnit = val;
-    } else {
-      temp = val;
-    }
-  }
-  return total + temp;
-};
+import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers } from './constants';
+import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
+import { parseBetInput, chineseToNumber } from './utils/betParser';
+import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount } from './utils/winningCalculator';
+import { BetOrder, ConfirmedBet } from './types';
 
 // Helper to get Beijing Date String (YYYY-MM-DD)
 const getBeijingDateString = (timestamp: number) => {
@@ -58,68 +22,77 @@ const getBeijingDateString = (timestamp: number) => {
   }).format(new Date(timestamp)).replace(/\//g, '-');
 };
 
-// Helper to format numbers as 01, 02, etc.
-const formatNumber = (num: number | string) => {
-  const n = typeof num === 'string' ? parseInt(num) : num;
-  if (isNaN(n)) return num.toString();
-  return n < 10 ? `0${n}` : n.toString();
-};
-
 // Helper to get color for a number
 const getNumberColor = (num: number | '') => {
-  if (num === '') return '';
-  const red = [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46];
-  const blue = [3, 4, 9, 10, 14, 15, 20, 25, 26, 31, 36, 37, 41, 42, 47, 48];
-  const green = [5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 43, 44, 49];
-  
-  if (red.includes(num as number)) return 'bg-red-500 border-red-500';
-  if (blue.includes(num as number)) return 'bg-blue-500 border-blue-500';
-  if (green.includes(num as number)) return 'bg-emerald-500 border-emerald-500';
-  return 'bg-stone-800 border-stone-800';
-};
-
-// Helper to get zodiac from number
-const getZodiacFromNumber = (num: number | '') => {
-  if (num === '' || num < 1 || num > 49) return '';
-  const index = (num - 1) % 12;
-  return zodiacs[index];
+  if (num === '') return { bg: 'bg-stone-100', text: 'text-stone-600', border: 'border-stone-200' };
+  if (redNumbers.includes(num as number)) return { bg: 'bg-red-500', text: 'text-red-500', border: 'border-red-500' };
+  if (blueNumbers.includes(num as number)) return { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500' };
+  if (greenNumbers.includes(num as number)) return { bg: 'bg-emerald-500', text: 'text-emerald-500', border: 'border-emerald-500' };
+  return { bg: 'bg-stone-800', text: 'text-stone-800', border: 'border-stone-800' };
 };
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('order');
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
   const [inputText, setInputText] = useState('');
-  const [pendingBets, setPendingBets] = useState<{
-    id: string;
-    text: string;
-    numberDeltas: Record<number, number>;
-    zodiacDeltas: Record<string, number>;
-    total: number;
-    lotteryType: string;
-  }[]>([]);
+  const [pendingBets, setPendingBets] = useState<BetOrder[]>(() => loadFromStorage('pendingBets', []));
   const [deletedBetsHistory, setDeletedBetsHistory] = useState<{
-    item: any;
+    item: BetOrder;
     index: number;
   }[]>([]);
   const [amount, setAmount] = useState<number | ''>('');
-  const [cumulativeAmounts, setCumulativeAmounts] = useState<Record<number, number>>({});
   const [textParsedBets, setTextParsedBets] = useState<Record<number, number>>({});
   const [textParsedZodiacBets, setTextParsedZodiacBets] = useState<Record<string, number>>({});
   
   const amountInputRef = useRef<HTMLInputElement>(null);
   
   const [zodiacBetAmounts, setZodiacBetAmounts] = useState<Record<string, number | ''>>({});
-  const [zodiacCumulativeAmounts, setZodiacCumulativeAmounts] = useState<Record<string, number>>({});
   
-  const [selectedLotteryType, setSelectedLotteryType] = useState<string>(lotteryTypes[0]);
+  const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
 
   // Final confirmed bets for the table
-  const [confirmedBets, setConfirmedBets] = useState<{ 
-    content: string; 
-    total: number; 
-    timestamp: number;
-    lotteryType: string;
-  }[]>([]);
+  const [confirmedBets, setConfirmedBets] = useState<ConfirmedBet[]>(() => loadFromStorage(STORAGE_KEYS.CONFIRMED_BETS, []));
+
+  const todayBeijing = useMemo(() => getBeijingDateString(Date.now()), []);
+
+  // Split bets into Today and Past
+  const todayBets = useMemo(() => confirmedBets.filter(o => getBeijingDateString(o.timestamp) === todayBeijing), [confirmedBets, todayBeijing]);
+  const pastBets = useMemo(() => confirmedBets.filter(o => getBeijingDateString(o.timestamp) !== todayBeijing), [confirmedBets, todayBeijing]);
+
+  // Group past bets by date
+  const groupedPastBets = useMemo(() => {
+    const groups: Record<string, ConfirmedBet[]> = {};
+    pastBets.forEach(bet => {
+      const date = getBeijingDateString(bet.timestamp);
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(bet);
+    });
+    return groups;
+  }, [pastBets]);
+
+  // DERIVED: Cumulative amounts from pending and today's confirmed bets
+  const cumulativeAmounts = useMemo(() => {
+    const totals: Record<number, number> = {};
+    const allTodayItems = [...pendingBets, ...todayBets.flatMap(b => b.items || [])];
+    allTodayItems.forEach(item => {
+      (Object.entries(item.numberDeltas) as [string, number][]).forEach(([num, amt]) => {
+        const n = Number(num);
+        totals[n] = (totals[n] || 0) + amt;
+      });
+    });
+    return totals;
+  }, [pendingBets, todayBets]);
+
+  const zodiacCumulativeAmounts = useMemo(() => {
+    const totals: Record<string, number> = {};
+    const allTodayItems = [...pendingBets, ...todayBets.flatMap(b => b.items || [])];
+    allTodayItems.forEach(item => {
+      (Object.entries(item.zodiacDeltas) as [string, number][]).forEach(([z, amt]) => {
+        totals[z] = (totals[z] || 0) + amt;
+      });
+    });
+    return totals;
+  }, [pendingBets, todayBets]);
 
   const currentPendingTotal = useMemo(() => pendingBets.reduce((sum, item) => sum + item.total, 0), [pendingBets]);
 
@@ -137,201 +110,80 @@ export default function App() {
   const [manualContent, setManualContent] = useState('');
   const [manualTotal, setManualTotal] = useState<number | ''>('');
 
-  // Folding state for past orders
-  const [isPastOrdersExpanded, setIsPastOrdersExpanded] = useState(false);
+  // Folding state for past orders (per date)
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+
+  const toggleDateExpansion = (date: string) => {
+    setExpandedDates(prev => ({ ...prev, [date]: !prev[date] }));
+  };
 
   // Editing state for confirmed bets
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingTotal, setEditingTotal] = useState<number | ''>('');
 
-  const [drawNumbers, setDrawNumbers] = useState<Record<string, (number | '')[]>>(
-    lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: Array(7).fill('') }), {})
+  const [drawNumbers, setDrawNumbers] = useState<Record<string, (number | '')[]>>(() => 
+    loadFromStorage(STORAGE_KEYS.DRAW_NUMBERS, lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: Array(7).fill('') }), {}))
   );
-  const [isDrawLocked, setIsDrawLocked] = useState<Record<string, boolean>>(
-    lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: false }), {})
+  const [isDrawLocked, setIsDrawLocked] = useState<Record<string, boolean>>(() => 
+    loadFromStorage(STORAGE_KEYS.IS_DRAW_LOCKED, lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: false }), {}))
   );
-
-  // Persistence: Load from localStorage on mount
-  useEffect(() => {
-    const savedBets = localStorage.getItem('confirmedBets');
-    const savedCumulative = localStorage.getItem('cumulativeAmounts');
-    const savedZodiacCumulative = localStorage.getItem('zodiacCumulativeAmounts');
-    const savedDrawNumbers = localStorage.getItem('drawNumbers');
-    const savedIsDrawLocked = localStorage.getItem('isDrawLocked');
-    const savedSelectedLotteryType = localStorage.getItem('selectedLotteryType');
-
-    if (savedBets) setConfirmedBets(JSON.parse(savedBets));
-    if (savedCumulative) setCumulativeAmounts(JSON.parse(savedCumulative));
-    if (savedZodiacCumulative) setZodiacCumulativeAmounts(JSON.parse(savedZodiacCumulative));
-    if (savedDrawNumbers) setDrawNumbers(JSON.parse(savedDrawNumbers));
-    if (savedIsDrawLocked) setIsDrawLocked(JSON.parse(savedIsDrawLocked));
-    if (savedSelectedLotteryType) setSelectedLotteryType(savedSelectedLotteryType);
-  }, []);
 
   // Persistence: Save to localStorage on change
   useEffect(() => {
-    localStorage.setItem('confirmedBets', JSON.stringify(confirmedBets));
+    saveToStorage(STORAGE_KEYS.CONFIRMED_BETS, confirmedBets);
   }, [confirmedBets]);
 
   useEffect(() => {
-    localStorage.setItem('cumulativeAmounts', JSON.stringify(cumulativeAmounts));
-  }, [cumulativeAmounts]);
+    saveToStorage('pendingBets', pendingBets);
+  }, [pendingBets]);
+
+  // Prevent accidental refresh if there are pending bets
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingBets.length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pendingBets]);
 
   useEffect(() => {
-    localStorage.setItem('zodiacCumulativeAmounts', JSON.stringify(zodiacCumulativeAmounts));
-  }, [zodiacCumulativeAmounts]);
-
-  useEffect(() => {
-    localStorage.setItem('drawNumbers', JSON.stringify(drawNumbers));
+    saveToStorage(STORAGE_KEYS.DRAW_NUMBERS, drawNumbers);
   }, [drawNumbers]);
 
   useEffect(() => {
-    localStorage.setItem('isDrawLocked', JSON.stringify(isDrawLocked));
+    saveToStorage(STORAGE_KEYS.IS_DRAW_LOCKED, isDrawLocked);
   }, [isDrawLocked]);
 
   useEffect(() => {
-    localStorage.setItem('selectedLotteryType', selectedLotteryType);
+    saveToStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, selectedLotteryType);
   }, [selectedLotteryType]);
-
-  const todayBeijing = useMemo(() => getBeijingDateString(Date.now()), []);
-
-  // Split bets into Today and Past
-  const todayBets = useMemo(() => confirmedBets.filter(o => getBeijingDateString(o.timestamp) === todayBeijing), [confirmedBets, todayBeijing]);
-  const pastBets = useMemo(() => confirmedBets.filter(o => getBeijingDateString(o.timestamp) !== todayBeijing), [confirmedBets, todayBeijing]);
 
 
   // Parsing logic for textarea input
   useEffect(() => {
-    const parseInput = () => {
-      // If text is empty, clear selections and amount
-      if (!inputText.trim()) {
-        setSelectedNumbers(new Set());
-        setAmount('');
-        setTextParsedBets({});
-        setTextParsedZodiacBets({});
-        return;
-      }
+    const { 
+      selectedNumbers: newSelected, 
+      parsedBets: newParsedBets, 
+      parsedZodiacBets: newParsedZodiacBets, 
+      lastAmount, 
+      anyPatternFound 
+    } = parseBetInput(inputText);
 
-      // Pre-process: replace "免" with "兔"
-      const processedText = inputText.replace(/免/g, '兔');
-
-      const newSelected = new Set<number>();
-      const newParsedBets: Record<number, number> = {};
-      const newParsedZodiacBets: Record<string, number> = {};
-      let lastAmount: number | '' = '';
-      let anyPatternFound = false;
-
-      // 1. "各" Pattern for numbers and zodiac-to-numbers
-      // Handles "各", "各号", and flexible symbols/spaces after "各"
-      const regexEach = /([^各\n]+)各(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[一二三四五六七八九十百千万]+)/g;
-      let match;
-
-      while ((match = regexEach.exec(processedText)) !== null) {
-        anyPatternFound = true;
-        const prefix = match[1];
-        const amtStr = match[2];
-        const parsedAmt = chineseToNumber(amtStr);
-        
-        const currentNums: number[] = [];
-
-        // Check for zodiac names in the prefix
-        zodiacs.forEach((z, idx) => {
-          if (prefix.includes(z)) {
-            for (let i = idx + 1; i <= 49; i += 12) {
-              currentNums.push(i);
-            }
-          }
-        });
-
-        // Check for numbers in the prefix
-        const numMatches = prefix.match(/\d+/g);
-        if (numMatches) {
-          numMatches.forEach(nStr => {
-            const n = parseInt(nStr);
-            if (!isNaN(n) && n >= 1 && n <= 49) {
-              currentNums.push(n);
-            }
-          });
-        }
-
-        if (!isNaN(parsedAmt) && parsedAmt > 0) {
-          lastAmount = parsedAmt;
-          currentNums.forEach(n => {
-            newSelected.add(n);
-            newParsedBets[n] = (newParsedBets[n] || 0) + parsedAmt;
-          });
-        }
-      }
-
-      // 2. "包" Pattern: "兔包100" or "包兔100" -> 100 divided by the number of numbers in that zodiac
-      const regexBao = /([马蛇龙兔虎牛鼠猪狗鸡猴羊])包(\d+|[一二三四五六七八九十百千万]+)|包(?:[\s\W\u4e00-\u9fa5]*?)([马蛇龙兔虎牛鼠猪狗鸡猴羊])(\d+|[一二三四五六七八九十百千万]+)/g;
-      while ((match = regexBao.exec(processedText)) !== null) {
-        anyPatternFound = true;
-        const zodiacName = match[1] || match[3];
-        const amtStr = match[2] || match[4];
-        const totalAmt = chineseToNumber(amtStr);
-        
-        if (!isNaN(totalAmt) && totalAmt > 0) {
-          const zodiacIdx = zodiacs.indexOf(zodiacName);
-          const zodiacNums: number[] = [];
-          for (let i = zodiacIdx + 1; i <= 49; i += 12) {
-            zodiacNums.push(i);
-          }
-          
-          const perNumAmt = Math.floor(totalAmt / zodiacNums.length);
-          zodiacNums.forEach(n => {
-            newSelected.add(n);
-            newParsedBets[n] = (newParsedBets[n] || 0) + perNumAmt;
-          });
-          lastAmount = perNumAmt;
-        }
-      }
-
-      // 3. "平" Pattern for direct zodiac betting
-      // Matches "平肖狗1000", "平狗1000", "狗平1000"
-      // New: "猪狗牛平各1000", "平猪狗牛各1000"
-      const regexPingMulti = /(?:平肖|平)?([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平肖|平)?各(\d+|[一二三四五六七八九十百千万]+)/g;
-      while ((match = regexPingMulti.exec(processedText)) !== null) {
-        anyPatternFound = true;
-        const zodiacNames = match[1];
-        const amtStr = match[2];
-        const parsedAmt = chineseToNumber(amtStr);
-        if (!isNaN(parsedAmt) && parsedAmt > 0) {
-          for (const zName of zodiacNames) {
-            if (zodiacs.includes(zName)) {
-              newParsedZodiacBets[zName] = (newParsedZodiacBets[zName] || 0) + parsedAmt;
-            }
-          }
-        }
-      }
-
-      const regexPingSingle = /(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊])(\d+|[一二三四五六七八九十百千万]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊])平(\d+|[一二三四五六七八九十百千万]+)/g;
-      while ((match = regexPingSingle.exec(processedText)) !== null) {
-        anyPatternFound = true;
-        const zodiacName = match[1] || match[3];
-        const amtStr = match[2] || match[4];
-        const parsedAmt = chineseToNumber(amtStr);
-        if (!isNaN(parsedAmt) && parsedAmt > 0) {
-          newParsedZodiacBets[zodiacName] = (newParsedZodiacBets[zodiacName] || 0) + parsedAmt;
-        }
-      }
-
-      // If we found at least one valid pattern, sync the UI to the text
-      if (anyPatternFound) {
-        setSelectedNumbers(newSelected);
-        setAmount(lastAmount);
-        setTextParsedBets(newParsedBets);
-        setTextParsedZodiacBets(newParsedZodiacBets);
-      } else {
-        setSelectedNumbers(new Set());
-        setAmount('');
-        setTextParsedBets({});
-        setTextParsedZodiacBets({});
-      }
-    };
-
-    parseInput();
+    if (anyPatternFound) {
+      setSelectedNumbers(newSelected);
+      setAmount(lastAmount);
+      setTextParsedBets(newParsedBets);
+      setTextParsedZodiacBets(newParsedZodiacBets);
+    } else {
+      setSelectedNumbers(new Set());
+      setAmount('');
+      setTextParsedBets({});
+      setTextParsedZodiacBets({});
+    }
   }, [inputText]);
 
   const toggleNumber = (num: number) => {
@@ -388,9 +240,7 @@ export default function App() {
 
   // Add to pending bets list
   const handleAddToPending = () => {
-    const itemsToAdd: typeof pendingBets = [];
-    const newCumulative = { ...cumulativeAmounts };
-    const newZodiacCumulative = { ...zodiacCumulativeAmounts };
+    const itemsToAdd: BetOrder[] = [];
     const newZodiacBetAmounts = { ...zodiacBetAmounts };
     
     let hasAction = false;
@@ -406,14 +256,12 @@ export default function App() {
         const num = parseInt(numStr);
         numberDeltas[num] = (numberDeltas[num] || 0) + amt;
         addedTotal += amt;
-        newCumulative[num] = (newCumulative[num] || 0) + amt;
       });
 
       // Process parsed zodiacs
       (Object.entries(textParsedZodiacBets) as [string, number][]).forEach(([z, amt]) => {
         zodiacDeltas[z] = (zodiacDeltas[z] || 0) + amt;
         addedTotal += amt;
-        newZodiacCumulative[z] = (newZodiacCumulative[z] || 0) + amt;
       });
 
       if (addedTotal > 0 || inputText.trim()) {
@@ -422,7 +270,9 @@ export default function App() {
           text: inputText.trim(),
           numberDeltas,
           zodiacDeltas,
-          total: addedTotal
+          total: addedTotal,
+          lotteryType: selectedLotteryType,
+          timestamp: Date.now()
         });
         hasAction = true;
       }
@@ -446,7 +296,6 @@ export default function App() {
           const amt = amount as number;
           numberDeltas[num] = amt;
           addedTotal += amt;
-          newCumulative[num] = (newCumulative[num] || 0) + amt;
         });
 
         const sortedNums = manualNums.sort((a, b) => a - b);
@@ -455,7 +304,9 @@ export default function App() {
           text: `${sortedNums.map(n => formatNumber(n)).join('，')}各号下单${amount}元`,
           numberDeltas,
           zodiacDeltas: {},
-          total: addedTotal
+          total: addedTotal,
+          lotteryType: selectedLotteryType,
+          timestamp: Date.now()
         });
         hasAction = true;
       }
@@ -476,7 +327,6 @@ export default function App() {
         if (parsedVal !== undefined) return; 
 
         const zodiacDeltas = { [z]: val as number };
-        newZodiacCumulative[z] = (newZodiacCumulative[z] || 0) + (val as number);
         newZodiacBetAmounts[z] = '';
         
         itemsToAdd.push({
@@ -484,7 +334,9 @@ export default function App() {
           text: `平肖${z}下单${val}元`,
           numberDeltas: {},
           zodiacDeltas,
-          total: val as number
+          total: val as number,
+          lotteryType: selectedLotteryType,
+          timestamp: Date.now()
         });
         hasAction = true;
       }
@@ -499,13 +351,10 @@ export default function App() {
       const lotteryPrefix = `【${selectedLotteryType}】`;
       const finalItemsToAdd = itemsToAdd.map(item => ({
         ...item,
-        text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`,
-        lotteryType: selectedLotteryType
+        text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`
       }));
       
       setPendingBets(prev => [...prev, ...finalItemsToAdd]);
-      setCumulativeAmounts(newCumulative);
-      setZodiacCumulativeAmounts(newZodiacCumulative);
       setZodiacBetAmounts(newZodiacBetAmounts);
       setSelectedNumbers(new Set());
       setAmount('');
@@ -522,21 +371,6 @@ export default function App() {
     if (index === -1) return;
 
     const itemToDelete = pendingBets[index];
-    
-    // Revert cumulative amounts
-    const newCumulative = { ...cumulativeAmounts };
-    Object.entries(itemToDelete.numberDeltas).forEach(([num, amt]) => {
-      newCumulative[Number(num)] = (newCumulative[Number(num)] || 0) - (amt as number);
-    });
-
-    const newZodiacCumulative = { ...zodiacCumulativeAmounts };
-    Object.entries(itemToDelete.zodiacDeltas).forEach(([z, amt]) => {
-      newZodiacCumulative[z] = (newZodiacCumulative[z] || 0) - (amt as number);
-    });
-
-    setCumulativeAmounts(newCumulative);
-    setZodiacCumulativeAmounts(newZodiacCumulative);
-    
     setPendingBets(prev => prev.filter(item => item.id !== id));
     setDeletedBetsHistory(prev => [...prev, { item: itemToDelete, index }]);
   };
@@ -547,24 +381,9 @@ export default function App() {
     const lastDeleted = deletedBetsHistory[deletedBetsHistory.length - 1];
     const itemToRestore = lastDeleted.item;
     
-    // Restore cumulative amounts
-    const newCumulative = { ...cumulativeAmounts };
-    Object.entries(itemToRestore.numberDeltas).forEach(([num, amt]) => {
-      newCumulative[Number(num)] = (newCumulative[Number(num)] || 0) + (amt as number);
-    });
-
-    const newZodiacCumulative = { ...zodiacCumulativeAmounts };
-    Object.entries(itemToRestore.zodiacDeltas).forEach(([z, amt]) => {
-      newZodiacCumulative[z] = (newZodiacCumulative[z] || 0) + (amt as number);
-    });
-
-    setCumulativeAmounts(newCumulative);
-    setZodiacCumulativeAmounts(newZodiacCumulative);
-
     const newPendingBets = [...pendingBets];
     newPendingBets.splice(lastDeleted.index, 0, itemToRestore);
     setPendingBets(newPendingBets);
-    
     setDeletedBetsHistory(prev => prev.slice(0, -1));
   };
 
@@ -575,16 +394,19 @@ export default function App() {
       return;
     }
     
+    // Add lottery type prefix to each line to ensure correct highlighting in the table
+    // Note: item.text already contains the prefix from handleAddToPending
     const finalContent = pendingBets.map(item => item.text).join('\n');
-    // Collect all unique lottery types from pendingBets
     const uniqueLotteryTypes = Array.from(new Set(pendingBets.map(item => item.lotteryType)));
-    const lotteryTypeDisplay = uniqueLotteryTypes.map(type => `【${type}】`).join('');
+    const lotteryTypeDisplay = uniqueLotteryTypes.join(' ');
     
     setConfirmedBets(prev => [...prev, { 
+      id: Math.random().toString(36).substr(2, 9),
       content: finalContent, 
       total: currentPendingTotal, 
       timestamp: Date.now(),
-      lotteryType: lotteryTypeDisplay
+      lotteryType: lotteryTypeDisplay,
+      items: [...pendingBets]
     }]);
     setPendingBets([]);
     setDeletedBetsHistory([]);
@@ -605,6 +427,7 @@ export default function App() {
       { header: '彩种', key: 'type', width: 15 },
       { header: '注单内容', key: 'content', width: 60 },
       { header: '总金额', key: 'total', width: 15 },
+      { header: '中奖金额', key: 'win', width: 15 },
       { header: '下单时间', key: 'time', width: 25 }
     ];
 
@@ -614,11 +437,17 @@ export default function App() {
 
     // Add data
     confirmedBets.forEach((order, index) => {
+      const totalWin = (order.items || []).reduce((sum, item) => {
+        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, drawNumbers[item.lotteryType]);
+        return sum + (win || 0);
+      }, 0);
+
       const row = worksheet.addRow({
         index: index + 1,
         type: order.lotteryType,
         content: '', // Will be set as rich text
         total: order.total,
+        win: totalWin > 0 ? totalWin : '',
         time: new Date(order.timestamp).toLocaleString()
       });
 
@@ -629,47 +458,92 @@ export default function App() {
 
       lines.forEach((line, lineIdx) => {
         let currentLotteryType = '';
-        const match = line.match(/^【(.+?)】/);
-        if (match) {
-          currentLotteryType = match[1];
-        } else if (order.lotteryType && !order.lotteryType.includes('】【')) {
-          currentLotteryType = order.lotteryType.replace(/[【】]/g, '');
+        const typeMatch = line.match(/【(.+?)】/);
+        if (typeMatch) {
+          currentLotteryType = typeMatch[1];
+        } else if (order.lotteryType && !order.lotteryType.includes(' ')) {
+          currentLotteryType = order.lotteryType;
         }
 
-        const draw = drawNumbers[currentLotteryType];
-        const locked = isDrawLocked[currentLotteryType];
+        const context = {
+          drawNumbers: currentLotteryType ? drawNumbers[currentLotteryType] : [],
+          isLocked: currentLotteryType ? isDrawLocked[currentLotteryType] : false
+        };
 
-        // Split line into parts to highlight
-        // We look for numbers 01-49 and zodiac names
-        const parts = line.split(/(\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])/);
+        // Split line into segments by "各" or "下单"
+        // We want to highlight only the parts BEFORE "各" or "下单"
+        const segments = line.split(/(各|下单)/);
         
-        parts.forEach(part => {
-          if (!part) return;
-          
-          let isWinner = false;
-          if (locked && draw) {
-            // Check if it's a number
-            if (/^\d{1,2}$/.test(part)) {
-              const n = parseInt(part);
-              if (draw.includes(n)) isWinner = true;
-            } 
-            // Check if it's a zodiac
-            else if (zodiacs.includes(part)) {
-              const winningZodiacs = draw.map(n => getZodiacFromNumber(n)).filter(Boolean);
-              if (winningZodiacs.includes(part)) isWinner = true;
-            }
+        segments.forEach((segment, segIdx) => {
+          if (segment === '各' || segment === '下单') {
+            richText.push({
+              text: segment,
+              font: { color: { argb: 'FF999999' } }
+            });
+            return;
           }
 
-          richText.push({
-            text: part,
-            font: isWinner ? { color: { argb: 'FFFF0000' }, bold: true } : {}
-          });
+          // If this segment follows a "各" or "下单", it's an amount part
+          const isAmountPart = segIdx > 0 && (segments[segIdx-1] === '各' || segments[segIdx-1] === '下单');
+          
+          if (isAmountPart) {
+            // Only highlight the first number/unit as the amount, the rest might be next bet
+            const amountMatch = segment.match(/^(\d+|[一二三四五六七八九十百千万]+(?:元|块)?)/);
+            if (amountMatch) {
+              const amountText = amountMatch[0];
+              const remainingText = segment.slice(amountText.length);
+              
+              richText.push({
+                text: amountText,
+                font: { color: { argb: 'FF999999' } }
+              });
+              
+              if (remainingText) {
+                // Process remaining text as normal bet content
+                processBetContent(remainingText, context, richText);
+              }
+            } else {
+              richText.push({ text: segment, font: { color: { argb: 'FF999999' } } });
+            }
+          } else {
+            processBetContent(segment, context, richText);
+          }
         });
 
         if (lineIdx < lines.length - 1) {
           richText.push({ text: '\n' });
         }
       });
+
+      function processBetContent(text: string, context: any, richText: any[]) {
+        const parts = text.split(/(\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])/);
+        const normalNums = context.drawNumbers.slice(0, 6);
+        const specialNum = context.drawNumbers[6];
+        const winningZodiacsNormal = normalNums.map((n: any) => getZodiacFromNumber(n as number)).filter(Boolean);
+        const winningZodiacSpecial = getZodiacFromNumber(specialNum as number);
+
+        parts.forEach(part => {
+          if (!part) return;
+          let color = null;
+          if (context.isLocked && context.drawNumbers.length >= 7) {
+            if (/^\d{1,2}$/.test(part)) {
+              if (parseInt(part) === specialNum) {
+                color = 'FFFF0000'; // Red
+              }
+            } else if (zodiacs.includes(part)) {
+              if (part === winningZodiacSpecial) {
+                color = 'FFFF0000'; // Red
+              } else if (winningZodiacsNormal.includes(part)) {
+                color = 'FF0000FF'; // Blue
+              }
+            }
+          }
+          richText.push({
+            text: part,
+            font: color ? { color: { argb: color }, bold: true } : {}
+          });
+        });
+      }
 
       contentCell.value = { richText };
       contentCell.alignment = { wrapText: true, vertical: 'top' };
@@ -702,11 +576,25 @@ export default function App() {
       alert('请填写注单内容和金额');
       return;
     }
+    
+    // Attempt to parse manual content for deltas
+    const { parsedBets, parsedZodiacBets } = parseBetInput(manualContent);
+
     setConfirmedBets(prev => [...prev, { 
+      id: Math.random().toString(36).substr(2, 9),
       content: manualContent, 
       total: Number(manualTotal), 
       timestamp: Date.now(),
-      lotteryType: selectedLotteryType
+      lotteryType: selectedLotteryType,
+      items: [{
+        id: Math.random().toString(36).substr(2, 9),
+        text: manualContent,
+        numberDeltas: parsedBets,
+        zodiacDeltas: parsedZodiacBets,
+        total: Number(manualTotal),
+        lotteryType: selectedLotteryType,
+        timestamp: Date.now()
+      }]
     }]);
     setManualContent('');
     setManualTotal('');
@@ -724,60 +612,91 @@ export default function App() {
     return lines.map((line, lineIdx) => {
       // Detect lottery type from prefix like 【新澳】
       let currentLotteryType = '';
-      const match = line.match(/^【(.+?)】/);
-      if (match) {
-        currentLotteryType = match[1];
+      const typeMatch = line.match(/【(.+?)】/);
+      if (typeMatch) {
+        currentLotteryType = typeMatch[1];
       } else if (fallbackLotteryType) {
-        // If fallbackLotteryType is something like "【新澳】", extract "新澳"
-        // If it's multiple like "【新澳】【香港】", we can't easily fallback, so we require prefix
-        if (!fallbackLotteryType.includes('】【')) {
-          currentLotteryType = fallbackLotteryType.replace(/[【】]/g, '');
+        if (!fallbackLotteryType.includes(' ')) {
+          currentLotteryType = fallbackLotteryType;
         }
       }
 
       // If no lottery type detected or it's not locked, return plain line
-      if (!currentLotteryType || !isDrawLocked[currentLotteryType]) {
+      const context = {
+        drawNumbers: currentLotteryType ? drawNumbers[currentLotteryType] : [],
+        isLocked: currentLotteryType ? isDrawLocked[currentLotteryType] : false
+      };
+
+      if (!currentLotteryType || !context.isLocked || context.drawNumbers.length < 7) {
         return <div key={lineIdx}>{line}</div>;
       }
 
-      const specialNum = drawNumbers[currentLotteryType][6];
-      const specialZodiac = getZodiacFromNumber(specialNum);
-
-      if (specialNum === '') return <div key={lineIdx}>{line}</div>;
-
-      // Split by "各" or "下单" to separate bet content from amount
-      let betPart = line;
-      let amountPart = '';
-      
-      if (line.includes('各')) {
-        const parts = line.split('各');
-        betPart = parts[0];
-        amountPart = '各' + parts.slice(1).join('各');
-      } else if (line.includes('下单')) {
-        const parts = line.split('下单');
-        betPart = parts[0];
-        amountPart = '下单' + parts.slice(1).join('下单');
-      }
-
-      // Highlight in betPart
-      const formattedSpecialNum = formatNumber(specialNum);
-      
-      // Use a regex to find numbers and zodiacs in the betPart
-      // We want to match the special number or special zodiac
-      const parts = betPart.split(new RegExp(`(${formattedSpecialNum}|${specialZodiac})`, 'g'));
+      // Split line into segments by "各" or "下单"
+      const segments = line.split(/(各|下单)/);
       
       return (
         <div key={lineIdx}>
-          {parts.map((part, partIdx) => {
-            if (part === formattedSpecialNum || part === specialZodiac) {
-              return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-2">{part}</span>;
+          {segments.map((segment, segIdx) => {
+            if (segment === '各' || segment === '下单') {
+              return <span key={segIdx} className="text-stone-300">{segment}</span>;
             }
-            return <span key={partIdx}>{part}</span>;
+
+            // If this segment follows a "各" or "下单", it's an amount part
+            const isAmountPart = segIdx > 0 && (segments[segIdx-1] === '各' || segments[segIdx-1] === '下单');
+            
+            if (isAmountPart) {
+              // Only highlight the first number/unit as the amount, the rest might be next bet
+              const amountMatch = segment.match(/^(\d+|[一二三四五六七八九十百千万]+(?:元|块)?)/);
+              if (amountMatch) {
+                const amountText = amountMatch[0];
+                const remainingText = segment.slice(amountText.length);
+                
+                return (
+                  <React.Fragment key={segIdx}>
+                    <span className="text-stone-300">{amountText}</span>
+                    {remainingText && renderBetContent(remainingText, context)}
+                  </React.Fragment>
+                );
+              } else {
+                return <span key={segIdx} className="text-stone-300">{segment}</span>;
+              }
+            } else {
+              return renderBetContent(segment, context);
+            }
           })}
-          <span className="text-stone-300">{amountPart}</span>
         </div>
       );
     });
+
+    function renderBetContent(text: string, context: any) {
+      const parts = text.split(/(\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])/);
+      const normalNums = context.drawNumbers.slice(0, 6);
+      const specialNum = context.drawNumbers[6];
+      const winningZodiacsNormal = normalNums.map((n: any) => getZodiacFromNumber(n as number)).filter(Boolean);
+      const winningZodiacSpecial = getZodiacFromNumber(specialNum as number);
+
+      return parts.map((part, partIdx) => {
+        if (!part) return null;
+        let highlightClass = "";
+        if (context.isLocked && context.drawNumbers.length >= 7) {
+          if (/^\d{1,2}$/.test(part)) {
+            if (parseInt(part) === specialNum) {
+              highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-2";
+            }
+          } else if (zodiacs.includes(part)) {
+            if (part === winningZodiacSpecial) {
+              highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-2";
+            } else if (winningZodiacsNormal.includes(part)) {
+              highlightClass = "text-blue-600 font-black underline decoration-2 underline-offset-2";
+            }
+          }
+        }
+        if (highlightClass) {
+          return <span key={partIdx} className={highlightClass}>{part}</span>;
+        }
+        return <span key={partIdx}>{part}</span>;
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -813,7 +732,7 @@ export default function App() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${currentPage === 'confirm' ? 'bg-stone-800 text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            注单确认页
+            注单页
             {confirmedBets.length > 0 && (
               <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{confirmedBets.length}</span>
             )}
@@ -832,7 +751,7 @@ export default function App() {
             <div className="flex-grow flex flex-col gap-6 min-w-0">
               <section className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0">
                 <div className="mb-4 flex items-center justify-between">
-                  <h1 className="text-xl font-light tracking-tight text-stone-800">数字下单区</h1>
+                  <h1 className="text-xl font-light tracking-tight text-stone-800">特码下单区</h1>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">彩种:</span>
                     <div className="flex gap-1 bg-stone-100 p-1 rounded-lg">
@@ -866,6 +785,7 @@ export default function App() {
                 <div className="grid grid-cols-12 gap-1.5 overflow-y-auto pr-1">
                   {numbers.map((num) => {
                     const pendingAmt = textParsedBets[num] || (selectedNumbers.has(num) ? amount : null);
+                    const colorClasses = getNumberColor(num);
                     return (
                       <motion.button
                         key={num}
@@ -874,10 +794,10 @@ export default function App() {
                         onClick={() => toggleNumber(num)}
                         id={`btn-num-${num}`}
                         className={`
-                          h-12 w-full flex flex-col items-center justify-center rounded-lg transition-colors relative
+                          h-12 w-full flex flex-col items-center justify-center rounded-lg transition-colors relative border-2
                           ${selectedNumbers.has(num) 
-                            ? 'bg-stone-800 text-white shadow-md' 
-                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}
+                            ? `${colorClasses.bg} text-white shadow-md ${colorClasses.border}` 
+                            : `bg-white text-stone-500 border-stone-100 hover:bg-stone-50`}
                         `}
                       >
                         {pendingAmt !== null && pendingAmt !== '' && (
@@ -926,6 +846,51 @@ export default function App() {
                         }`}
                       >
                         双
+                      </button>
+                    </div>
+
+                    <div className="flex bg-stone-100 p-1 rounded-full border border-stone-200 shadow-inner">
+                      <button
+                        onClick={() => {
+                          setSelectedNumbers(new Set(redNumbers));
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${
+                          selectedNumbers.size === redNumbers.length && 
+                          redNumbers.every(n => selectedNumbers.has(n))
+                          ? 'bg-red-500 text-white shadow-md'
+                          : 'text-red-400 hover:text-red-600'
+                        }`}
+                      >
+                        红
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedNumbers(new Set(greenNumbers));
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${
+                          selectedNumbers.size === greenNumbers.length && 
+                          greenNumbers.every(n => selectedNumbers.has(n))
+                          ? 'bg-emerald-500 text-white shadow-md'
+                          : 'text-emerald-400 hover:text-emerald-600'
+                        }`}
+                      >
+                        绿
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedNumbers(new Set(blueNumbers));
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${
+                          selectedNumbers.size === blueNumbers.length && 
+                          blueNumbers.every(n => selectedNumbers.has(n))
+                          ? 'bg-blue-500 text-white shadow-md'
+                          : 'text-blue-400 hover:text-blue-600'
+                        }`}
+                      >
+                        蓝
                       </button>
                     </div>
                     
@@ -1200,7 +1165,7 @@ export default function App() {
                                 }}
                                 className={`
                                   w-full h-full rounded-full border-2 text-center text-xs font-bold outline-none transition-all
-                                  ${num ? `${getNumberColor(num)} text-white shadow-md` : 'bg-stone-50 border-stone-100 text-stone-400 focus:border-stone-300'}
+                                  ${num ? `${getNumberColor(num).bg} ${getNumberColor(num).border} text-white shadow-md` : 'bg-stone-50 border-stone-100 text-stone-400 focus:border-stone-300'}
                                   ${isDrawLocked[type] ? 'cursor-not-allowed opacity-80' : 'cursor-text'}
                                 `}
                               />
@@ -1233,7 +1198,7 @@ export default function App() {
                             }}
                             className={`
                               w-16 h-16 rounded-full border-4 text-center text-xl font-black outline-none transition-all
-                              ${drawNumbers[type][6] ? `${getNumberColor(drawNumbers[type][6])} text-white shadow-lg` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
+                              ${drawNumbers[type][6] ? `${getNumberColor(drawNumbers[type][6]).bg} ${getNumberColor(drawNumbers[type][6]).border} text-white shadow-lg` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
                               ${isDrawLocked[type] ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
                             `}
                           />
@@ -1249,10 +1214,10 @@ export default function App() {
             </div>
           </div>
         ) : (
-          /* Betting Confirmation Page (注单确认页) */
-          <div className="flex-grow flex flex-col gap-6">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-stone-800">注单确认</h1>
+          /* Betting Confirmation Page (注单页) */
+          <div className="flex-grow flex flex-col gap-6 overflow-hidden">
+            <div className="flex justify-between items-center shrink-0">
+              <h1 className="text-2xl font-bold text-stone-800">注单页</h1>
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end mr-4">
                   <span className="text-[10px] text-stone-400 uppercase tracking-widest">下注总金额</span>
@@ -1277,14 +1242,15 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-y-auto flex-grow">
               <table className="w-full text-left border-collapse">
-                <thead>
+                <thead className="sticky top-0 bg-white z-10">
                   <tr className="bg-stone-50 border-b border-stone-200">
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-20">序号</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-24">彩种</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest">注单内容</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">总金额</th>
+                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">中奖金额</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32 text-center">操作</th>
                   </tr>
                 </thead>
@@ -1314,6 +1280,7 @@ export default function App() {
                           className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none"
                         />
                       </td>
+                      <td className="px-6 py-4"></td>
                       <td className="px-6 py-4 text-center space-y-2">
                         <button 
                           onClick={handleAddManualBet}
@@ -1338,7 +1305,7 @@ export default function App() {
                   {/* Today's Bets */}
                   {todayBets.length === 0 && !isAddingManual && pastBets.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
+                      <td colSpan={6} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
                     </tr>
                   ) : (
                     [...todayBets].reverse().map((order) => {
@@ -1373,6 +1340,15 @@ export default function App() {
                             ) : (
                               `¥ ${order.total.toLocaleString()}`
                             )}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-black text-red-600">
+                            {(() => {
+                              const totalWin = (order.items || []).reduce((sum, item) => {
+                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, drawNumbers[item.lotteryType]);
+                                return sum + (win || 0);
+                              }, 0);
+                              return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
+                            })()}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex flex-col gap-2 items-center">
@@ -1430,52 +1406,64 @@ export default function App() {
                   )}
 
                   {/* Past Bets Section */}
-                  {pastBets.length > 0 && (
-                    <>
-                      <tr 
-                        className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
-                        onClick={() => setIsPastOrdersExpanded(!isPastOrdersExpanded)}
-                      >
-                        <td colSpan={5} className="px-6 py-3">
-                          <div className="flex items-center gap-2 text-xs font-bold text-stone-400 uppercase tracking-widest">
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              width="14" height="14" 
-                              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                              className={`transition-transform duration-200 ${isPastOrdersExpanded ? 'rotate-180' : ''}`}
-                            >
-                              <polyline points="6 9 12 15 18 9"/>
-                            </svg>
-                            过往注单 ({pastBets.length})
-                          </div>
-                        </td>
-                      </tr>
-                      {isPastOrdersExpanded && [...pastBets].reverse().map((order) => {
-                        const originalIdx = confirmedBets.indexOf(order);
-                        return (
-                          <tr key={originalIdx} className="bg-stone-50/30 hover:bg-stone-50 transition-colors opacity-75">
-                            <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
-                            <td className="px-6 py-4">
-                              <span className="text-xs font-bold text-stone-300 bg-stone-50 px-2 py-1 rounded">{order.lotteryType}</span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-stone-500 whitespace-pre-wrap italic">
-                              {renderHighlightedText(order.content, order.lotteryType)}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-center">
-                              <button 
-                                onClick={() => deleteConfirmedBet(originalIdx)}
-                                className="text-stone-300 hover:text-red-400 transition-colors p-1"
-                                title="删除注单"
+                  {Object.entries(groupedPastBets).sort((a, b) => b[0].localeCompare(a[0])).map(([date, bets]) => {
+                    const typedBets = bets as ConfirmedBet[];
+                    return (
+                      <React.Fragment key={date}>
+                        <tr 
+                          className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
+                          onClick={() => toggleDateExpansion(date)}
+                        >
+                          <td colSpan={6} className="px-6 py-3">
+                            <div className="flex items-center gap-2 text-xs font-bold text-stone-400 uppercase tracking-widest">
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                width="14" height="14" 
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                className={`transition-transform duration-200 ${expandedDates[date] ? 'rotate-180' : ''}`}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </>
-                  )}
+                                <polyline points="6 9 12 15 18 9"/>
+                              </svg>
+                              往日订单 - {date} ({typedBets.length})
+                            </div>
+                          </td>
+                        </tr>
+                        {expandedDates[date] && [...typedBets].reverse().map((order) => {
+                          const originalIdx = confirmedBets.indexOf(order);
+                          return (
+                            <tr key={originalIdx} className="bg-stone-50/30 hover:bg-stone-50 transition-colors opacity-75">
+                              <td className="px-6 py-4 text-sm font-mono text-stone-400">{originalIdx + 1}</td>
+                              <td className="px-6 py-4">
+                                <span className="text-xs font-bold text-stone-300 bg-stone-50 px-2 py-1 rounded">{order.lotteryType}</span>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-stone-500 whitespace-pre-wrap italic">
+                                {renderHighlightedText(order.content, order.lotteryType)}
+                              </td>
+                              <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-sm font-black text-red-400">
+                                {(() => {
+                                  const totalWin = (order.items || []).reduce((sum, item) => {
+                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, drawNumbers[item.lotteryType]);
+                                    return sum + (win || 0);
+                                  }, 0);
+                                  return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
+                                })()}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <button 
+                                  onClick={() => deleteConfirmedBet(originalIdx)}
+                                  className="text-stone-300 hover:text-red-400 transition-colors p-1"
+                                  title="删除注单"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
