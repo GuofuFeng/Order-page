@@ -1,5 +1,5 @@
 {
-  "name": "Minimalist Number Grid",
-  "description": "A clean and minimalist web application featuring a selectable 1-49 number grid and input controls.",
+  "name": "数字订单管理系统",
+  "description": "一个功能齐全的数字订单管理系统，支持特码、平肖、平尾及连肖下单，具备自动识别重复投注、注单导出及开奖核对功能。",
   "requestFramePermissions": []
 }
