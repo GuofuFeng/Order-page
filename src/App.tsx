@@ -655,15 +655,17 @@ export default function App() {
       { header: '注单内容', key: 'content', width: 60 },
       { header: '总金额', key: 'total', width: 15 },
       { header: '中奖金额', key: 'win', width: 15 },
-      { header: '下单时间', key: 'time', width: 25 }
+      { header: '下单时间', key: 'time', width: 25 },
+      { header: 'RAW_DATA', key: 'rawData', width: 0, hidden: true } // Hidden column for import
     ];
 
     // Style header
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
-    // Add data
-    betsToExport.forEach((order, index) => {
+    // Add data - sort by timestamp ascending (oldest first) to match UI serial numbers 1, 2, 3...
+    const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
+    sortedBets.forEach((order, index) => {
       const totalWin = (order.items || []).reduce((sum, item) => {
         const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
         return sum + (win || 0);
@@ -675,7 +677,8 @@ export default function App() {
         content: '', // Will be set as rich text
         total: order.total,
         win: totalWin > 0 ? totalWin : '',
-        time: new Date(order.timestamp).toLocaleString()
+        time: new Date(order.timestamp).toLocaleString(),
+        rawData: JSON.stringify(order)
       });
 
       // Handle rich text for content (highlighting)
@@ -806,6 +809,54 @@ export default function App() {
     anchor.download = filename;
     anchor.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const buffer = event.target?.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.getWorksheet(1);
+        
+        const importedBets: ConfirmedBet[] = [];
+        
+        worksheet?.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header
+          
+          // Try to get rawData from column 7 (G)
+          const rawDataCell = row.getCell(7);
+          if (rawDataCell && rawDataCell.value) {
+            try {
+              const bet = JSON.parse(rawDataCell.value.toString()) as ConfirmedBet;
+              // Generate new ID to avoid collisions if importing same file multiple times
+              bet.id = Math.random().toString(36).substr(2, 9);
+              importedBets.push(bet);
+            } catch (err) {
+              console.error('Failed to parse rawData for row', rowNumber, err);
+            }
+          }
+        });
+
+        if (importedBets.length > 0) {
+          setConfirmedBets(prev => [...prev, ...importedBets]);
+          alert(`成功导入 ${importedBets.length} 条注单`);
+        } else {
+          alert('未发现可导入的注单数据，请确保使用本系统生成的Excel文件。');
+        }
+      } catch (err) {
+        console.error('Import failed:', err);
+        alert('导入失败，请检查文件格式。');
+      } finally {
+        // Reset input
+        e.target.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleAddManualBet = () => {
@@ -1689,6 +1740,16 @@ export default function App() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   生成Excel
                 </button>
+                <label className="px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 transition-all font-bold text-sm flex items-center gap-2 cursor-pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  导入Excel
+                  <input
+                    type="file"
+                    accept=".xlsx"
+                    className="hidden"
+                    onChange={handleImportExcel}
+                  />
+                </label>
               </div>
             </div>
 
