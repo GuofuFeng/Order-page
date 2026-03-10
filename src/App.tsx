@@ -687,7 +687,7 @@ export default function App() {
 
       // Style other cells to match UI
       row.getCell('type').font = { bold: true, color: { argb: 'FF78716C' } }; // stone-500
-      row.getCell('total').font = { bold: true, color: { argb: 'FF059669' } }; // emerald-600
+      row.getCell('total').font = { bold: true, color: { argb: 'FF1C1917' } }; // stone-900
       row.getCell('index').font = { color: { argb: 'FFA8A29E' } }; // stone-400
       row.getCell('time').font = { color: { argb: 'FFA8A29E' } }; // stone-400
 
@@ -756,65 +756,74 @@ export default function App() {
       });
 
       function processBetContent(text: string, context: any, richText: any[]) {
-        // Updated regex to also capture "平尾" patterns and multi-digit numbers for highlighting, plus parity/size/color
-        const parts = text.split(/(平?\d尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝)/);
+        // Updated regex to capture multi-digit tails like "246尾"
+        const parts = text.split(/(平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝)/);
         const drawNums = context.drawNumbers || [];
         const normalNums = drawNums.slice(0, 6);
         const specialNum = drawNums[6];
         const winningZodiacsNormal = normalNums.map((n: any) => getZodiacFromNumber(n as number)).filter(Boolean);
         const winningZodiacSpecial = getZodiacFromNumber(specialNum as number);
         const winningTails = drawNums.map((n: any) => (n === '' ? -1 : (n as number) % 10)).filter((t: number) => t !== -1);
+        const specialTail = specialNum !== '' ? (specialNum as number) % 10 : -1;
 
         parts.forEach(part => {
           if (!part) return;
-          let color = null;
-          let isBold = false;
-          let isUnderline = false;
-
+          
           if (context.isLocked && context.drawNumbers.length >= 7) {
             if (/^\d{1,2}$/.test(part)) {
               const num = parseInt(part);
               if (num === specialNum) {
-                color = 'FFFF0000'; // Red
-                isBold = true;
-                isUnderline = true;
+                richText.push({ text: part, font: { color: { argb: 'FFFF0000' }, bold: true, underline: true } });
               } else if (normalNums.includes(num)) {
-                color = 'FF0000FF'; // Blue
-                isBold = true;
-                isUnderline = true;
+                richText.push({ text: part, font: { color: { argb: 'FF0000FF' }, bold: true, underline: true } });
+              } else {
+                richText.push({ text: part });
               }
             } else if (part.endsWith('尾')) {
-              const tailMatch = part.match(/(\d)尾/);
+              const tailMatch = part.match(/(\d+)尾/);
               if (tailMatch) {
-                const tail = parseInt(tailMatch[1]);
-                if (winningTails.includes(tail)) {
-                  color = 'FF0000FF'; // Blue
-                  isBold = true;
-                  isUnderline = true;
-                }
+                const tailDigits = tailMatch[1].split('');
+                const isFlat = part.startsWith('平');
+                
+                if (isFlat) richText.push({ text: '平' });
+                
+                tailDigits.forEach(digit => {
+                  const d = parseInt(digit);
+                  const isWinning = isFlat ? winningTails.includes(d) : d === specialTail;
+                  richText.push({
+                    text: digit,
+                    font: isWinning ? { color: { argb: isFlat ? 'FF0000FF' : 'FFFF0000' }, bold: true, underline: true } : undefined
+                  });
+                });
+                
+                const isTailWinning = isFlat ? winningTails.some(d => tailDigits.includes(d.toString())) : tailDigits.includes(specialTail.toString());
+                richText.push({
+                  text: '尾',
+                  font: isTailWinning ? { color: { argb: isFlat ? 'FF0000FF' : 'FFFF0000' }, bold: true, underline: true } : undefined
+                });
+              } else {
+                richText.push({ text: part });
               }
             } else if (zodiacs.includes(part)) {
               if (part === winningZodiacSpecial) {
-                color = 'FFFF0000'; // Red
-                isBold = true;
-                isUnderline = true;
+                richText.push({ text: part, font: { color: { argb: 'FFFF0000' }, bold: true, underline: true } });
               } else if (winningZodiacsNormal.includes(part)) {
-                color = 'FF0000FF'; // Blue
-                isBold = true;
-                isUnderline = true;
+                richText.push({ text: part, font: { color: { argb: 'FF0000FF' }, bold: true, underline: true } });
+              } else {
+                richText.push({ text: part });
               }
             } else if (['单', '双', '大', '小', '红', '绿', '蓝'].includes(part)) {
               if (checkIsWinner(part, context)) {
-                color = 'FFFF0000'; // Red
-                isBold = true;
-                isUnderline = true;
+                richText.push({ text: part, font: { color: { argb: 'FFFF0000' }, bold: true, underline: true } });
+              } else {
+                richText.push({ text: part });
               }
+            } else {
+              richText.push({ text: part });
             }
+          } else {
+            richText.push({ text: part });
           }
-          richText.push({
-            text: part,
-            font: color ? { color: { argb: color }, bold: isBold, underline: isUnderline } : {}
-          });
         });
       }
 
@@ -830,7 +839,7 @@ export default function App() {
     const summaryRow = worksheet.lastRow;
     if (summaryRow) {
       summaryRow.getCell(1).font = { bold: true };
-      summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF008000' } };
+      summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF1C1917' } };
     }
 
     // Generate and download
@@ -903,24 +912,20 @@ export default function App() {
         }
       }
 
-      // If no lottery type detected or it's not locked, return plain line
       const context = {
         drawNumbers: currentLotteryType ? drawNumbers[currentLotteryType] : [],
         isLocked: currentLotteryType ? isDrawLocked[currentLotteryType] : false
       };
 
-      if (!currentLotteryType || !context.isLocked || context.drawNumbers.length < 7) {
-        return <div key={lineIdx}>{line}</div>;
-      }
-
       // Split line into segments by "各" or "下单"
+      // We always split to ensure amounts are gray, even if not locked
       const segments = line.split(/(各|下单)/);
       
       return (
-        <div key={lineIdx}>
+        <div key={lineIdx} className="flex flex-wrap items-center gap-x-0.5">
           {segments.map((segment, segIdx) => {
             if (segment === '各' || segment === '下单') {
-              return <span key={segIdx} className="text-stone-300">{segment}</span>;
+              return <span key={segIdx} className="text-stone-400 font-medium">{segment}</span>;
             }
 
             // If this segment follows a "各" or "下单", it's an amount part
@@ -935,15 +940,15 @@ export default function App() {
                 
                 return (
                   <React.Fragment key={segIdx}>
-                    <span className="text-stone-300">{amountText}</span>
+                    <span className="text-stone-400 font-bold">{amountText}</span>
                     {remainingText && renderBetContent(remainingText, context)}
                   </React.Fragment>
                 );
               } else {
-                return <span key={segIdx} className="text-stone-300">{segment}</span>;
+                return <span key={segIdx} className="text-stone-400 font-medium">{segment}</span>;
               }
             } else {
-              return renderBetContent(segment, context);
+              return <React.Fragment key={segIdx}>{renderBetContent(segment, context)}</React.Fragment>;
             }
           })}
         </div>
@@ -951,48 +956,65 @@ export default function App() {
     });
 
     function renderBetContent(text: string, context: any) {
-      // Updated regex to also capture "平尾" patterns and multi-digit numbers for highlighting, plus parity/size/color
-      const parts = text.split(/(平?\d尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝)/);
+      // Updated regex to capture multi-digit tails like "246尾"
+      const parts = text.split(/(平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
       const winningZodiacsNormal = normalNums.map((n: any) => getZodiacFromNumber(n as number)).filter(Boolean);
       const winningZodiacSpecial = getZodiacFromNumber(specialNum as number);
       const winningTails = drawNums.map((n: any) => (n === '' ? -1 : (n as number) % 10)).filter((t: number) => t !== -1);
+      const specialTail = specialNum !== '' ? (specialNum as number) % 10 : -1;
 
       return parts.map((part, partIdx) => {
         if (!part) return null;
-        let highlightClass = "";
+        
         if (context.isLocked && drawNums.length >= 7) {
           if (/^\d{1,2}$/.test(part)) {
             const num = parseInt(part);
             if (num === specialNum) {
-              highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
+              return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
             } else if (normalNums.includes(num)) {
-              highlightClass = "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded";
+              return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
             }
           } else if (part.endsWith('尾')) {
-            const tailMatch = part.match(/(\d)尾/);
+            const tailMatch = part.match(/(\d+)尾/);
             if (tailMatch) {
-              const tail = parseInt(tailMatch[1]);
-              if (winningTails.includes(tail)) {
-                highlightClass = "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded";
-              }
+              const tailDigits = tailMatch[1].split('');
+              const isFlat = part.startsWith('平');
+              
+              return (
+                <span key={partIdx} className="inline-flex items-center">
+                  {isFlat && <span>平</span>}
+                  {tailDigits.map((digit, dIdx) => {
+                    const d = parseInt(digit);
+                    const isWinning = isFlat ? winningTails.includes(d) : d === specialTail;
+                    return (
+                      <span 
+                        key={dIdx} 
+                        className={isWinning ? (isFlat ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded") : ""}
+                      >
+                        {digit}
+                      </span>
+                    );
+                  })}
+                  <span className={(isFlat ? winningTails.some(d => tailDigits.includes(d.toString())) : tailDigits.includes(specialTail.toString())) ? (isFlat ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded") : ""}>
+                    尾
+                  </span>
+                </span>
+              );
             }
           } else if (zodiacs.includes(part)) {
             if (part === winningZodiacSpecial) {
-              highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
+              return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
             } else if (winningZodiacsNormal.includes(part)) {
-              highlightClass = "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded";
+              return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
             }
           } else if (['单', '双', '大', '小', '红', '绿', '蓝'].includes(part)) {
             if (checkIsWinner(part, context)) {
-              highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
+              return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
             }
           }
-        }
-        if (highlightClass) {
-          return <span key={partIdx} className={highlightClass}>{part}</span>;
         }
         return <span key={partIdx}>{part}</span>;
       });
@@ -1006,12 +1028,12 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen bg-stone-50 text-stone-900 font-sans flex flex-col overflow-hidden">
+    <div className="h-screen bg-stone-50 text-stone-950 font-sans flex flex-col overflow-hidden">
       {/* 1. Header Navigation (Top Section) */}
       <header className="bg-white border-b border-stone-200 flex items-center justify-between px-6 py-2 shrink-0">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-stone-800 tracking-tight">系统管理</h2>
+            <h2 className="text-lg font-bold text-stone-950 tracking-tight">系统管理</h2>
             <div className="h-4 w-px bg-stone-200"></div>
             <nav className="flex items-center gap-1">
               <button 
@@ -1048,7 +1070,7 @@ export default function App() {
                 <button
                   key={type}
                   onClick={() => setSelectedLotteryType(type)}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-800 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-950 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
                 >
                   {type}
                 </button>
@@ -1395,7 +1417,7 @@ export default function App() {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between px-1">
                       <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
-                      <span className="text-xs font-black text-emerald-600">¥ {currentPendingTotal.toLocaleString()}</span>
+                      <span className="text-xs font-black text-stone-950">¥ {currentPendingTotal.toLocaleString()}</span>
                     </div>
 
                     <button
@@ -1583,7 +1605,7 @@ export default function App() {
           /* Draw Page (开奖页) */
           <div className="flex-grow flex flex-col gap-4 overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
-              <h1 className="text-xl font-bold text-stone-800">开奖号码设置</h1>
+              <h1 className="text-xl font-bold text-stone-950">开奖号码设置</h1>
               <p className="text-stone-400 text-xs">锁定号码后，注单确认页将自动高亮对应彩种的中奖号码</p>
             </div>
 
@@ -1598,11 +1620,11 @@ export default function App() {
 
                     <div className="flex items-center justify-between relative z-10">
                       <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 bg-stone-800 text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md">
+                        <span className="w-8 h-8 bg-stone-950 text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md">
                           {type[0]}
                         </span>
                         <div>
-                          <h2 className="text-sm font-bold text-stone-800">{type}</h2>
+                          <h2 className="text-sm font-bold text-stone-950">{type}</h2>
                           <span className={`text-[8px] font-bold uppercase tracking-widest ${isDrawLocked[type] ? 'text-amber-500' : 'text-stone-400'}`}>
                             {isDrawLocked[type] ? '● 已锁定' : '○ 待录入'}
                           </span>
@@ -1636,10 +1658,10 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-4 relative z-10">
-                      <div className="flex-grow grid grid-cols-6 gap-2">
+                      <div className="flex-grow grid grid-cols-6 gap-3">
                         {drawNumbers[type].slice(0, 6).map((num, idx) => (
-                          <div key={idx} className="flex flex-col items-center gap-1">
-                            <div className="relative group w-10 h-10">
+                          <div key={idx} className="flex flex-col items-center gap-2">
+                            <div className="relative group w-16 h-16">
                               <input
                                 type="text"
                                 inputMode="numeric"
@@ -1656,23 +1678,23 @@ export default function App() {
                                   }
                                 }}
                                 className={`
-                                  w-full h-full rounded-full border-2 text-center text-xs font-bold outline-none transition-all
+                                  w-full h-full rounded-full border-4 text-center text-xl font-black outline-none transition-all
                                   ${num ? `${getNumberColor(num).bg} ${getNumberColor(num).border} text-white shadow-md` : 'bg-stone-50 border-stone-100 text-stone-400 focus:border-stone-300'}
                                   ${isDrawLocked[type] ? 'cursor-not-allowed opacity-80' : 'cursor-text'}
                                 `}
                               />
                             </div>
-                            <span className={`text-[10px] font-bold ${num ? 'text-stone-600' : 'text-stone-200'}`}>
+                            <span className={`text-sm font-black ${num ? 'text-stone-700' : 'text-stone-200'}`}>
                               {getZodiacFromNumber(num) || '—'}
                             </span>
                           </div>
                         ))}
                       </div>
 
-                      <div className="w-px h-12 bg-stone-100"></div>
+                      <div className="w-0.5 h-16 bg-stone-300 shadow-sm"></div>
 
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="relative group">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="relative group w-16 h-16">
                           <input
                             type="text"
                             inputMode="numeric"
@@ -1689,13 +1711,13 @@ export default function App() {
                               }
                             }}
                             className={`
-                              w-16 h-16 rounded-full border-4 text-center text-xl font-black outline-none transition-all
+                              w-full h-full rounded-full border-4 text-center text-xl font-black outline-none transition-all
                               ${drawNumbers[type][6] ? `${getNumberColor(drawNumbers[type][6]).bg} ${getNumberColor(drawNumbers[type][6]).border} text-white shadow-lg` : 'bg-stone-50 border-stone-200 text-stone-400 focus:border-stone-400'}
                               ${isDrawLocked[type] ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
                             `}
                           />
                         </div>
-                        <span className={`text-[12px] font-black ${drawNumbers[type][6] ? 'text-emerald-600' : 'text-stone-200'}`}>
+                        <span className={`text-sm font-black ${drawNumbers[type][6] ? 'text-emerald-600' : 'text-stone-200'}`}>
                           {getZodiacFromNumber(drawNumbers[type][6]) || '—'}
                         </span>
                       </div>
@@ -1709,7 +1731,7 @@ export default function App() {
           /* Betting Confirmation Page (注单页) */
           <div className="flex-grow flex flex-col gap-6 overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
-              <h1 className="text-2xl font-bold text-stone-800">注单页</h1>
+              <h1 className="text-2xl font-bold text-stone-950">注单页</h1>
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end mr-4">
                   <span className="text-[10px] text-stone-400 uppercase tracking-widest">当日下注总金额</span>
@@ -1807,7 +1829,7 @@ export default function App() {
                     >
                       <td colSpan={6} className="px-6 py-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs font-bold text-stone-800 uppercase tracking-widest">
+                          <div className="flex items-center gap-2 text-xs font-bold text-stone-950 uppercase tracking-widest">
                             <svg 
                               xmlns="http://www.w3.org/2000/svg" 
                               width="14" height="14" 
@@ -1844,7 +1866,7 @@ export default function App() {
                               renderHighlightedText(order.content, order.lotteryType)
                             )}
                           </td>
-                          <td className="px-6 py-4 text-sm font-bold text-emerald-600">
+                          <td className="px-6 py-4 text-sm font-bold text-stone-950">
                             {isEditing ? (
                               <input
                                 type="number"

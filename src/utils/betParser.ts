@@ -99,8 +99,8 @@ export const parseBetInput = (inputText: string): ParsedInput => {
       }
     }
     
-    // Direct numbers
-    const numMatches = prefix.match(/\d+/g);
+    // Direct numbers (exclude numbers followed by "尾")
+    const numMatches = prefix.replace(/\d+尾/g, '').match(/\d+/g);
     if (numMatches) {
       hasNumbers = true;
       numMatches.forEach(nStr => {
