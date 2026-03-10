@@ -679,6 +679,18 @@ export default function App() {
         time: new Date(order.timestamp).toLocaleString()
       });
 
+      // Style win cell if there's a win
+      if (totalWin > 0) {
+        const winCell = row.getCell('win');
+        winCell.font = { bold: true, color: { argb: 'FFFF0000' } };
+      }
+
+      // Style other cells to match UI
+      row.getCell('type').font = { bold: true, color: { argb: 'FF78716C' } }; // stone-500
+      row.getCell('total').font = { bold: true, color: { argb: 'FF059669' } }; // emerald-600
+      row.getCell('index').font = { color: { argb: 'FFA8A29E' } }; // stone-400
+      row.getCell('time').font = { color: { argb: 'FFA8A29E' } }; // stone-400
+
       // Handle rich text for content (highlighting)
       const contentCell = row.getCell('content');
       const lines = order.content.split('\n');
@@ -744,7 +756,8 @@ export default function App() {
       });
 
       function processBetContent(text: string, context: any, richText: any[]) {
-        const parts = text.split(/(平?\d尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])/);
+        // Updated regex to also capture "平尾" patterns and multi-digit numbers for highlighting, plus parity/size/color
+        const parts = text.split(/(平?\d尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝)/);
         const drawNums = context.drawNumbers || [];
         const normalNums = drawNums.slice(0, 6);
         const specialNum = drawNums[6];
@@ -755,10 +768,20 @@ export default function App() {
         parts.forEach(part => {
           if (!part) return;
           let color = null;
+          let isBold = false;
+          let isUnderline = false;
+
           if (context.isLocked && context.drawNumbers.length >= 7) {
             if (/^\d{1,2}$/.test(part)) {
-              if (parseInt(part) === specialNum) {
+              const num = parseInt(part);
+              if (num === specialNum) {
                 color = 'FFFF0000'; // Red
+                isBold = true;
+                isUnderline = true;
+              } else if (normalNums.includes(num)) {
+                color = 'FF0000FF'; // Blue
+                isBold = true;
+                isUnderline = true;
               }
             } else if (part.endsWith('尾')) {
               const tailMatch = part.match(/(\d)尾/);
@@ -766,19 +789,31 @@ export default function App() {
                 const tail = parseInt(tailMatch[1]);
                 if (winningTails.includes(tail)) {
                   color = 'FF0000FF'; // Blue
+                  isBold = true;
+                  isUnderline = true;
                 }
               }
             } else if (zodiacs.includes(part)) {
               if (part === winningZodiacSpecial) {
                 color = 'FFFF0000'; // Red
+                isBold = true;
+                isUnderline = true;
               } else if (winningZodiacsNormal.includes(part)) {
                 color = 'FF0000FF'; // Blue
+                isBold = true;
+                isUnderline = true;
+              }
+            } else if (['单', '双', '大', '小', '红', '绿', '蓝'].includes(part)) {
+              if (checkIsWinner(part, context)) {
+                color = 'FFFF0000'; // Red
+                isBold = true;
+                isUnderline = true;
               }
             }
           }
           richText.push({
             text: part,
-            font: color ? { color: { argb: color }, bold: true } : {}
+            font: color ? { color: { argb: color }, bold: isBold, underline: isUnderline } : {}
           });
         });
       }
@@ -916,8 +951,8 @@ export default function App() {
     });
 
     function renderBetContent(text: string, context: any) {
-      // Updated regex to also capture "平尾" patterns and multi-digit numbers for highlighting
-      const parts = text.split(/(平?\d尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])/);
+      // Updated regex to also capture "平尾" patterns and multi-digit numbers for highlighting, plus parity/size/color
+      const parts = text.split(/(平?\d尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -949,6 +984,10 @@ export default function App() {
               highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
             } else if (winningZodiacsNormal.includes(part)) {
               highlightClass = "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded";
+            }
+          } else if (['单', '双', '大', '小', '红', '绿', '蓝'].includes(part)) {
+            if (checkIsWinner(part, context)) {
+              highlightClass = "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
             }
           }
         }
@@ -1338,7 +1377,9 @@ export default function App() {
                     ) : (
                       pendingBets.map((item) => (
                         <div key={item.id} className="group flex items-start justify-between gap-1.5 p-1.5 bg-white rounded-lg shadow-sm border border-stone-100 hover:border-stone-300 transition-all">
-                          <span className="text-stone-600 font-mono text-[10px] leading-relaxed whitespace-pre-wrap flex-grow">{item.text}</span>
+                          <span className="text-stone-600 font-mono text-[10px] leading-relaxed whitespace-pre-wrap flex-grow">
+                            {renderHighlightedText(item.text, item.lotteryType)}
+                          </span>
                           <button 
                             onClick={() => deletePendingBet(item.id)}
                             className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all shrink-0"

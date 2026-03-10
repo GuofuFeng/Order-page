@@ -1,4 +1,4 @@
-import { zodiacs } from '../constants';
+import { zodiacs, redNumbers, blueNumbers, greenNumbers } from '../constants';
 import { MultiZodiacBet } from '../types';
 
 export const getZodiacFromNumber = (num: number | '') => {
@@ -37,6 +37,19 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
     const winningZodiacs = drawNumbers.map(n => getZodiacFromNumber(n)).filter(Boolean);
     return winningZodiacs.includes(part);
   }
+
+  // Check for Color, Size, Parity (Special Number only)
+  if (drawNumbers[6] === '') return false;
+  const specialNum = drawNumbers[6] as number;
+  
+  if (part === '单') return specialNum % 2 !== 0;
+  if (part === '双') return specialNum % 2 === 0;
+  if (part === '大') return specialNum >= 25 && specialNum <= 49;
+  if (part === '小') return specialNum >= 1 && specialNum <= 24;
+  
+  if (part === '红') return redNumbers.includes(specialNum);
+  if (part === '蓝') return blueNumbers.includes(specialNum);
+  if (part === '绿') return greenNumbers.includes(specialNum);
 
   return false;
 };
