@@ -60,6 +60,7 @@ export const calculateWinAmount = (
   tailDeltas: Record<number, number> = {},
   multiZodiacDeltas: MultiZodiacBet[] = [],
   sixZodiacDeltas: MultiZodiacBet[] = [],
+  fiveZodiacDeltas: MultiZodiacBet[] = [],
   fourZodiacDeltas: MultiZodiacBet[] = [],
   drawNumbers: (number | '')[]
 ): number | null => {
@@ -133,6 +134,16 @@ export const calculateWinAmount = (
     });
   }
 
+  // 5.5 Five-Zodiac (五中/五肖) calculation: 2.4x multiplier if special zodiac is in the set
+  if (fiveZodiacDeltas) {
+    fiveZodiacDeltas.forEach(bet => {
+      if (bet.zodiacs.includes(specialZodiac)) {
+        totalWin += bet.amount * 2.4;
+        hasWin = true;
+      }
+    });
+  }
+
   // 6. Four-Zodiac (四中/四肖) calculation: 2.8x multiplier if special zodiac is in the set
   if (fourZodiacDeltas) {
     fourZodiacDeltas.forEach(bet => {
@@ -144,6 +155,85 @@ export const calculateWinAmount = (
   }
 
   return hasWin ? totalWin : 0;
+};
+
+export const getWinningDetails = (
+  numberDeltas: Record<number, number> = {},
+  zodiacDeltas: Record<string, number> = {},
+  tailDeltas: Record<number, number> = {},
+  multiZodiacDeltas: MultiZodiacBet[] = [],
+  sixZodiacDeltas: MultiZodiacBet[] = [],
+  fiveZodiacDeltas: MultiZodiacBet[] = [],
+  fourZodiacDeltas: MultiZodiacBet[] = [],
+  drawNumbers: (number | '')[]
+): Record<string, number> => {
+  if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return {};
+
+  const typeSums: Record<string, number> = {};
+  const winningZodiacs = Array.from(new Set(drawNumbers.map(n => getZodiacFromNumber(n)).filter(Boolean)));
+  const specialNum = drawNumbers[6] as number;
+  const specialZodiac = getZodiacFromNumber(specialNum);
+  const winningTails = Array.from(new Set(drawNumbers.map(n => (n === '' ? -1 : n % 10)).filter(t => t !== -1)));
+
+  // 1. Special Number
+  const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
+  if (betAmount) {
+    typeSums['特'] = (typeSums['特'] || 0) + betAmount;
+  }
+
+  // 2. Flat Zodiac
+  Object.entries(zodiacDeltas).forEach(([z, amt]) => {
+    if (winningZodiacs.includes(z)) {
+      const type = z === '马' ? '平马' : '平肖';
+      typeSums[type] = (typeSums[type] || 0) + amt;
+    }
+  });
+
+  // 3. Flat Tail
+  Object.entries(tailDeltas).forEach(([tailStr, amt]) => {
+    const tail = parseInt(tailStr);
+    if (winningTails.includes(tail)) {
+      const type = tail === 0 ? '平0尾' : '平尾';
+      typeSums[type] = (typeSums[type] || 0) + amt;
+    }
+  });
+
+  // 4. Multi-Zodiac
+  multiZodiacDeltas.forEach(bet => {
+    if (bet.zodiacs.every(z => winningZodiacs.includes(z))) {
+      const type = `${bet.zodiacs.length}肖`;
+      typeSums[type] = (typeSums[type] || 0) + bet.amount;
+    }
+  });
+
+  // 5. Six-Zodiac
+  if (sixZodiacDeltas) {
+    sixZodiacDeltas.forEach(bet => {
+      if (bet.zodiacs.includes(specialZodiac)) {
+        typeSums['六中'] = (typeSums['六中'] || 0) + bet.amount;
+      }
+    });
+  }
+
+  // 5.5 Five-Zodiac
+  if (fiveZodiacDeltas) {
+    fiveZodiacDeltas.forEach(bet => {
+      if (bet.zodiacs.includes(specialZodiac)) {
+        typeSums['五中'] = (typeSums['五中'] || 0) + bet.amount;
+      }
+    });
+  }
+
+  // 6. Four-Zodiac
+  if (fourZodiacDeltas) {
+    fourZodiacDeltas.forEach(bet => {
+      if (bet.zodiacs.includes(specialZodiac)) {
+        typeSums['四中'] = (typeSums['四中'] || 0) + bet.amount;
+      }
+    });
+  }
+
+  return typeSums;
 };
 
 /**

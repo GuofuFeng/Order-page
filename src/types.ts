@@ -13,6 +13,7 @@ export interface BetOrder {
   tailDeltas: Record<number, number>;
   multiZodiacDeltas: MultiZodiacBet[];
   sixZodiacDeltas: MultiZodiacBet[];
+  fiveZodiacDeltas: MultiZodiacBet[];
   fourZodiacDeltas: MultiZodiacBet[];
   total: number;
   lotteryType: string;

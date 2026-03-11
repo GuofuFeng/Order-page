@@ -42,10 +42,22 @@ export interface ParsedInput {
   parsedTailBets: Record<number, number>;
   parsedMultiZodiacBets: MultiZodiacBet[];
   parsedSixZodiacBets: MultiZodiacBet[];
+  parsedFiveZodiacBets: MultiZodiacBet[];
   parsedFourZodiacBets: MultiZodiacBet[];
   lastAmount: number | '';
   anyPatternFound: boolean;
 }
+
+// Export regexes for UI highlighting
+export const REGEX_SIX_ZODIAC = /(?:^|[\s,，])(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})(?:各)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_FIVE_ZODIAC = /(?:^|[\s,，])(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})(?:各)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_FOUR_ZODIAC = /(?:^|[\s,，])(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})(?:各)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_ZODIAC = /(?:^|[\s,，])(?:(?:([二三四五2345])?连肖|([二三四五2345])肖)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,5})(?:连肖)?(?:各)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,5})(?:连肖)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+))/g;
+export const REGEX_EACH = /(?:^|[\s,，])([^各\n平连中肖包]+)各(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_GENERIC = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝)+[马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
+export const REGEX_BAO = /(?:^|[\s,，])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_PING = /(?:^|[\s,，])(?:(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)平)(?:各)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_TAIL = /(?:^|[\s,，])(?:平)?(\d)尾(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 
 export const parseBetInput = (inputText: string): ParsedInput => {
   if (!inputText.trim()) {
@@ -56,6 +68,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
       parsedTailBets: {},
       parsedMultiZodiacBets: [],
       parsedSixZodiacBets: [],
+      parsedFiveZodiacBets: [],
       parsedFourZodiacBets: [],
       lastAmount: '',
       anyPatternFound: false
@@ -76,6 +89,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   const newParsedTailBets: Record<number, number> = {};
   const newParsedMultiZodiacBets: MultiZodiacBet[] = [];
   const newParsedSixZodiacBets: MultiZodiacBet[] = [];
+  const newParsedFiveZodiacBets: MultiZodiacBet[] = [];
   const newParsedFourZodiacBets: MultiZodiacBet[] = [];
   let lastAmount: number | '' = '';
   let anyPatternFound = false;
@@ -160,9 +174,8 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   };
 
   // 0. "六中/六肖" Pattern
-  const regexSixZodiac = /(?:^|[\s,，])(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})(?:各)?(\d+|[一二三四五六七八九十百千万]+)/g;
   let match;
-  while ((match = regexSixZodiac.exec(processedText)) !== null) {
+  while ((match = REGEX_SIX_ZODIAC.exec(processedText)) !== null) {
     const zodiacNamesStr = match[1];
     const amtStr = match[2];
     const parsedAmt = chineseToNumber(amtStr);
@@ -181,9 +194,28 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     }
   }
 
+  // 0.25 "五中" Pattern
+  while ((match = REGEX_FIVE_ZODIAC.exec(processedText)) !== null) {
+    const zodiacNamesStr = match[1];
+    const amtStr = match[2];
+    const parsedAmt = chineseToNumber(amtStr);
+    
+    if (!isNaN(parsedAmt) && parsedAmt > 0) {
+      const zodiacsInBet: string[] = [];
+      for (const char of zodiacNamesStr) {
+        if (zodiacs.includes(char)) zodiacsInBet.push(char);
+      }
+      const uniqueZodiacs = Array.from(new Set(zodiacsInBet));
+      if (uniqueZodiacs.length === 5) {
+        anyPatternFound = true;
+        newParsedFiveZodiacBets.push({ zodiacs: uniqueZodiacs, amount: parsedAmt });
+        lastAmount = parsedAmt;
+      }
+    }
+  }
+
   // 0.5 "四中" Pattern
-  const regexFourZodiac = /(?:^|[\s,，])(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})(?:各)?(\d+|[一二三四五六七八九十百千万]+)/g;
-  while ((match = regexFourZodiac.exec(processedText)) !== null) {
+  while ((match = REGEX_FOUR_ZODIAC.exec(processedText)) !== null) {
     const zodiacNamesStr = match[1];
     const amtStr = match[2];
     const parsedAmt = chineseToNumber(amtStr);
@@ -204,8 +236,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
   // 1. "连肖" Pattern (Multi-Zodiac)
   // Updated to support Chinese digits for the count and optional count
-  const regexMultiZodiac = /(?:^|[\s,，])(?:(?:([二三四五2345])?连肖|([二三四五2345])肖)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,5})(?:连肖)?(?:各)?(\d+|[一二三四五六七八九十百千万]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,5})(?:连肖)(\d+|[一二三四五六七八九十百千万]+))/g;
-  while ((match = regexMultiZodiac.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_ZODIAC.exec(processedText)) !== null) {
     const zodiacNamesStr = match[3] || match[5];
     const amtStr = match[4] || match[6];
     const parsedAmt = chineseToNumber(amtStr);
@@ -225,8 +256,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 2. "各" Pattern (Special Number) - handles synonyms via pre-processing
-  const regexEach = /(?:^|[\s,，])([^各\n平连中肖包]+)各(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[一二三四五六七八九十百千万]+)/g;
-  while ((match = regexEach.exec(processedText)) !== null) {
+  while ((match = REGEX_EACH.exec(processedText)) !== null) {
     anyPatternFound = true;
     const prefix = match[1];
     const amtStr = match[2];
@@ -244,8 +274,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
   // 2.5 Generic Pattern (No "各") - handles "马猴狗小100" or "蓝小100"
   // Run this after other patterns to avoid stealing their matches
-  const regexGeneric = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝)+[马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?)(\d+|[一二三四五六七八九十百千万]+)(?=$|[\s,，])/g;
-  while ((match = regexGeneric.exec(processedText)) !== null) {
+  while ((match = REGEX_GENERIC.exec(processedText)) !== null) {
     const prefix = match[1];
     const amtStr = match[2];
     
@@ -267,8 +296,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 3. "包" Pattern (Special Number) - updated for multiple zodiacs
-  const regexBao = /(?:^|[\s,，])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(\d+|[一二三四五六七八九十百千万]+)/g;
-  while ((match = regexBao.exec(processedText)) !== null) {
+  while ((match = REGEX_BAO.exec(processedText)) !== null) {
     anyPatternFound = true;
     const zodiacNames = match[1] || match[2];
     const amtStr = match[3];
@@ -297,8 +325,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 4. "平" Pattern (Flat Zodiac) - merged to avoid doubling
-  const regexPing = /(?:^|[\s,，])(?:(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)平)(?:各)?(\d+|[一二三四五六七八九十百千万]+)/g;
-  while ((match = regexPing.exec(processedText)) !== null) {
+  while ((match = REGEX_PING.exec(processedText)) !== null) {
     anyPatternFound = true;
     const zodiacNames = match[1] || match[2];
     const amtStr = match[3];
@@ -314,8 +341,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 5. "平尾" Pattern (Flat Tail)
-  const regexTail = /(?:^|[\s,，])(?:平)?(\d)尾(\d+|[一二三四五六七八九十百千万]+)/g;
-  while ((match = regexTail.exec(processedText)) !== null) {
+  while ((match = REGEX_TAIL.exec(processedText)) !== null) {
     anyPatternFound = true;
     const tailDigit = parseInt(match[1]);
     const amtStr = match[2];
@@ -333,6 +359,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     parsedTailBets: newParsedTailBets,
     parsedMultiZodiacBets: newParsedMultiZodiacBets,
     parsedSixZodiacBets: newParsedSixZodiacBets,
+    parsedFiveZodiacBets: newParsedFiveZodiacBets,
     parsedFourZodiacBets: newParsedFourZodiacBets,
     lastAmount,
     anyPatternFound

@@ -8,8 +8,8 @@ import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, chineseToNumber } from './utils/betParser';
-import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount } from './utils/winningCalculator';
+import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL } from './utils/betParser';
+import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet } from './types';
 
 // Helper to get Beijing Date String (YYYY-MM-DD)
@@ -46,6 +46,7 @@ export default function App() {
   const [textParsedTailBets, setTextParsedTailBets] = useState<Record<number, number>>({});
   const [textParsedMultiZodiacBets, setTextParsedMultiZodiacBets] = useState<MultiZodiacBet[]>([]);
   const [textParsedSixZodiacBets, setTextParsedSixZodiacBets] = useState<MultiZodiacBet[]>([]);
+  const [textParsedFiveZodiacBets, setTextParsedFiveZodiacBets] = useState<MultiZodiacBet[]>([]);
   const [textParsedFourZodiacBets, setTextParsedFourZodiacBets] = useState<MultiZodiacBet[]>([]);
   
   const [oddEvenFilter, setOddEvenFilter] = useState<'odd' | 'even' | null>(null);
@@ -145,6 +146,8 @@ export default function App() {
 
   // Folding state for today's orders
   const [isTodayExpanded, setIsTodayExpanded] = useState(true);
+  const inputScrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Folding state for past orders (per date)
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
@@ -208,6 +211,7 @@ export default function App() {
       parsedTailBets: newParsedTailBets,
       parsedMultiZodiacBets: newParsedMultiZodiacBets,
       parsedSixZodiacBets: newParsedSixZodiacBets,
+      parsedFiveZodiacBets: newParsedFiveZodiacBets,
       parsedFourZodiacBets: newParsedFourZodiacBets,
       lastAmount, 
       anyPatternFound 
@@ -221,6 +225,7 @@ export default function App() {
       setTextParsedTailBets(newParsedTailBets);
       setTextParsedMultiZodiacBets(newParsedMultiZodiacBets);
       setTextParsedSixZodiacBets(newParsedSixZodiacBets);
+      setTextParsedFiveZodiacBets(newParsedFiveZodiacBets);
       setTextParsedFourZodiacBets(newParsedFourZodiacBets);
     } else {
       setSelectedNumbers(new Set());
@@ -230,6 +235,7 @@ export default function App() {
       setTextParsedTailBets({});
       setTextParsedMultiZodiacBets([]);
       setTextParsedSixZodiacBets([]);
+      setTextParsedFiveZodiacBets([]);
       setTextParsedFourZodiacBets([]);
     }
   }, [inputText]);
@@ -366,8 +372,9 @@ export default function App() {
           zodiacDeltas,
           tailDeltas,
           multiZodiacDeltas: [...textParsedMultiZodiacBets],
-          sixZodiacDeltas: [],
-          fourZodiacDeltas: [],
+          sixZodiacDeltas: [...textParsedSixZodiacBets],
+          fiveZodiacDeltas: [...textParsedFiveZodiacBets],
+          fourZodiacDeltas: [...textParsedFourZodiacBets],
           total: addedTotal,
           lotteryType: selectedLotteryType,
           timestamp: Date.now()
@@ -405,6 +412,7 @@ export default function App() {
           tailDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
+          fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
           total: addedTotal,
           lotteryType: selectedLotteryType,
@@ -439,6 +447,7 @@ export default function App() {
           tailDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
+          fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
           total: val as number,
           lotteryType: selectedLotteryType,
@@ -479,6 +488,7 @@ export default function App() {
           tailDeltas,
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
+          fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
           total: val as number,
           lotteryType: selectedLotteryType,
@@ -517,6 +527,7 @@ export default function App() {
         tailDeltas: {},
         multiZodiacDeltas,
         sixZodiacDeltas: [],
+        fiveZodiacDeltas: [],
         fourZodiacDeltas: [],
         total: multiZodiacAmount as number,
         lotteryType: selectedLotteryType,
@@ -536,6 +547,28 @@ export default function App() {
           tailDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [bet],
+          fiveZodiacDeltas: [],
+          fourZodiacDeltas: [],
+          total: bet.amount,
+          lotteryType: selectedLotteryType,
+          timestamp: Date.now()
+        });
+      });
+      hasAction = true;
+    }
+
+    // 6.5 Handle text-parsed five-zodiac bets
+    if (textParsedFiveZodiacBets.length > 0) {
+      textParsedFiveZodiacBets.forEach(bet => {
+        itemsToAdd.push({
+          id: Math.random().toString(36).substr(2, 9),
+          text: `五中${bet.zodiacs.join('')}下单${bet.amount}元`,
+          numberDeltas: {},
+          zodiacDeltas: {},
+          tailDeltas: {},
+          multiZodiacDeltas: [],
+          sixZodiacDeltas: [],
+          fiveZodiacDeltas: [bet],
           fourZodiacDeltas: [],
           total: bet.amount,
           lotteryType: selectedLotteryType,
@@ -556,6 +589,7 @@ export default function App() {
           tailDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
+          fiveZodiacDeltas: [],
           fourZodiacDeltas: [bet],
           total: bet.amount,
           lotteryType: selectedLotteryType,
@@ -653,7 +687,8 @@ export default function App() {
       { header: '序号', key: 'index', width: 10 },
       { header: '彩种', key: 'type', width: 15 },
       { header: '注单内容', key: 'content', width: 60 },
-      { header: '总金额', key: 'total', width: 15 },
+      { header: '下注金额', key: 'total', width: 15 },
+      { header: '中奖类型', key: 'winType', width: 20 },
       { header: '中奖金额', key: 'win', width: 15 },
       { header: '下单时间', key: 'time', width: 25 }
     ];
@@ -666,15 +701,25 @@ export default function App() {
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
       const totalWin = (order.items || []).reduce((sum, item) => {
-        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
+        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
         return sum + (win || 0);
       }, 0);
+
+      const winDetailsMap = (order.items || []).reduce((acc, item) => {
+        const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
+        Object.entries(details).forEach(([type, amt]) => {
+          acc[type] = (acc[type] || 0) + amt;
+        });
+        return acc;
+      }, {} as Record<string, number>);
+      const winDetails = Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`);
 
       const row = worksheet.addRow({
         index: index + 1,
         type: order.lotteryType,
         content: '', // Will be set as rich text
         total: order.total,
+        winType: winDetails.join(' '),
         win: totalWin > 0 ? totalWin : '',
         time: new Date(order.timestamp).toLocaleString()
       });
@@ -1021,6 +1066,71 @@ export default function App() {
     }
   };
 
+  const renderHighlightedInput = (text: string) => {
+    if (!text) return null;
+    
+    const matches: { start: number; end: number }[] = [];
+    const regexes = [
+      REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
+      REGEX_MULTI_ZODIAC, REGEX_EACH, REGEX_GENERIC,
+      REGEX_BAO, REGEX_PING, REGEX_TAIL
+    ];
+
+    regexes.forEach(re => {
+      let m;
+      const r = new RegExp(re.source, re.flags);
+      while ((m = r.exec(text)) !== null) {
+        // Adjust start to skip leading space/comma if present in the match
+        let start = m.index;
+        let matchStr = m[0];
+        if (matchStr.length > 0 && /^[\s,，]/.test(matchStr)) {
+          start += 1;
+        }
+        matches.push({ start, end: m.index + m[0].length });
+      }
+    });
+
+    matches.sort((a, b) => a.start - b.start);
+    const merged: { start: number; end: number }[] = [];
+    if (matches.length > 0) {
+      let current = { ...matches[0] };
+      for (let i = 1; i < matches.length; i++) {
+        if (matches[i].start < current.end) {
+          current.end = Math.max(current.end, matches[i].end);
+        } else {
+          merged.push(current);
+          current = { ...matches[i] };
+        }
+      }
+      merged.push(current);
+    }
+
+    const result: React.ReactNode[] = [];
+    let lastIdx = 0;
+    merged.forEach((m, idx) => {
+      if (m.start > lastIdx) {
+        result.push(text.substring(lastIdx, m.start));
+      }
+      result.push(
+        <span key={idx} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">
+          {text.substring(m.start, m.end)}
+        </span>
+      );
+      lastIdx = m.end;
+    });
+    if (lastIdx < text.length) {
+      result.push(text.substring(lastIdx));
+    }
+    return result;
+  };
+
+  const handleInputScroll = () => {
+    if (textareaRef.current && inputScrollRef.current) {
+      inputScrollRef.current.scrollTop = textareaRef.current.scrollTop;
+      inputScrollRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleAddToPending();
@@ -1357,23 +1467,34 @@ export default function App() {
 
               <div className="flex gap-4 flex-grow min-h-0">
                 <section className="relative flex-grow min-h-0">
+                  <div 
+                    ref={inputScrollRef}
+                    className="absolute inset-0 m-0 p-3 pointer-events-none whitespace-pre-wrap break-words text-sm leading-6 tracking-normal text-transparent overflow-y-scroll border border-transparent font-sans scrollbar-hide"
+                    aria-hidden="true"
+                  >
+                    {renderHighlightedInput(inputText)}
+                    {/* Add an extra character to ensure scroll height matches if ending with newline */}
+                    {inputText.endsWith('\n') ? '\n ' : ''}
+                  </div>
                   <textarea
                     id="input-textarea"
+                    ref={textareaRef}
                     placeholder="输入备注或格式如 '鼠狗虎各20' 或 '47.48.23各20'..."
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
+                    onScroll={handleInputScroll}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleAddToPending();
                       }
                     }}
-                    className="w-full h-full p-3 bg-white border border-stone-200 rounded-xl shadow-sm focus:ring-2 focus:ring-stone-200 focus:border-stone-400 outline-none transition-all resize-none text-stone-700 text-sm"
+                    className="w-full h-full m-0 p-3 bg-transparent border border-stone-200 rounded-xl shadow-sm focus:ring-2 focus:ring-stone-200 focus:border-stone-400 outline-none transition-all resize-none text-stone-700 text-sm leading-6 tracking-normal relative z-10 font-sans overflow-y-scroll scrollbar-hide appearance-none"
                   />
                   {inputText && (
                     <button 
                       onClick={() => setInputText('')}
-                      className="absolute right-3 top-3 p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-500 rounded-lg transition-colors shadow-sm"
+                      className="absolute right-3 top-3 p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-500 rounded-lg transition-colors shadow-sm z-20"
                       title="清除内容"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1571,6 +1692,19 @@ export default function App() {
                       </div>
                     </div>
                   )}
+                  {textParsedFiveZodiacBets.length > 0 && (
+                    <div className="mt-1 p-1.5 bg-purple-50 rounded-lg border border-purple-100">
+                      <div className="text-[7px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
+                      <div className="flex flex-col gap-0.5">
+                        {textParsedFiveZodiacBets.map((bet, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-[8px]">
+                            <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
+                            <span className="text-purple-600 font-black">¥{bet.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {textParsedFourZodiacBets.length > 0 && (
                     <div className="mt-1 p-1.5 bg-blue-50 rounded-lg border border-blue-100">
                       <div className="text-[7px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
@@ -1763,7 +1897,8 @@ export default function App() {
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-20">序号</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-24">彩种</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest">注单内容</th>
-                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">总金额</th>
+                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">下注金额</th>
+                    <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">中奖类型</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32">中奖金额</th>
                     <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-widest w-32 text-center">操作</th>
                   </tr>
@@ -1771,7 +1906,7 @@ export default function App() {
                 <tbody className="divide-y divide-stone-100">
                   {todayBets.length === 0 && !isAddingManual && pastBets.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
+                      <td colSpan={7} className="px-6 py-12 text-center text-stone-400 italic">暂无已确认注单</td>
                     </tr>
                   )}
                   {isAddingManual && (
@@ -1800,6 +1935,7 @@ export default function App() {
                         />
                       </td>
                       <td className="px-6 py-4"></td>
+                      <td className="px-6 py-4"></td>
                       <td className="px-6 py-4 text-center space-y-2">
                         <button 
                           onClick={handleAddManualBet}
@@ -1827,7 +1963,7 @@ export default function App() {
                       className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
                       onClick={() => setIsTodayExpanded(!isTodayExpanded)}
                     >
-                      <td colSpan={6} className="px-6 py-3">
+                      <td colSpan={7} className="px-6 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-xs font-bold text-stone-950 uppercase tracking-widest">
                             <svg 
@@ -1878,10 +2014,22 @@ export default function App() {
                               `¥ ${order.total.toLocaleString()}`
                             )}
                           </td>
+                          <td className="px-6 py-4 text-xs font-bold text-stone-500">
+                            {(() => {
+                              const winDetailsMap = (order.items || []).reduce((acc, item) => {
+                                const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
+                                Object.entries(details).forEach(([type, amt]) => {
+                                  acc[type] = (acc[type] || 0) + amt;
+                                });
+                                return acc;
+                              }, {} as Record<string, number>);
+                              return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join(' ');
+                            })()}
+                          </td>
                           <td className="px-6 py-4 text-sm font-black text-red-600">
                             {(() => {
                               const totalWin = (order.items || []).reduce((sum, item) => {
-                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
+                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
                                 return sum + (win || 0);
                               }, 0);
                               return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -1950,7 +2098,7 @@ export default function App() {
                           className="bg-stone-100/50 cursor-pointer hover:bg-stone-100 transition-colors"
                           onClick={() => toggleDateExpansion(date)}
                         >
-                          <td colSpan={6} className="px-6 py-3">
+                          <td colSpan={7} className="px-6 py-3">
                             <div className="flex items-center justify-between">
                               <div 
                                 className="flex items-center gap-2 text-xs font-bold text-stone-400 uppercase tracking-widest cursor-pointer"
@@ -2004,10 +2152,22 @@ export default function App() {
                                 {renderHighlightedText(order.content, order.lotteryType)}
                               </td>
                               <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-xs font-bold text-stone-300 italic">
+                                {(() => {
+                                  const winDetailsMap = (order.items || []).reduce((acc, item) => {
+                                    const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
+                                    Object.entries(details).forEach(([type, amt]) => {
+                                      acc[type] = (acc[type] || 0) + amt;
+                                    });
+                                    return acc;
+                                  }, {} as Record<string, number>);
+                                  return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join(' ');
+                                })()}
+                              </td>
                               <td className="px-6 py-4 text-sm font-black text-red-400">
                                 {(() => {
                                   const totalWin = (order.items || []).reduce((sum, item) => {
-                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
+                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, drawNumbers[item.lotteryType]);
                                     return sum + (win || 0);
                                   }, 0);
                                   return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
