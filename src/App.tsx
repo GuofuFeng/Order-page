@@ -179,6 +179,7 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingTotal, setEditingTotal] = useState<number | ''>('');
+  const [editingLotteryType, setEditingLotteryType] = useState('');
 
   const [drawNumbers, setDrawNumbers] = useState<Record<string, (number | '')[]>>(() => {
     const defaultDraws = lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: Array(7).fill('') }), {});
@@ -2164,7 +2165,19 @@ export default function App() {
                       <tr key={originalIdx} className="hover:bg-stone-50 transition-colors">
                         <td className="px-6 py-4 text-sm font-mono text-stone-400">{todayBets.length - idx}</td>
                           <td className="px-6 py-4">
-                            <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{order.lotteryType}</span>
+                            {isEditing ? (
+                              <select
+                                value={editingLotteryType}
+                                onChange={(e) => setEditingLotteryType(e.target.value)}
+                                className="w-full p-1 bg-white border border-stone-200 rounded text-[10px] font-bold text-stone-600 focus:ring-1 focus:ring-stone-200 outline-none"
+                              >
+                                {lotteryTypes.map(type => (
+                                  <option key={type} value={type}>{type}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{order.lotteryType}</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm text-stone-700 whitespace-pre-wrap">
                             {isEditing ? (
@@ -2217,10 +2230,17 @@ export default function App() {
                                   <button 
                                     onClick={() => {
                                       const newBets = [...confirmedBets];
+                                      const updatedItems = (newBets[originalIdx].items || []).map(item => ({
+                                        ...item,
+                                        lotteryType: editingLotteryType
+                                      }));
+                                      
                                       newBets[originalIdx] = {
                                         ...newBets[originalIdx],
                                         content: editingContent,
-                                        total: Number(editingTotal) || 0
+                                        total: Number(editingTotal) || 0,
+                                        lotteryType: editingLotteryType,
+                                        items: updatedItems
                                       };
                                       setConfirmedBets(newBets);
                                       setEditingIndex(null);
@@ -2243,6 +2263,7 @@ export default function App() {
                                       setEditingIndex(originalIdx);
                                       setEditingContent(order.content);
                                       setEditingTotal(order.total);
+                                      setEditingLotteryType(order.lotteryType);
                                     }}
                                     className="text-stone-400 hover:text-stone-600 transition-colors p-1"
                                     title="编辑注单"
@@ -2317,16 +2338,49 @@ export default function App() {
                         </tr>
                         {expandedDates[date] && typedBets.map((order, idx) => {
                           const originalIdx = confirmedBets.indexOf(order);
+                          const isEditing = editingIndex === originalIdx;
+
                           return (
-                            <tr key={originalIdx} className="bg-stone-50/30 hover:bg-stone-50 transition-colors opacity-75">
+                            <tr key={originalIdx} className={`hover:bg-stone-50 transition-colors ${isEditing ? 'bg-white' : 'bg-stone-50/30 opacity-75'}`}>
                               <td className="px-6 py-4 text-sm font-mono text-stone-400">{typedBets.length - idx}</td>
                               <td className="px-6 py-4">
-                                <span className="text-xs font-bold text-stone-300 bg-stone-50 px-2 py-1 rounded">{order.lotteryType}</span>
+                                {isEditing ? (
+                                  <select
+                                    value={editingLotteryType}
+                                    onChange={(e) => setEditingLotteryType(e.target.value)}
+                                    className="w-full p-1 bg-white border border-stone-200 rounded text-[10px] font-bold text-stone-600 focus:ring-1 focus:ring-stone-200 outline-none"
+                                  >
+                                    {lotteryTypes.map(type => (
+                                      <option key={type} value={type}>{type}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="text-xs font-bold text-stone-300 bg-stone-50 px-2 py-1 rounded">{order.lotteryType}</span>
+                                )}
                               </td>
                               <td className="px-6 py-4 text-sm text-stone-500 whitespace-pre-wrap italic">
-                                {renderHighlightedText(order.content, order.lotteryType)}
+                                {isEditing ? (
+                                  <textarea
+                                    value={editingContent}
+                                    onChange={(e) => setEditingContent(e.target.value)}
+                                    className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none resize-none h-24"
+                                  />
+                                ) : (
+                                  renderHighlightedText(order.content, order.lotteryType)
+                                )}
                               </td>
-                              <td className="px-6 py-4 text-sm font-bold text-stone-400">¥ {order.total.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-sm font-bold text-stone-400">
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    value={editingTotal}
+                                    onChange={(e) => setEditingTotal(e.target.value === '' ? '' : Number(e.target.value))}
+                                    className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none"
+                                  />
+                                ) : (
+                                  `¥ ${order.total.toLocaleString()}`
+                                )}
+                              </td>
                               <td className="px-6 py-4 text-xs font-bold text-stone-300 italic">
                                 {(() => {
                                   const winDetailsMap = (order.items || []).reduce((acc, item) => {
@@ -2349,13 +2403,62 @@ export default function App() {
                                 })()}
                               </td>
                               <td className="px-6 py-4 text-center">
-                                <button 
-                                  onClick={() => deleteConfirmedBet(originalIdx)}
-                                  className="text-stone-300 hover:text-red-400 transition-colors p-1"
-                                  title="删除注单"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                </button>
+                                <div className="flex flex-col gap-2 items-center">
+                                  {isEditing ? (
+                                    <>
+                                      <button 
+                                        onClick={() => {
+                                          const newBets = [...confirmedBets];
+                                          const updatedItems = (newBets[originalIdx].items || []).map(item => ({
+                                            ...item,
+                                            lotteryType: editingLotteryType
+                                          }));
+                                          
+                                          newBets[originalIdx] = {
+                                            ...newBets[originalIdx],
+                                            content: editingContent,
+                                            total: Number(editingTotal) || 0,
+                                            lotteryType: editingLotteryType,
+                                            items: updatedItems
+                                          };
+                                          setConfirmedBets(newBets);
+                                          setEditingIndex(null);
+                                        }}
+                                        className="w-full px-3 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600"
+                                      >
+                                        保存
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingIndex(null)}
+                                        className="w-full px-3 py-1 bg-stone-200 text-stone-600 rounded-lg text-[10px] font-bold hover:bg-stone-300"
+                                      >
+                                        取消
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <button 
+                                        onClick={() => {
+                                          setEditingIndex(originalIdx);
+                                          setEditingContent(order.content);
+                                          setEditingTotal(order.total);
+                                          setEditingLotteryType(order.lotteryType);
+                                        }}
+                                        className="text-stone-300 hover:text-stone-500 transition-colors p-1"
+                                        title="编辑注单"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                      </button>
+                                      <button 
+                                        onClick={() => deleteConfirmedBet(originalIdx)}
+                                        className="text-stone-300 hover:text-red-400 transition-colors p-1"
+                                        title="删除注单"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
