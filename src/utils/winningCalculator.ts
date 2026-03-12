@@ -64,7 +64,8 @@ export const calculateWinAmount = (
   fourZodiacDeltas: MultiZodiacBet[] = [],
   multiTailDeltas: MultiZodiacBet[] = [],
   notInDeltas: NotInBet[] = [],
-  drawNumbers: (number | '')[]
+  drawNumbers: (number | '')[],
+  lotteryType?: string
 ): number | null => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return null;
 
@@ -73,13 +74,16 @@ export const calculateWinAmount = (
 
   const drawNums = drawNumbers.filter((n): n is number => typeof n === 'number');
 
-  // 1. Special Number (特码) calculation: 47x multiplier for the 7th number
+  // 1. Special Number (特码) calculation
+  // Odds: 新澳, 老澳, 香港, 老cc -> 47x. Others -> 46x.
   const specialNum = drawNumbers[6] as number;
   const specialZodiac = getZodiacFromNumber(specialNum);
   // Ensure we check both numeric and string keys because JSON.parse converts numeric keys to strings
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    totalWin += betAmount * 47;
+    const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
+    const multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+    totalWin += betAmount * multiplier;
     hasWin = true;
   }
 

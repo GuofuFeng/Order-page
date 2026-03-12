@@ -798,7 +798,7 @@ export default function App() {
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
       const totalWin = (order.items || []).reduce((sum, item) => {
-        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
         return sum + (win || 0);
       }, 0);
 
@@ -2204,7 +2204,7 @@ export default function App() {
                           <td className="px-6 py-4 text-sm font-black text-red-600">
                             {(() => {
                               const totalWin = (order.items || []).reduce((sum, item) => {
-                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
                                 return sum + (win || 0);
                               }, 0);
                               return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -2342,7 +2342,7 @@ export default function App() {
                               <td className="px-6 py-4 text-sm font-black text-red-400">
                                 {(() => {
                                   const totalWin = (order.items || []).reduce((sum, item) => {
-                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
                                     return sum + (win || 0);
                                   }, 0);
                                   return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
