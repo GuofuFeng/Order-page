@@ -4,7 +4,8 @@ export const STORAGE_KEYS = {
   ZODIAC_CUMULATIVE_AMOUNTS: 'zodiacCumulativeAmounts',
   DRAW_NUMBERS: 'drawNumbers',
   IS_DRAW_LOCKED: 'isDrawLocked',
-  SELECTED_LOTTERY_TYPE: 'selectedLotteryType'
+  SELECTED_LOTTERY_TYPE: 'selectedLotteryType',
+  SELECTED_BASKET_ID: 'selectedBasketId'
 };
 
 export const saveToStorage = (key: string, data: any) => {

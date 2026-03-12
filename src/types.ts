@@ -5,6 +5,12 @@ export interface MultiZodiacBet {
   amount: number;
 }
 
+export interface NotInBet {
+  x: number;
+  numbers: number[];
+  amount: number;
+}
+
 export interface BetOrder {
   id: string;
   text: string;
@@ -15,6 +21,7 @@ export interface BetOrder {
   sixZodiacDeltas: MultiZodiacBet[];
   fiveZodiacDeltas: MultiZodiacBet[];
   fourZodiacDeltas: MultiZodiacBet[];
+  notInDeltas: NotInBet[];
   total: number;
   lotteryType: string;
   timestamp: number;
@@ -27,6 +34,7 @@ export interface ConfirmedBet {
   timestamp: number;
   lotteryType: string;
   items: BetOrder[];
+  basketId: string;
 }
 
 export interface AppState {

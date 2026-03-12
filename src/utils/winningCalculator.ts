@@ -1,5 +1,5 @@
 import { zodiacs, redNumbers, blueNumbers, greenNumbers } from '../constants';
-import { MultiZodiacBet } from '../types';
+import { MultiZodiacBet, NotInBet, MultiTailBet } from '../types';
 
 export const getZodiacFromNumber = (num: number | '') => {
   if (num === '' || num < 1 || num > 49) return '';
@@ -62,12 +62,16 @@ export const calculateWinAmount = (
   sixZodiacDeltas: MultiZodiacBet[] = [],
   fiveZodiacDeltas: MultiZodiacBet[] = [],
   fourZodiacDeltas: MultiZodiacBet[] = [],
+  notInDeltas: NotInBet[] = [],
+  multiTailDeltas: MultiTailBet[] = [],
   drawNumbers: (number | '')[]
 ): number | null => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return null;
 
   let totalWin = 0;
   let hasWin = false;
+
+  const drawNums = drawNumbers.filter((n): n is number => typeof n === 'number');
 
   // 1. Special Number (特码) calculation: 47x multiplier for the 7th number
   const specialNum = drawNumbers[6] as number;
@@ -154,6 +158,49 @@ export const calculateWinAmount = (
     });
   }
 
+  // 7. x-Not-In (x不中) calculation
+  if (notInDeltas) {
+    notInDeltas.forEach(bet => {
+      const isWinner = bet.numbers.every(n => !drawNums.includes(n));
+      if (isWinner) {
+        let multiplier = 0;
+        if (bet.x === 5) multiplier = 2;
+        else if (bet.x === 6) multiplier = 2.5;
+        else if (bet.x === 7) multiplier = 3;
+        else if (bet.x === 8) multiplier = 3.5;
+        else if (bet.x === 9) multiplier = 4;
+        else if (bet.x === 10) multiplier = 5;
+        else if (bet.x === 11) multiplier = 6;
+        else if (bet.x === 12) multiplier = 7;
+
+        if (multiplier > 0) {
+          totalWin += bet.amount * multiplier;
+          hasWin = true;
+        }
+      }
+    });
+  }
+
+  // 8. Multi-Tail (连尾) calculation
+  if (multiTailDeltas) {
+    multiTailDeltas.forEach(bet => {
+      const allPresent = bet.tails.every(t => winningTails.includes(t));
+      if (allPresent) {
+        const count = bet.tails.length;
+        let multiplier = 0;
+        if (count === 2) multiplier = 3;
+        else if (count === 3) multiplier = 7;
+        else if (count === 4) multiplier = 15;
+        else if (count === 5) multiplier = 40;
+
+        if (multiplier > 0) {
+          totalWin += bet.amount * multiplier;
+          hasWin = true;
+        }
+      }
+    });
+  }
+
   return hasWin ? totalWin : 0;
 };
 
@@ -165,15 +212,18 @@ export const getWinningDetails = (
   sixZodiacDeltas: MultiZodiacBet[] = [],
   fiveZodiacDeltas: MultiZodiacBet[] = [],
   fourZodiacDeltas: MultiZodiacBet[] = [],
+  notInDeltas: NotInBet[] = [],
+  multiTailDeltas: MultiTailBet[] = [],
   drawNumbers: (number | '')[]
 ): Record<string, number> => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return {};
 
   const typeSums: Record<string, number> = {};
-  const winningZodiacs = Array.from(new Set(drawNumbers.map(n => getZodiacFromNumber(n)).filter(Boolean)));
+  const drawNums = drawNumbers.filter((n): n is number => typeof n === 'number');
+  const winningZodiacs = Array.from(new Set(drawNums.map(n => getZodiacFromNumber(n)).filter(Boolean)));
   const specialNum = drawNumbers[6] as number;
   const specialZodiac = getZodiacFromNumber(specialNum);
-  const winningTails = Array.from(new Set(drawNumbers.map(n => (n === '' ? -1 : n % 10)).filter(t => t !== -1)));
+  const winningTails = Array.from(new Set(drawNums.map(n => n % 10)));
 
   // 1. Special Number
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
@@ -229,6 +279,27 @@ export const getWinningDetails = (
     fourZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
         typeSums['四中'] = (typeSums['四中'] || 0) + bet.amount;
+      }
+    });
+  }
+
+  // 7. x-Not-In
+  if (notInDeltas) {
+    notInDeltas.forEach(bet => {
+      const isWinner = bet.numbers.every(n => !drawNums.includes(n));
+      if (isWinner) {
+        const type = `${bet.x}不中`;
+        typeSums[type] = (typeSums[type] || 0) + bet.amount;
+      }
+    });
+  }
+
+  // 8. Multi-Tail
+  if (multiTailDeltas) {
+    multiTailDeltas.forEach(bet => {
+      if (bet.tails.every(t => winningTails.includes(t))) {
+        const type = `${bet.tails.length}连尾`;
+        typeSums[type] = (typeSums[type] || 0) + bet.amount;
       }
     });
   }
