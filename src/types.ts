@@ -21,6 +21,7 @@ export interface BetOrder {
   sixZodiacDeltas: MultiZodiacBet[];
   fiveZodiacDeltas: MultiZodiacBet[];
   fourZodiacDeltas: MultiZodiacBet[];
+  multiTailDeltas: MultiZodiacBet[];
   notInDeltas: NotInBet[];
   total: number;
   lotteryType: string;

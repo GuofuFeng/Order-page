@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_MULTI_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL } from './utils/betParser';
+import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_MULTI_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3 } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
@@ -35,7 +35,20 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('order');
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
   const [inputText, setInputText] = useState('');
-  const [pendingBets, setPendingBets] = useState<BetOrder[]>(() => loadFromStorage('pendingBets', []));
+  const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
+  const [selectedBasketId, setSelectedBasketId] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A'));
+  const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
+
+  const [allPendingBets, setAllPendingBets] = useState<Record<string, BetOrder[]>>(() => loadFromStorage(STORAGE_KEYS.ALL_PENDING_BETS, {}));
+  const pendingBets = useMemo(() => allPendingBets[selectedBasketId] || [], [allPendingBets, selectedBasketId]);
+
+  const setPendingBets = (newBets: BetOrder[] | ((prev: BetOrder[]) => BetOrder[])) => {
+    setAllPendingBets(prev => {
+      const current = prev[selectedBasketId] || [];
+      const updated = typeof newBets === 'function' ? newBets(current) : newBets;
+      return { ...prev, [selectedBasketId]: updated };
+    });
+  };
   const [deletedBetsHistory, setDeletedBetsHistory] = useState<{
     item: BetOrder;
     index: number;
@@ -48,6 +61,7 @@ export default function App() {
   const [textParsedSixZodiacBets, setTextParsedSixZodiacBets] = useState<MultiZodiacBet[]>([]);
   const [textParsedFiveZodiacBets, setTextParsedFiveZodiacBets] = useState<MultiZodiacBet[]>([]);
   const [textParsedFourZodiacBets, setTextParsedFourZodiacBets] = useState<MultiZodiacBet[]>([]);
+  const [textParsedMultiTailBets, setTextParsedMultiTailBets] = useState<MultiZodiacBet[]>([]);
   const [textParsedNotInBets, setTextParsedNotInBets] = useState<NotInBet[]>([]);
   const [textParsedErrors, setTextParsedErrors] = useState<string[]>([]);
   
@@ -62,10 +76,6 @@ export default function App() {
   
   const [multiZodiacSelection, setMultiZodiacSelection] = useState<string[]>([]);
   const [multiZodiacAmount, setMultiZodiacAmount] = useState<number | ''>('');
-
-  const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
-  const [selectedBasketId, setSelectedBasketId] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A'));
-  const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
 
   // Final confirmed bets for the table
   const [confirmedBets, setConfirmedBets] = useState<ConfirmedBet[]>(() => loadFromStorage(STORAGE_KEYS.CONFIRMED_BETS, []));
@@ -187,8 +197,8 @@ export default function App() {
   }, [confirmedBets]);
 
   useEffect(() => {
-    saveToStorage('pendingBets', pendingBets);
-  }, [pendingBets]);
+    saveToStorage(STORAGE_KEYS.ALL_PENDING_BETS, allPendingBets);
+  }, [allPendingBets]);
 
   // Prevent accidental refresh if there are pending bets
   useEffect(() => {
@@ -219,6 +229,10 @@ export default function App() {
     saveToStorage(STORAGE_KEYS.SELECTED_BASKET_ID, selectedBasketId);
   }, [selectedBasketId]);
 
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.ALL_PENDING_BETS, allPendingBets);
+  }, [allPendingBets]);
+
   // Parsing logic for textarea input
   useEffect(() => {
     const { 
@@ -230,6 +244,7 @@ export default function App() {
       parsedSixZodiacBets: newParsedSixZodiacBets,
       parsedFiveZodiacBets: newParsedFiveZodiacBets,
       parsedFourZodiacBets: newParsedFourZodiacBets,
+      parsedMultiTailBets: newParsedMultiTailBets,
       parsedNotInBets: newParsedNotInBets,
       recognizedLotteryType,
       lastAmount, 
@@ -251,6 +266,7 @@ export default function App() {
       setTextParsedSixZodiacBets(newParsedSixZodiacBets);
       setTextParsedFiveZodiacBets(newParsedFiveZodiacBets);
       setTextParsedFourZodiacBets(newParsedFourZodiacBets);
+      setTextParsedMultiTailBets(newParsedMultiTailBets);
       setTextParsedNotInBets(newParsedNotInBets);
       setTextParsedErrors(newErrors);
     } else {
@@ -263,6 +279,7 @@ export default function App() {
       setTextParsedSixZodiacBets([]);
       setTextParsedFiveZodiacBets([]);
       setTextParsedFourZodiacBets([]);
+      setTextParsedMultiTailBets([]);
       setTextParsedNotInBets([]);
       setTextParsedErrors([]);
     }
@@ -397,6 +414,11 @@ export default function App() {
         addedTotal += bet.amount;
       });
 
+      // Process multi-tails
+      textParsedMultiTailBets.forEach(bet => {
+        addedTotal += bet.amount;
+      });
+
       if (addedTotal > 0) {
         itemsToAdd.push({
           id: Math.random().toString(36).substr(2, 9),
@@ -405,10 +427,11 @@ export default function App() {
           zodiacDeltas,
           tailDeltas,
           multiZodiacDeltas: [...textParsedMultiZodiacBets],
-          sixZodiacDeltas: [], // Moved to separate steps to avoid duplicates
-          fiveZodiacDeltas: [], // Moved to separate steps to avoid duplicates
-          fourZodiacDeltas: [], // Moved to separate steps to avoid duplicates
-          notInDeltas: [], // Moved to separate steps to avoid duplicates
+          sixZodiacDeltas: [], 
+          fiveZodiacDeltas: [], 
+          fourZodiacDeltas: [],
+          multiTailDeltas: [...textParsedMultiTailBets],
+          notInDeltas: [], 
           total: addedTotal,
           lotteryType: selectedLotteryType,
           timestamp: Date.now()
@@ -448,6 +471,7 @@ export default function App() {
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
+          multiTailDeltas: [],
           notInDeltas: [],
           total: addedTotal,
           lotteryType: selectedLotteryType,
@@ -484,6 +508,7 @@ export default function App() {
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
+          multiTailDeltas: [],
           notInDeltas: [],
           total: val as number,
           lotteryType: selectedLotteryType,
@@ -526,6 +551,7 @@ export default function App() {
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
+          multiTailDeltas: [],
           notInDeltas: [],
           total: val as number,
           lotteryType: selectedLotteryType,
@@ -566,6 +592,7 @@ export default function App() {
         sixZodiacDeltas: [],
         fiveZodiacDeltas: [],
         fourZodiacDeltas: [],
+        multiTailDeltas: [],
         notInDeltas: [],
         total: multiZodiacAmount as number,
         lotteryType: selectedLotteryType,
@@ -587,6 +614,7 @@ export default function App() {
           sixZodiacDeltas: [bet],
           fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
+          multiTailDeltas: [],
           notInDeltas: [],
           total: bet.amount,
           lotteryType: selectedLotteryType,
@@ -609,6 +637,7 @@ export default function App() {
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [bet],
           fourZodiacDeltas: [],
+          multiTailDeltas: [],
           notInDeltas: [],
           total: bet.amount,
           lotteryType: selectedLotteryType,
@@ -631,6 +660,7 @@ export default function App() {
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
           fourZodiacDeltas: [bet],
+          multiTailDeltas: [],
           notInDeltas: [],
           total: bet.amount,
           lotteryType: selectedLotteryType,
@@ -653,6 +683,7 @@ export default function App() {
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
           fourZodiacDeltas: [],
+          multiTailDeltas: [],
           notInDeltas: [bet],
           total: bet.amount,
           lotteryType: selectedLotteryType,
@@ -767,12 +798,12 @@ export default function App() {
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
       const totalWin = (order.items || []).reduce((sum, item) => {
-        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
         return sum + (win || 0);
       }, 0);
 
       const winDetailsMap = (order.items || []).reduce((acc, item) => {
-        const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+        const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
         Object.entries(details).forEach(([type, amt]) => {
           acc[type] = (acc[type] || 0) + amt;
         });
@@ -971,7 +1002,7 @@ export default function App() {
     }
     
     // Attempt to parse manual content for deltas
-    const { parsedBets, parsedZodiacBets, parsedTailBets, parsedMultiZodiacBets, parsedNotInBets } = parseBetInput(manualContent);
+    const { parsedBets, parsedZodiacBets, parsedTailBets, parsedMultiZodiacBets, parsedMultiTailBets, parsedNotInBets } = parseBetInput(manualContent);
 
     setConfirmedBets(prev => [...prev, { 
       id: Math.random().toString(36).substr(2, 9),
@@ -990,6 +1021,7 @@ export default function App() {
         sixZodiacDeltas: [],
         fiveZodiacDeltas: [],
         fourZodiacDeltas: [],
+        multiTailDeltas: parsedMultiTailBets,
         notInDeltas: parsedNotInBets,
         total: Number(manualTotal),
         lotteryType: selectedLotteryType,
@@ -1144,7 +1176,7 @@ export default function App() {
     const regexes = [
       REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
       REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_MULTI_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC,
-      REGEX_BAO, REGEX_PING, REGEX_TAIL
+      REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3
     ];
 
     regexes.forEach(re => {
@@ -1694,7 +1726,7 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[1]">
+              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[1.5]">
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
                   <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">连肖下单区</h2>
@@ -1763,8 +1795,28 @@ export default function App() {
                       </button>
                     </div>
                   )}
+                </div>
+              </section>
+
+              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[2]">
+                <div className="mb-2 flex items-center justify-center gap-2">
+                  <div className="h-px bg-stone-100 flex-grow"></div>
+                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">组合下注预览</h2>
+                  <div className="h-px bg-stone-100 flex-grow"></div>
+                </div>
+                <div className="flex flex-col gap-2 overflow-y-auto pr-1">
+                  {textParsedMultiZodiacBets.length === 0 && 
+                   textParsedMultiTailBets.length === 0 && 
+                   textParsedFiveZodiacBets.length === 0 && 
+                   textParsedFourZodiacBets.length === 0 && 
+                   textParsedSixZodiacBets.length === 0 && 
+                   textParsedNotInBets.length === 0 && (
+                    <div className="h-full flex items-center justify-center py-4">
+                      <span className="text-[9px] text-stone-300 italic">暂无识别内容...</span>
+                    </div>
+                  )}
                   {textParsedMultiZodiacBets.length > 0 && (
-                    <div className="mt-1 p-1.5 bg-amber-50 rounded-lg border border-amber-100">
+                    <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100">
                       <div className="text-[7px] font-bold text-amber-600 uppercase mb-0.5">识别到连肖:</div>
                       <div className="flex flex-col gap-0.5">
                         {textParsedMultiZodiacBets.map((bet, idx) => (
@@ -1776,8 +1828,21 @@ export default function App() {
                       </div>
                     </div>
                   )}
+                  {textParsedMultiTailBets.length > 0 && (
+                    <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
+                      <div className="text-[7px] font-bold text-indigo-600 uppercase mb-0.5">识别到连尾:</div>
+                      <div className="flex flex-col gap-0.5">
+                        {textParsedMultiTailBets.map((bet, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-[8px]">
+                            <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}尾</span>
+                            <span className="text-indigo-600 font-black">¥{bet.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {textParsedFiveZodiacBets.length > 0 && (
-                    <div className="mt-1 p-1.5 bg-purple-50 rounded-lg border border-purple-100">
+                    <div className="p-1.5 bg-purple-50 rounded-lg border border-purple-100">
                       <div className="text-[7px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
                       <div className="flex flex-col gap-0.5">
                         {textParsedFiveZodiacBets.map((bet, idx) => (
@@ -1790,7 +1855,7 @@ export default function App() {
                     </div>
                   )}
                   {textParsedFourZodiacBets.length > 0 && (
-                    <div className="mt-1 p-1.5 bg-blue-50 rounded-lg border border-blue-100">
+                    <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
                       <div className="text-[7px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
                       <div className="flex flex-col gap-0.5">
                         {textParsedFourZodiacBets.map((bet, idx) => (
@@ -1803,13 +1868,26 @@ export default function App() {
                     </div>
                   )}
                   {textParsedSixZodiacBets.length > 0 && (
-                    <div className="mt-1 p-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div className="p-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
                       <div className="text-[7px] font-bold text-emerald-600 uppercase mb-0.5">识别到六中:</div>
                       <div className="flex flex-col gap-0.5">
                         {textParsedSixZodiacBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
                             <span className="text-emerald-600 font-black">¥{bet.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {textParsedNotInBets.length > 0 && (
+                    <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-100">
+                      <div className="text-[7px] font-bold text-rose-600 uppercase mb-0.5">识别到不中:</div>
+                      <div className="flex flex-col gap-0.5">
+                        {textParsedNotInBets.map((bet, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-[8px]">
+                            <span className="text-stone-700 font-bold">{bet.x}不中 {bet.numbers.map(n => formatNumber(n)).join('')}</span>
+                            <span className="text-rose-600 font-black">¥{bet.amount}</span>
                           </div>
                         ))}
                       </div>
@@ -2114,7 +2192,7 @@ export default function App() {
                           <td className="px-6 py-4 text-xs font-bold text-stone-500">
                             {(() => {
                               const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
                                 Object.entries(details).forEach(([type, amt]) => {
                                   acc[type] = (acc[type] || 0) + amt;
                                 });
@@ -2126,7 +2204,7 @@ export default function App() {
                           <td className="px-6 py-4 text-sm font-black text-red-600">
                             {(() => {
                               const totalWin = (order.items || []).reduce((sum, item) => {
-                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
                                 return sum + (win || 0);
                               }, 0);
                               return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -2252,7 +2330,7 @@ export default function App() {
                               <td className="px-6 py-4 text-xs font-bold text-stone-300 italic">
                                 {(() => {
                                   const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                    const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                    const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
                                     Object.entries(details).forEach(([type, amt]) => {
                                       acc[type] = (acc[type] || 0) + amt;
                                     });
@@ -2264,7 +2342,7 @@ export default function App() {
                               <td className="px-6 py-4 text-sm font-black text-red-400">
                                 {(() => {
                                   const totalWin = (order.items || []).reduce((sum, item) => {
-                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
                                     return sum + (win || 0);
                                   }, 0);
                                   return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';

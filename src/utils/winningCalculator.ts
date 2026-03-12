@@ -1,5 +1,5 @@
 import { zodiacs, redNumbers, blueNumbers, greenNumbers } from '../constants';
-import { MultiZodiacBet, NotInBet, MultiTailBet } from '../types';
+import { MultiZodiacBet, NotInBet } from '../types';
 
 export const getZodiacFromNumber = (num: number | '') => {
   if (num === '' || num < 1 || num > 49) return '';
@@ -62,8 +62,8 @@ export const calculateWinAmount = (
   sixZodiacDeltas: MultiZodiacBet[] = [],
   fiveZodiacDeltas: MultiZodiacBet[] = [],
   fourZodiacDeltas: MultiZodiacBet[] = [],
+  multiTailDeltas: MultiZodiacBet[] = [],
   notInDeltas: NotInBet[] = [],
-  multiTailDeltas: MultiTailBet[] = [],
   drawNumbers: (number | '')[]
 ): number | null => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return null;
@@ -184,14 +184,15 @@ export const calculateWinAmount = (
   // 8. Multi-Tail (连尾) calculation
   if (multiTailDeltas) {
     multiTailDeltas.forEach(bet => {
-      const allPresent = bet.tails.every(t => winningTails.includes(t));
+      const betTails = bet.zodiacs.map(Number);
+      const allPresent = betTails.every(t => winningTails.includes(t));
       if (allPresent) {
-        const count = bet.tails.length;
+        const count = betTails.length;
         let multiplier = 0;
-        if (count === 2) multiplier = 3;
-        else if (count === 3) multiplier = 7;
-        else if (count === 4) multiplier = 15;
-        else if (count === 5) multiplier = 40;
+        if (count === 2) multiplier = 4;
+        else if (count === 3) multiplier = 10;
+        else if (count === 4) multiplier = 30;
+        else if (count >= 5) multiplier = 100;
 
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
@@ -212,8 +213,8 @@ export const getWinningDetails = (
   sixZodiacDeltas: MultiZodiacBet[] = [],
   fiveZodiacDeltas: MultiZodiacBet[] = [],
   fourZodiacDeltas: MultiZodiacBet[] = [],
+  multiTailDeltas: MultiZodiacBet[] = [],
   notInDeltas: NotInBet[] = [],
-  multiTailDeltas: MultiTailBet[] = [],
   drawNumbers: (number | '')[]
 ): Record<string, number> => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return {};
@@ -297,8 +298,9 @@ export const getWinningDetails = (
   // 8. Multi-Tail
   if (multiTailDeltas) {
     multiTailDeltas.forEach(bet => {
-      if (bet.tails.every(t => winningTails.includes(t))) {
-        const type = `${bet.tails.length}连尾`;
+      const betTails = bet.zodiacs.map(Number);
+      if (betTails.every(t => winningTails.includes(t))) {
+        const type = `${bet.zodiacs.length}连尾`;
         typeSums[type] = (typeSums[type] || 0) + bet.amount;
       }
     });

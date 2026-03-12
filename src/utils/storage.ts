@@ -5,7 +5,8 @@ export const STORAGE_KEYS = {
   DRAW_NUMBERS: 'drawNumbers',
   IS_DRAW_LOCKED: 'isDrawLocked',
   SELECTED_LOTTERY_TYPE: 'selectedLotteryType',
-  SELECTED_BASKET_ID: 'selectedBasketId'
+  SELECTED_BASKET_ID: 'selectedBasketId',
+  ALL_PENDING_BETS: 'allPendingBets'
 };
 
 export const saveToStorage = (key: string, data: any) => {
