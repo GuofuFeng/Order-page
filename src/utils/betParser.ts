@@ -78,7 +78,7 @@ export const REGEX_EACH = /(?:^|[\s,，])([^各买压个\n平连中肖包不]+)(
 export const REGEX_GENERIC = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝)+[马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
 export const REGEX_BAO = /(?:^|[\s,，])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_PING = /(?:^|[\s,，])(?:(?:平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特肖|平特|平肖|平))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_TAIL = /(?:^|[\s,，])(?:平)?(\d)尾(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_TAIL = /(?:^|[\s,，])(?:平特|平)?(\d+)尾(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_MULTI_TAIL_ADVANCED = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\s\S]+?)(?=$|[\s,，](?:[二三四五2345两]?(?:连肖|连尾|不中|中)|平|包|各|买|压))/g;
 export const REGEX_MULTI_TAIL_V2 = /(?:^|[\s,，])(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?([二三四五2345两])连尾(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_MULTI_TAIL_V3 = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)(?:[\-\s,，]*?(\d)尾[\-\s,，]*?(\d)尾[\-\s,，]*?(\d)尾(?:[\-\s,，]*?(\d)尾)?(?:[\-\s,，]*?(\d)尾)?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
@@ -120,6 +120,11 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   processedText = processedText.replace(/大号/g, '大');
   processedText = processedText.replace(/万[和合]/g, '越南');
   processedText = processedText.replace(/(\d+)文/g, '$1');
+  
+  // Lottery type synonyms
+  processedText = processedText.replace(/奥大/g, '澳大');
+  processedText = processedText.replace(/新[cC][cC]/g, 'cc');
+  processedText = processedText.replace(/CC/g, 'cc');
   
   const newSelected = new Set<number>();
   const newParsedBets: Record<number, number> = {};
@@ -536,11 +541,16 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   // 5. "平尾" Pattern (Flat Tail)
   while ((match = REGEX_TAIL.exec(textForPatterns)) !== null) {
     anyPatternFound = true;
-    const tailDigit = parseInt(match[1]);
+    const tailDigitsStr = match[1];
     const amtStr = match[2];
     const parsedAmt = chineseToNumber(amtStr);
     if (!isNaN(parsedAmt) && parsedAmt > 0) {
-      newParsedTailBets[tailDigit] = (newParsedTailBets[tailDigit] || 0) + parsedAmt;
+      for (const char of tailDigitsStr) {
+        const tailDigit = parseInt(char);
+        if (!isNaN(tailDigit)) {
+          newParsedTailBets[tailDigit] = (newParsedTailBets[tailDigit] || 0) + parsedAmt;
+        }
+      }
       lastAmount = parsedAmt;
     }
   }
