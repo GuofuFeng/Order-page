@@ -36,6 +36,7 @@ export default function App() {
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
   const [inputText, setInputText] = useState('');
   const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
+  const [isLotteryTypeLocked, setIsLotteryTypeLocked] = useState<boolean>(() => loadFromStorage(STORAGE_KEYS.IS_LOTTERY_TYPE_LOCKED, false));
   const [selectedBasketId, setSelectedBasketId] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A'));
   const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
 
@@ -85,7 +86,17 @@ export default function App() {
     return confirmedBets.filter(bet => bet.basketId === selectedBasketId);
   }, [confirmedBets, selectedBasketId]);
 
-  const todayBeijing = useMemo(() => getBeijingDateString(Date.now()), []);
+  const [todayBeijing, setTodayBeijing] = useState(() => getBeijingDateString(Date.now()));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const current = getBeijingDateString(Date.now());
+      if (current !== todayBeijing) {
+        setTodayBeijing(current);
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [todayBeijing]);
 
   // Split bets into Today and Past
   const todayBets = useMemo(() => {
@@ -225,6 +236,9 @@ export default function App() {
     saveToStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, selectedLotteryType);
   }, [selectedLotteryType]);
 
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.IS_LOTTERY_TYPE_LOCKED, isLotteryTypeLocked);
+  }, [isLotteryTypeLocked]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SELECTED_BASKET_ID, selectedBasketId);
@@ -253,7 +267,7 @@ export default function App() {
       errors: newErrors
     } = parseBetInput(inputText);
 
-    if (recognizedLotteryType) {
+    if (recognizedLotteryType && !isLotteryTypeLocked) {
       setSelectedLotteryType(recognizedLotteryType);
     }
 
@@ -1279,16 +1293,29 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">彩种选择:</span>
-            <div className="flex gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-inner">
-              {lotteryTypes.map(type => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedLotteryType(type)}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-950 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
-                >
-                  {type}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-inner">
+                {lotteryTypes.map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedLotteryType(type)}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-950 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setIsLotteryTypeLocked(!isLotteryTypeLocked)}
+                className={`p-1.5 rounded-lg transition-all ${isLotteryTypeLocked ? 'bg-red-500 text-white shadow-md' : 'bg-stone-100 text-stone-400 hover:text-stone-600 border border-stone-200'}`}
+                title={isLotteryTypeLocked ? "解锁彩种自动识别" : "锁定当前彩种"}
+              >
+                {isLotteryTypeLocked ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                )}
+              </button>
             </div>
           </div>
         </div>

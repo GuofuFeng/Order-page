@@ -70,14 +70,14 @@ export interface ParsedInput {
 export const REGEX_SIX_ZODIAC = /(?:^|[\s,，])(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_FIVE_ZODIAC = /(?:^|[\s,，])(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_FOUR_ZODIAC = /(?:^|[\s,，])(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_MULTI_ZODIAC = /(?:^|[\s,，])(?:(?:([二三四五2345])?连肖|([二三四五2345])肖)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖)?(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+))/g;
-export const REGEX_MULTI_ZODIAC_V2 = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(复试)?([二三四五2345])(?:连肖|连)(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_MULTI_ZODIAC_V3 = /(?:^|[\s,，])([二三四五2345])(?:连肖|连)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_ZODIAC = /(?:^|[\s,，])(?:平特)?(?:(?:([二三四五2345])?连肖|([二三四五2345])肖)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖)?(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+))/g;
+export const REGEX_MULTI_ZODIAC_V2 = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(复试|复式)?([二三四五2345])(?:连肖|连)(?:各组)?(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_ZODIAC_V3 = /(?:^|[\s,，])(?:平特)?([二三四五2345])(?:连肖|连)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_NOT_IN = /(?:^|[\s,，])([五六七八九十]{1,2}|5|6|7|8|9|10|11|12)不中[:：]?([\s\S]+?)(?:买|包|各|各号|下单)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
 export const REGEX_EACH = /(?:^|[\s,，])([^各买压个\n平连中肖包不]+)(?:各|买|压|个)(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_GENERIC = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝)+[马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
 export const REGEX_BAO = /(?:^|[\s,，])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_PING = /(?:^|[\s,，])(?:(?:平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)平)(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_PING = /(?:^|[\s,，])(?:(?:平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特肖|平特|平肖|平))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_TAIL = /(?:^|[\s,，])(?:平)?(\d)尾(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_MULTI_TAIL_ADVANCED = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\s\S]+?)(?=$|[\s,，](?:[二三四五2345两]?(?:连肖|连尾|不中|中)|平|包|各|买|压))/g;
 export const REGEX_MULTI_TAIL_V2 = /(?:^|[\s,，])(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?([二三四五2345两])连尾(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
@@ -140,6 +140,13 @@ export const parseBetInput = (inputText: string): ParsedInput => {
       recognizedLotteryType = type;
       break;
     }
+  }
+
+  // Remove lottery types from text to avoid interfering with regex start anchors
+  let textForPatterns = processedText;
+  for (const type of lotteryTypes) {
+    const escapedType = type.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    textForPatterns = textForPatterns.replace(new RegExp(`【?${escapedType}】?`, 'g'), ' ');
   }
 
   let lastAmount: number | '' = '';
@@ -226,7 +233,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
   // 0. "六中/六肖" Pattern
   let match;
-  while ((match = REGEX_SIX_ZODIAC.exec(processedText)) !== null) {
+  while ((match = REGEX_SIX_ZODIAC.exec(textForPatterns)) !== null) {
     const zodiacNamesStr = match[1];
     const amtStr = match[2];
     const parsedAmt = chineseToNumber(amtStr);
@@ -246,7 +253,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 0.25 "五中" Pattern
-  while ((match = REGEX_FIVE_ZODIAC.exec(processedText)) !== null) {
+  while ((match = REGEX_FIVE_ZODIAC.exec(textForPatterns)) !== null) {
     const zodiacNamesStr = match[1];
     const amtStr = match[2];
     const parsedAmt = chineseToNumber(amtStr);
@@ -266,7 +273,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 0.5 "四中" Pattern
-  while ((match = REGEX_FOUR_ZODIAC.exec(processedText)) !== null) {
+  while ((match = REGEX_FOUR_ZODIAC.exec(textForPatterns)) !== null) {
     const zodiacNamesStr = match[1];
     const amtStr = match[2];
     const parsedAmt = chineseToNumber(amtStr);
@@ -287,7 +294,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
   // 1. "连肖" Pattern (Multi-Zodiac)
   // Updated to support Chinese digits for the count and optional count
-  while ((match = REGEX_MULTI_ZODIAC.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_ZODIAC.exec(textForPatterns)) !== null) {
     const countStr = match[1] || match[2];
     const zodiacNamesStr = match[3] || match[5];
     const amtStr = match[4] || match[6];
@@ -320,7 +327,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 1.1 "连肖" Pattern V2 (Zodiacs + Count + Amount) e.g. "猴兔狗三连30"
-  while ((match = REGEX_MULTI_ZODIAC_V2.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_ZODIAC_V2.exec(textForPatterns)) !== null) {
     const zodiacNamesStr = match[1];
     const isCompound = !!match[2];
     const countStr = match[3];
@@ -352,7 +359,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 1.2 "连肖" Pattern V3 (Count + Zodiacs + Amount) e.g. "二连虎龙50"
-  while ((match = REGEX_MULTI_ZODIAC_V3.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_ZODIAC_V3.exec(textForPatterns)) !== null) {
     const countStr = match[1];
     const zodiacNamesStr = match[2];
     const amtStr = match[3];
@@ -383,7 +390,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 1.5 "x不中" Pattern
-  while ((match = REGEX_NOT_IN.exec(processedText)) !== null) {
+  while ((match = REGEX_NOT_IN.exec(textForPatterns)) !== null) {
     const xStr = match[1];
     const content = match[2];
     const amtStr = match[3];
@@ -442,7 +449,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 2. "各" Pattern (Special Number) - handles synonyms via pre-processing
-  while ((match = REGEX_EACH.exec(processedText)) !== null) {
+  while ((match = REGEX_EACH.exec(textForPatterns)) !== null) {
     anyPatternFound = true;
     const prefix = match[1];
     const amtStr = match[2];
@@ -460,7 +467,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
   // 2.5 Generic Pattern (No "各") - handles "马猴狗小100" or "蓝小100"
   // Run this after other patterns to avoid stealing their matches
-  while ((match = REGEX_GENERIC.exec(processedText)) !== null) {
+  while ((match = REGEX_GENERIC.exec(textForPatterns)) !== null) {
     const prefix = match[1];
     const amtStr = match[2];
     
@@ -482,7 +489,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 3. "包" Pattern (Special Number) - updated for multiple zodiacs
-  while ((match = REGEX_BAO.exec(processedText)) !== null) {
+  while ((match = REGEX_BAO.exec(textForPatterns)) !== null) {
     anyPatternFound = true;
     const zodiacNames = match[1] || match[2];
     const amtStr = match[3];
@@ -511,7 +518,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 4. "平" Pattern (Flat Zodiac) - merged to avoid doubling
-  while ((match = REGEX_PING.exec(processedText)) !== null) {
+  while ((match = REGEX_PING.exec(textForPatterns)) !== null) {
     anyPatternFound = true;
     const zodiacNames = match[1] || match[2];
     const amtStr = match[3];
@@ -527,7 +534,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   }
 
   // 5. "平尾" Pattern (Flat Tail)
-  while ((match = REGEX_TAIL.exec(processedText)) !== null) {
+  while ((match = REGEX_TAIL.exec(textForPatterns)) !== null) {
     anyPatternFound = true;
     const tailDigit = parseInt(match[1]);
     const amtStr = match[2];
@@ -635,13 +642,13 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     }
   };
 
-  while ((match = REGEX_MULTI_TAIL_ADVANCED.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_TAIL_ADVANCED.exec(textForPatterns)) !== null) {
     processMultiTailMatch(match, 'advanced');
   }
-  while ((match = REGEX_MULTI_TAIL_V2.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_TAIL_V2.exec(textForPatterns)) !== null) {
     processMultiTailMatch(match, 'v2');
   }
-  while ((match = REGEX_MULTI_TAIL_V3.exec(processedText)) !== null) {
+  while ((match = REGEX_MULTI_TAIL_V3.exec(textForPatterns)) !== null) {
     processMultiTailMatch(match, 'v3');
   }
 
