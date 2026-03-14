@@ -56,6 +56,7 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
 
 export const calculateWinAmount = (
   numberDeltas: Record<number, number> = {},
+  flatNumberDeltas: Record<number, number> = {},
   zodiacDeltas: Record<string, number> = {},
   tailDeltas: Record<number, number> = {},
   multiZodiacDeltas: MultiZodiacBet[] = [],
@@ -73,6 +74,7 @@ export const calculateWinAmount = (
   let hasWin = false;
 
   const drawNums = drawNumbers.filter((n): n is number => typeof n === 'number');
+  const normalNums = drawNums.slice(0, 6); // First 6 numbers are "平码"
 
   // 1. Special Number (特码) calculation
   // Odds: 新澳, 老澳, 香港, 老cc -> 47x. Others -> 46x.
@@ -86,6 +88,15 @@ export const calculateWinAmount = (
     totalWin += betAmount * multiplier;
     hasWin = true;
   }
+
+  // 1.5 Flat Number (平码) calculation: 7x multiplier if in first 6 numbers
+  Object.entries(flatNumberDeltas).forEach(([numStr, amt]) => {
+    const n = parseInt(numStr);
+    if (normalNums.includes(n)) {
+      totalWin += amt * 7;
+      hasWin = true;
+    }
+  });
 
   // 2. Flat Zodiac (平肖) calculation: 2x multiplier (1.8x for Horse) if in any of the 7 numbers
   const winningZodiacs = Array.from(new Set(drawNumbers.map(n => getZodiacFromNumber(n)).filter(Boolean)));
@@ -211,6 +222,7 @@ export const calculateWinAmount = (
 
 export const getWinningDetails = (
   numberDeltas: Record<number, number> = {},
+  flatNumberDeltas: Record<number, number> = {},
   zodiacDeltas: Record<string, number> = {},
   tailDeltas: Record<number, number> = {},
   multiZodiacDeltas: MultiZodiacBet[] = [],
@@ -225,6 +237,7 @@ export const getWinningDetails = (
 
   const typeSums: Record<string, number> = {};
   const drawNums = drawNumbers.filter((n): n is number => typeof n === 'number');
+  const normalNums = drawNums.slice(0, 6);
   const winningZodiacs = Array.from(new Set(drawNums.map(n => getZodiacFromNumber(n)).filter(Boolean)));
   const specialNum = drawNumbers[6] as number;
   const specialZodiac = getZodiacFromNumber(specialNum);
@@ -236,6 +249,14 @@ export const getWinningDetails = (
   if (betAmount) {
     typeSums['特'] = (typeSums['特'] || 0) + betAmount;
   }
+
+  // 1.5 Flat Number
+  Object.entries(flatNumberDeltas).forEach(([numStr, amt]) => {
+    const n = parseInt(numStr);
+    if (normalNums.includes(n)) {
+      typeSums['平码'] = (typeSums['平码'] || 0) + amt;
+    }
+  });
 
   // 2. Flat Zodiac
   Object.entries(zodiacDeltas).forEach(([z, amt]) => {

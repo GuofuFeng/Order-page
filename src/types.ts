@@ -15,6 +15,7 @@ export interface BetOrder {
   id: string;
   text: string;
   numberDeltas: Record<number, number>;
+  flatNumberDeltas: Record<number, number>;
   zodiacDeltas: Record<string, number>;
   tailDeltas: Record<number, number>;
   multiZodiacDeltas: MultiZodiacBet[];
@@ -41,6 +42,7 @@ export interface ConfirmedBet {
 export interface AppState {
   confirmedBets: ConfirmedBet[];
   cumulativeAmounts: Record<number, number>;
+  flatNumberCumulativeAmounts: Record<number, number>;
   zodiacCumulativeAmounts: Record<string, number>;
   tailCumulativeAmounts: Record<number, number>;
   drawNumbers: Record<string, (number | '')[]>;

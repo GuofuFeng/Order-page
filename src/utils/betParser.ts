@@ -1,4 +1,4 @@
-import { chineseNumberMap, zodiacs, redNumbers, blueNumbers, greenNumbers, numbers, lotteryTypes } from '../constants';
+import { chineseNumberMap, zodiacs, redNumbers, blueNumbers, greenNumbers, numbers, lotteryTypes, domesticZodiacs, wildZodiacs, isSumOdd, isSumEven } from '../constants';
 import { MultiZodiacBet, NotInBet } from '../types';
 
 function getCombinations<T>(array: T[], size: number): T[][] {
@@ -52,6 +52,7 @@ export const chineseToNumber = (chStr: string): number => {
 export interface ParsedInput {
   selectedNumbers: Set<number>;
   parsedBets: Record<number, number>;
+  parsedFlatBets: Record<number, number>;
   parsedZodiacBets: Record<string, number>;
   parsedTailBets: Record<number, number>;
   parsedMultiZodiacBets: MultiZodiacBet[];
@@ -74,14 +75,15 @@ export const REGEX_MULTI_ZODIAC = /(?:^|[\s,，])(?:平特)?(?:(?:([二三四五
 export const REGEX_MULTI_ZODIAC_ADVANCED = /(?:^|[\s,，])(?:平特)?(?:([二三四五2345两])?连肖|([二三四五2345两])肖)([\s\S]+?)(?=$|[\s,，](?:[二三四五2345两]?(?:连肖|连尾|不中|中)|平|包|各|买|压))/g;
 export const REGEX_MULTI_ZODIAC_V2 = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(复试|复式)?([二三四五2345])(?:连肖|连)(?:各组)?(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_NOT_IN = /(?:^|[\s,，])([五六七八九十]{1,2}|5|6|7|8|9|10|11|12)不中[:：]?([\s\S]+?)(?:买|包|各|各号|下单)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
-export const REGEX_EACH = /(?:^|[\s,，])([^各买压个\n平连中肖包不]+)(?:各|买|压|个)(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_GENERIC = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝)+[马蛇龙兔虎牛鼠猪狗鸡猴羊\d\.\s,，]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
+export const REGEX_EACH = /(?:^|[\s,，])([^各买压个\n平连中包不]+)(?:各|买|压|个)(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_GENERIC = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝|家|野|合单|合双)+[马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\d\.\s,，]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
 export const REGEX_BAO = /(?:^|[\s,，])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_PING = /(?:^|[\s,，])(?:(?:平特一肖|平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特一肖|平特肖|平特|平肖|平))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_TAIL = /(?:^|[\s,，])(?:平特|平)?(\d+)尾(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_MULTI_TAIL_ADVANCED = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\s\S]+?)(?=$|[\s,，](?:[二三四五2345两]?(?:连肖|连尾|不中|中)|平|包|各|买|压))/g;
 export const REGEX_MULTI_TAIL_V2 = /(?:^|[\s,，])(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?([二三四五2345两])连尾(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
 export const REGEX_MULTI_TAIL_V3 = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)(?:[\-\s,，]*?(\d)尾[\-\s,，]*?(\d)尾[\-\s,，]*?(\d)尾(?:[\-\s,，]*?(\d)尾)?(?:[\-\s,，]*?(\d)尾)?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_FLAT_NUMBER = /(?:^|[\s,，])(?:(\d+)平码(\d+)|平码(\d+)-(\d+)|平码([\d\.\s,，]+)各(\d+)|平码(\d+)各(\d+))/g;
 export const REGEX_INVALID_NUMBERS = /\d{3,}|[5-9]\d/g;
 
 export const parseBetInput = (inputText: string): ParsedInput => {
@@ -90,13 +92,14 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
     REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2,
     REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL,
-    REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3
+    REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER
   ].forEach(re => { if (re) re.lastIndex = 0; });
 
   if (!inputText.trim()) {
     return {
       selectedNumbers: new Set(),
       parsedBets: {},
+      parsedFlatBets: {},
       parsedZodiacBets: {},
       parsedTailBets: {},
       parsedMultiZodiacBets: [],
@@ -119,6 +122,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   processedText = processedText.replace(/[买压个]/g, '各');
   processedText = processedText.replace(/小号/g, '小');
   processedText = processedText.replace(/大号/g, '大');
+  processedText = processedText.replace(/号/g, '');
   processedText = processedText.replace(/万[和合]/g, '越南');
   processedText = processedText.replace(/(\d+)文/g, '$1');
   
@@ -129,6 +133,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   
   const newSelected = new Set<number>();
   const newParsedBets: Record<number, number> = {};
+  const newParsedFlatBets: Record<number, number> = {};
   const newParsedZodiacBets: Record<string, number> = {};
   const newParsedTailBets: Record<number, number> = {};
   const newParsedMultiZodiacBets: MultiZodiacBet[] = [];
@@ -176,6 +181,22 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         }
       }
     }
+
+    // Domestic/Wild Zodiacs
+    if (prefix.includes('家')) {
+      hasZodiac = true;
+      domesticZodiacs.forEach(z => {
+        const zIdx = zodiacs.indexOf(z);
+        for (let i = zIdx + 1; i <= 49; i += 12) baseNums.push(i);
+      });
+    }
+    if (prefix.includes('野')) {
+      hasZodiac = true;
+      wildZodiacs.forEach(z => {
+        const zIdx = zodiacs.indexOf(z);
+        for (let i = zIdx + 1; i <= 49; i += 12) baseNums.push(i);
+      });
+    }
     
     // Direct numbers (exclude numbers followed by "尾" or "头")
     const numMatches = prefix.replace(/\d+[尾头]/g, '').match(/\d+/g);
@@ -211,11 +232,14 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     // If multiple filters of same type are present, they are UNIONed first
     let filterNums = [...baseNums];
     
-    if (prefix.includes('单') || prefix.includes('双')) {
+    const hasOdd = prefix.includes('单') && !prefix.includes('合单');
+    const hasEven = prefix.includes('双') && !prefix.includes('合双');
+    
+    if (hasOdd || hasEven) {
       filterNums = filterNums.filter(n => {
         const isOdd = n % 2 !== 0;
         const isEven = n % 2 === 0;
-        return (prefix.includes('单') && isOdd) || (prefix.includes('双') && isEven);
+        return (hasOdd && isOdd) || (hasEven && isEven);
       });
     }
     
@@ -224,6 +248,12 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         const isBig = n >= 25 && n <= 49;
         const isSmall = n >= 1 && n <= 24;
         return (prefix.includes('大') && isBig) || (prefix.includes('小') && isSmall);
+      });
+    }
+
+    if (prefix.includes('合单') || prefix.includes('合双')) {
+      filterNums = filterNums.filter(n => {
+        return (prefix.includes('合单') && isSumOdd(n)) || (prefix.includes('合双') && isSumEven(n));
       });
     }
 
@@ -499,7 +529,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     const amtStr = match[2];
     
     // Skip if it contains keywords of other patterns
-    if (/[平连中肖包]/.test(prefix)) continue;
+    if (/[平连中包]/.test(prefix)) continue;
     
     const parsedAmt = chineseToNumber(amtStr);
     if (!isNaN(parsedAmt) && parsedAmt > 0) {
@@ -684,9 +714,42 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     processMultiTailMatch(match, 'v3');
   }
 
+  // 7. "平码" Pattern
+  while ((match = REGEX_FLAT_NUMBER.exec(textForPatterns)) !== null) {
+    anyPatternFound = true;
+    let nums: number[] = [];
+    let amount = 0;
+
+    if (match[1] && match[2]) { // 18平码20
+      nums = [parseInt(match[1])];
+      amount = chineseToNumber(match[2]);
+    } else if (match[3] && match[4]) { // 平码26-100
+      nums = [parseInt(match[3])];
+      amount = chineseToNumber(match[4]);
+    } else if (match[5] && match[6]) { // 平码20.36各10
+      const numStr = match[5];
+      const amtStr = match[6];
+      nums = numStr.split(/[\.\s,，]+/).filter(Boolean).map(n => parseInt(n));
+      amount = chineseToNumber(amtStr);
+    } else if (match[7] && match[8]) { // 平码37各50
+      nums = [parseInt(match[7])];
+      amount = chineseToNumber(match[8]);
+    }
+
+    if (amount > 0) {
+      lastAmount = amount;
+      nums.forEach(n => {
+        if (n >= 1 && n <= 49) {
+          newParsedFlatBets[n] = (newParsedFlatBets[n] || 0) + amount;
+        }
+      });
+    }
+  }
+
   return {
     selectedNumbers: newSelected,
     parsedBets: newParsedBets,
+    parsedFlatBets: newParsedFlatBets,
     parsedZodiacBets: newParsedZodiacBets,
     parsedTailBets: newParsedTailBets,
     parsedMultiZodiacBets: newParsedMultiZodiacBets,

@@ -6,9 +6,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
-import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers } from './constants';
+import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, isSumOdd, isSumEven } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_INVALID_NUMBERS } from './utils/betParser';
+import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_INVALID_NUMBERS } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
@@ -56,6 +56,7 @@ export default function App() {
   }[]>([]);
   const [amount, setAmount] = useState<number | ''>('');
   const [textParsedBets, setTextParsedBets] = useState<Record<number, number>>({});
+  const [textParsedFlatBets, setTextParsedFlatBets] = useState<Record<number, number>>({});
   const [textParsedZodiacBets, setTextParsedZodiacBets] = useState<Record<string, number>>({});
   const [textParsedTailBets, setTextParsedTailBets] = useState<Record<number, number>>({});
   const [textParsedMultiZodiacBets, setTextParsedMultiZodiacBets] = useState<MultiZodiacBet[]>([]);
@@ -67,8 +68,10 @@ export default function App() {
   const [textParsedErrors, setTextParsedErrors] = useState<string[]>([]);
   
   const [oddEvenFilter, setOddEvenFilter] = useState<'odd' | 'even' | null>(null);
+  const [sumOddEvenFilter, setSumOddEvenFilter] = useState<'odd' | 'even' | null>(null);
   const [colorFilter, setColorFilter] = useState<'red' | 'green' | 'blue' | null>(null);
   const [sizeFilter, setSizeFilter] = useState<'big' | 'small' | null>(null);
+  const [domesticWildFilter, setDomesticWildFilter] = useState<'domestic' | 'wild' | null>(null);
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   
@@ -128,6 +131,18 @@ export default function App() {
     const allTodayItems = [...pendingBets, ...todayBets.flatMap(b => b.items || [])];
     allTodayItems.forEach(item => {
       (Object.entries(item.numberDeltas) as [string, number][]).forEach(([num, amt]) => {
+        const n = Number(num);
+        totals[n] = (totals[n] || 0) + amt;
+      });
+    });
+    return totals;
+  }, [pendingBets, todayBets]);
+
+  const flatNumberCumulativeAmounts = useMemo(() => {
+    const totals: Record<number, number> = {};
+    const allTodayItems = [...pendingBets, ...todayBets.flatMap(b => b.items || [])];
+    allTodayItems.forEach(item => {
+      (Object.entries(item.flatNumberDeltas || {}) as [string, number][]).forEach(([num, amt]) => {
         const n = Number(num);
         totals[n] = (totals[n] || 0) + amt;
       });
@@ -253,6 +268,7 @@ export default function App() {
     const { 
       selectedNumbers: newSelected, 
       parsedBets: newParsedBets, 
+      parsedFlatBets: newParsedFlatBets,
       parsedZodiacBets: newParsedZodiacBets, 
       parsedTailBets: newParsedTailBets,
       parsedMultiZodiacBets: newParsedMultiZodiacBets,
@@ -275,6 +291,7 @@ export default function App() {
       setSelectedNumbers(newSelected);
       setAmount(lastAmount);
       setTextParsedBets(newParsedBets);
+      setTextParsedFlatBets(newParsedFlatBets);
       setTextParsedZodiacBets(newParsedZodiacBets);
       setTextParsedTailBets(newParsedTailBets);
       setTextParsedMultiZodiacBets(newParsedMultiZodiacBets);
@@ -288,6 +305,7 @@ export default function App() {
       setSelectedNumbers(new Set());
       setAmount('');
       setTextParsedBets({});
+      setTextParsedFlatBets({});
       setTextParsedZodiacBets({});
       setTextParsedTailBets({});
       setTextParsedMultiZodiacBets([]);
@@ -302,7 +320,7 @@ export default function App() {
 
   // Effect to handle simultaneous filters
   useEffect(() => {
-    if (oddEvenFilter === null && colorFilter === null && sizeFilter === null) {
+    if (oddEvenFilter === null && colorFilter === null && sizeFilter === null && domesticWildFilter === null && sumOddEvenFilter === null) {
       // If no filters, don't clear manual selections unless they were set by filters
       // Actually, it's better to just clear if all filters are off to match user expectation of "reset"
       return;
@@ -330,8 +348,20 @@ export default function App() {
       filtered = filtered.filter(n => n >= 25 && n <= 49);
     }
 
+    if (domesticWildFilter === 'domestic') {
+      filtered = filtered.filter(n => domesticZodiacs.includes(getZodiacFromNumber(n)));
+    } else if (domesticWildFilter === 'wild') {
+      filtered = filtered.filter(n => wildZodiacs.includes(getZodiacFromNumber(n)));
+    }
+
+    if (sumOddEvenFilter === 'odd') {
+      filtered = filtered.filter(n => isSumOdd(n));
+    } else if (sumOddEvenFilter === 'even') {
+      filtered = filtered.filter(n => isSumEven(n));
+    }
+
     setSelectedNumbers(new Set(filtered));
-  }, [oddEvenFilter, colorFilter, sizeFilter]);
+  }, [oddEvenFilter, colorFilter, sizeFilter, domesticWildFilter, sumOddEvenFilter]);
 
   const toggleNumber = (num: number) => {
     const newSelected = new Set(selectedNumbers);
@@ -400,6 +430,7 @@ export default function App() {
     // 1. Handle text input (Numbers, Zodiacs and Tails)
     if (inputText.trim()) {
       const numberDeltas: Record<number, number> = {};
+      const flatNumberDeltas: Record<number, number> = {};
       const zodiacDeltas: Record<string, number> = {};
       const tailDeltas: Record<number, number> = {};
       let addedTotal = 0;
@@ -408,6 +439,13 @@ export default function App() {
       (Object.entries(textParsedBets) as [string, number][]).forEach(([numStr, amt]) => {
         const num = parseInt(numStr);
         numberDeltas[num] = (numberDeltas[num] || 0) + amt;
+        addedTotal += amt;
+      });
+
+      // Process parsed flat numbers
+      (Object.entries(textParsedFlatBets) as [string, number][]).forEach(([numStr, amt]) => {
+        const num = parseInt(numStr);
+        flatNumberDeltas[num] = (flatNumberDeltas[num] || 0) + amt;
         addedTotal += amt;
       });
 
@@ -439,6 +477,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: inputText.trim(),
           numberDeltas,
+          flatNumberDeltas,
           zodiacDeltas,
           tailDeltas,
           multiZodiacDeltas: [...textParsedMultiZodiacBets],
@@ -480,6 +519,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `${sortedNums.map(n => formatNumber(n)).join('，')}各号下单${amount}元`,
           numberDeltas,
+          flatNumberDeltas: {},
           zodiacDeltas: {},
           tailDeltas: {},
           multiZodiacDeltas: [],
@@ -517,6 +557,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `平肖${z}下单${val}元`,
           numberDeltas: {},
+          flatNumberDeltas: {},
           zodiacDeltas,
           tailDeltas: {},
           multiZodiacDeltas: [],
@@ -560,6 +601,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `平${t}尾下单${val}元`,
           numberDeltas: {},
+          flatNumberDeltas: {},
           zodiacDeltas: {},
           tailDeltas,
           multiZodiacDeltas: [],
@@ -601,6 +643,7 @@ export default function App() {
         id: Math.random().toString(36).substr(2, 9),
         text: `${multiZodiacSelection.length}肖${multiZodiacSelection.join('')}下单${multiZodiacAmount}元`,
         numberDeltas: {},
+        flatNumberDeltas: {},
         zodiacDeltas: {},
         tailDeltas: {},
         multiZodiacDeltas,
@@ -623,6 +666,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `六中${bet.zodiacs.join('')}下单${bet.amount}元`,
           numberDeltas: {},
+          flatNumberDeltas: {},
           zodiacDeltas: {},
           tailDeltas: {},
           multiZodiacDeltas: [],
@@ -646,6 +690,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `五中${bet.zodiacs.join('')}下单${bet.amount}元`,
           numberDeltas: {},
+          flatNumberDeltas: {},
           zodiacDeltas: {},
           tailDeltas: {},
           multiZodiacDeltas: [],
@@ -669,6 +714,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `四中${bet.zodiacs.join('')}下单${bet.amount}元`,
           numberDeltas: {},
+          flatNumberDeltas: {},
           zodiacDeltas: {},
           tailDeltas: {},
           multiZodiacDeltas: [],
@@ -692,6 +738,7 @@ export default function App() {
           id: Math.random().toString(36).substr(2, 9),
           text: `${bet.x}不中${bet.numbers.map(n => formatNumber(n)).join('')}下单${bet.amount}元`,
           numberDeltas: {},
+          flatNumberDeltas: {},
           zodiacDeltas: {},
           tailDeltas: {},
           multiZodiacDeltas: [],
@@ -813,12 +860,12 @@ export default function App() {
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
       const totalWin = (order.items || []).reduce((sum, item) => {
-        const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
+        const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
         return sum + (win || 0);
       }, 0);
 
       const winDetailsMap = (order.items || []).reduce((acc, item) => {
-        const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+        const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
         Object.entries(details).forEach(([type, amt]) => {
           acc[type] = (acc[type] || 0) + amt;
         });
@@ -1120,7 +1167,7 @@ export default function App() {
 
     function renderBetContent(text: string, context: any) {
       // Updated regex to capture multi-digit tails like "246尾" and "x不中" prefix
-      const parts = text.split(/(平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|[五六七八九十]{1,2}不中|\d{1,2}不中)/);
+      const parts = text.split(/(平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -1173,7 +1220,7 @@ export default function App() {
             } else if (winningZodiacsNormal.includes(part)) {
               return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
             }
-          } else if (['单', '双', '大', '小', '红', '绿', '蓝'].includes(part)) {
+          } else if (['单', '双', '大', '小', '红', '绿', '蓝', '家', '野', '合单', '合双'].includes(part)) {
             if (checkIsWinner(part, context)) {
               return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
             }
@@ -1194,7 +1241,8 @@ export default function App() {
     const validRegexes = [
       REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
       REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC,
-      REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3
+      REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3,
+      REGEX_FLAT_NUMBER
     ];
 
     validRegexes.forEach(re => {
@@ -1490,15 +1538,23 @@ export default function App() {
                             : `bg-white text-stone-500 border-stone-100 hover:bg-stone-50`}
                         `}
                       >
-                        {pendingAmt !== null && pendingAmt !== '' && (
-                          <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-stone-900 text-[9px] px-1 py-0.5 rounded-full shadow-md z-10 font-black border border-amber-500/50">
-                            {pendingAmt}
+                        {((pendingAmt !== null && pendingAmt !== '') || textParsedFlatBets[num]) && (
+                          <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-stone-900 text-[9px] px-1 py-0.5 rounded-full shadow-md z-10 font-black border border-amber-500/50 flex flex-col items-center gap-0">
+                            {pendingAmt !== null && pendingAmt !== '' && <span>{pendingAmt}</span>}
+                            {textParsedFlatBets[num] && <span className="text-[7px] border-t border-amber-600/30 w-full text-center">平:{textParsedFlatBets[num]}</span>}
                           </span>
                         )}
                         <span className="text-xs font-medium leading-tight">{formatNumber(num)}</span>
-                        <span className={`text-[8px] mt-0.5 leading-none ${top5Numbers.has(num) ? 'text-red-600 font-black' : (selectedNumbers.has(num) ? 'text-stone-300' : 'text-stone-400')}`}>
-                          {cumulativeAmounts[num] || 0}
-                        </span>
+                        <div className="flex flex-col items-center mt-0.5 leading-none">
+                          <span className={`text-[8px] ${top5Numbers.has(num) ? 'text-red-600 font-black' : (selectedNumbers.has(num) ? 'text-stone-300' : 'text-stone-400')}`}>
+                            {cumulativeAmounts[num] || 0}
+                          </span>
+                          {flatNumberCumulativeAmounts[num] > 0 && (
+                            <span className="text-[7px] text-blue-500 font-bold">
+                              平:{flatNumberCumulativeAmounts[num]}
+                            </span>
+                          )}
+                        </div>
                       </motion.button>
                     );
                   })}
@@ -1605,6 +1661,64 @@ export default function App() {
                         蓝
                       </button>
                     </div>
+
+                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                      <button
+                        onClick={() => {
+                          setDomesticWildFilter(prev => prev === 'domestic' ? null : 'domestic');
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                          domesticWildFilter === 'domestic'
+                          ? 'bg-stone-800 text-white shadow-md'
+                          : 'text-stone-400 hover:text-stone-600'
+                        }`}
+                      >
+                        家
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDomesticWildFilter(prev => prev === 'wild' ? null : 'wild');
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                          domesticWildFilter === 'wild'
+                          ? 'bg-stone-800 text-white shadow-md'
+                          : 'text-stone-400 hover:text-stone-600'
+                        }`}
+                      >
+                        野
+                      </button>
+                    </div>
+
+                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                      <button
+                        onClick={() => {
+                          setSumOddEvenFilter(prev => prev === 'odd' ? null : 'odd');
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
+                          sumOddEvenFilter === 'odd'
+                          ? 'bg-stone-800 text-white shadow-md'
+                          : 'text-stone-400 hover:text-stone-600'
+                        }`}
+                      >
+                        合单
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSumOddEvenFilter(prev => prev === 'even' ? null : 'even');
+                          amountInputRef.current?.focus();
+                        }}
+                        className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
+                          sumOddEvenFilter === 'even'
+                          ? 'bg-stone-800 text-white shadow-md'
+                          : 'text-stone-400 hover:text-stone-600'
+                        }`}
+                      >
+                        合双
+                      </button>
+                    </div>
                     
                     <button
                       onClick={() => {
@@ -1612,6 +1726,8 @@ export default function App() {
                         setOddEvenFilter(null);
                         setColorFilter(null);
                         setSizeFilter(null);
+                        setDomesticWildFilter(null);
+                        setSumOddEvenFilter(null);
                       }}
                       className="px-2 py-1.5 text-[9px] font-bold text-red-500 hover:bg-red-50 rounded-full transition-colors flex items-center gap-1 border border-transparent hover:border-red-100"
                     >
@@ -2292,7 +2408,7 @@ export default function App() {
                           <td className="px-6 py-4 text-xs font-bold text-stone-500">
                             {(() => {
                               const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
                                 Object.entries(details).forEach(([type, amt]) => {
                                   acc[type] = (acc[type] || 0) + amt;
                                 });
@@ -2304,7 +2420,7 @@ export default function App() {
                           <td className="px-6 py-4 text-sm font-black text-red-600">
                             {(() => {
                               const totalWin = (order.items || []).reduce((sum, item) => {
-                                const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
+                                const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
                                 return sum + (win || 0);
                               }, 0);
                               return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -2471,7 +2587,7 @@ export default function App() {
                               <td className="px-6 py-4 text-xs font-bold text-stone-300 italic">
                                 {(() => {
                                   const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                    const details = getWinningDetails(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
+                                    const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType]);
                                     Object.entries(details).forEach(([type, amt]) => {
                                       acc[type] = (acc[type] || 0) + amt;
                                     });
@@ -2483,7 +2599,7 @@ export default function App() {
                               <td className="px-6 py-4 text-sm font-black text-red-400">
                                 {(() => {
                                   const totalWin = (order.items || []).reduce((sum, item) => {
-                                    const win = calculateWinAmount(item.numberDeltas, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
+                                    const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, drawNumbers[item.lotteryType], item.lotteryType);
                                     return sum + (win || 0);
                                   }, 0);
                                   return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
