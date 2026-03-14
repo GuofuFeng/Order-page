@@ -257,7 +257,8 @@ export const getWinningDetails = (
   // 4. Multi-Zodiac
   multiZodiacDeltas.forEach(bet => {
     if (bet.zodiacs.every(z => winningZodiacs.includes(z))) {
-      const type = `${bet.zodiacs.length}肖`;
+      const hasHorse = bet.zodiacs.includes('马');
+      const type = hasHorse ? `${bet.zodiacs.length}肖马` : `${bet.zodiacs.length}肖`;
       typeSums[type] = (typeSums[type] || 0) + bet.amount;
     }
   });
