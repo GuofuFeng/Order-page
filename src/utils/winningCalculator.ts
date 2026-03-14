@@ -229,6 +229,7 @@ export const getWinningDetails = (
   const specialNum = drawNumbers[6] as number;
   const specialZodiac = getZodiacFromNumber(specialNum);
   const winningTails = Array.from(new Set(drawNums.map(n => n % 10)));
+  const winningHeads = Array.from(new Set(drawNums.map(n => Math.floor(n / 10))));
 
   // 1. Special Number
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];

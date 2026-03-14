@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_MULTI_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3 } from './utils/betParser';
+import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_INVALID_NUMBERS } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
@@ -1187,30 +1187,58 @@ export default function App() {
   const renderHighlightedInput = (text: string) => {
     if (!text) return null;
     
-    const matches: { start: number; end: number }[] = [];
-    const regexes = [
+    const validMatches: { start: number; end: number }[] = [];
+    const amountRanges: { start: number; end: number }[] = [];
+    const invalidMatches: { start: number; end: number }[] = [];
+
+    const validRegexes = [
       REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
-      REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_MULTI_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC,
+      REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC,
       REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3
     ];
 
-    regexes.forEach(re => {
+    validRegexes.forEach(re => {
       let m;
       const r = new RegExp(re.source, re.flags);
       while ((m = r.exec(text)) !== null) {
-        // Adjust start to skip leading space/comma if present in the match
         let start = m.index;
         let matchStr = m[0];
         if (matchStr.length > 0 && /^[\s,，]/.test(matchStr)) {
           start += 1;
         }
-        matches.push({ start, end: m.index + m[0].length });
+        validMatches.push({ start, end: m.index + m[0].length });
+
+        // Identify amount part to exclude from invalid number checks
+        // Most regexes have amount as the last capturing group
+        const lastGroup = m[m.length - 1];
+        if (lastGroup && !isNaN(Number(lastGroup.replace('+', '')))) {
+          const amountStart = m.index + m[0].lastIndexOf(lastGroup);
+          amountRanges.push({ start: amountStart, end: amountStart + lastGroup.length });
+        }
       }
     });
 
-    matches.sort((a, b) => a.start - b.start);
-    const merged: { start: number; end: number }[] = [];
-    if (matches.length > 0) {
+    let m;
+    const rInvalid = new RegExp(REGEX_INVALID_NUMBERS.source, REGEX_INVALID_NUMBERS.flags);
+    while ((m = rInvalid.exec(text)) !== null) {
+      const start = m.index;
+      const end = m.index + m[0].length;
+      
+      // Check if this invalid number overlaps with any amount range
+      const isAmount = amountRanges.some(range => 
+        (start >= range.start && start < range.end) || 
+        (end > range.start && end <= range.end)
+      );
+      
+      if (!isAmount) {
+        invalidMatches.push({ start, end });
+      }
+    }
+
+    const mergeMatches = (matches: { start: number; end: number }[]) => {
+      if (matches.length === 0) return [];
+      matches.sort((a, b) => a.start - b.start);
+      const merged: { start: number; end: number }[] = [];
       let current = { ...matches[0] };
       for (let i = 1; i < matches.length; i++) {
         if (matches[i].start < current.end) {
@@ -1221,24 +1249,56 @@ export default function App() {
         }
       }
       merged.push(current);
-    }
+      return merged;
+    };
+
+    const mergedValid = mergeMatches(validMatches);
+    const mergedInvalid = mergeMatches(invalidMatches);
 
     const result: React.ReactNode[] = [];
-    let lastIdx = 0;
-    merged.forEach((m, idx) => {
-      if (m.start > lastIdx) {
-        result.push(text.substring(lastIdx, m.start));
-      }
-      result.push(
-        <span key={idx} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">
-          {text.substring(m.start, m.end)}
-        </span>
-      );
-      lastIdx = m.end;
+    let currentPos = 0;
+
+    // Create a combined list of points of interest
+    const points: { pos: number; type: 'valid' | 'invalid' | 'end', id: number }[] = [];
+    mergedValid.forEach((m, i) => {
+      points.push({ pos: m.start, type: 'valid', id: i });
+      points.push({ pos: m.end, type: 'end', id: i });
     });
-    if (lastIdx < text.length) {
-      result.push(text.substring(lastIdx));
+    mergedInvalid.forEach((m, i) => {
+      points.push({ pos: m.start, type: 'invalid', id: i + 1000 });
+      points.push({ pos: m.end, type: 'end', id: i + 1000 });
+    });
+    points.sort((a, b) => a.pos - b.pos || (a.type === 'end' ? -1 : 1));
+
+    let currentInvalidId: number | null = null;
+    let currentValidId: number | null = null;
+
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (p.pos > currentPos) {
+        const slice = text.substring(currentPos, p.pos);
+        if (currentInvalidId !== null) {
+          result.push(<span key={`inv-${currentPos}`} className="bg-red-400/20 border-b-2 border-red-400/30">{slice}</span>);
+        } else if (currentValidId !== null) {
+          result.push(<span key={`val-${currentPos}`} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">{slice}</span>);
+        } else {
+          result.push(slice);
+        }
+        currentPos = p.pos;
+      }
+
+      if (p.type === 'invalid') currentInvalidId = p.id;
+      else if (p.type === 'valid') currentValidId = p.id;
+      else if (p.type === 'end') {
+        if (p.id >= 1000) currentInvalidId = null;
+        else currentValidId = null;
+      }
     }
+
+    if (currentPos < text.length) {
+      result.push(text.substring(currentPos));
+    }
+
     return result;
   };
 
