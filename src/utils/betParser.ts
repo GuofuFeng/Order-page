@@ -67,23 +67,29 @@ export interface ParsedInput {
   errors: string[];
 }
 
+export interface ParsedSegment {
+  lotteryType: string | undefined;
+  input: string;
+  parsed: ParsedInput;
+}
+
 // Export regexes for UI highlighting
-export const REGEX_SIX_ZODIAC = /(?:^|[\s,，])(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_FIVE_ZODIAC = /(?:^|[\s,，])(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_FOUR_ZODIAC = /(?:^|[\s,，])(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_MULTI_ZODIAC = /(?:^|[\s,，])(?:[\(\)（）]?([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[\(\)（）]?)(?:连肖|连)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_MULTI_ZODIAC_ADVANCED = /(?:^|[\s,，])(?:平特)?(?:([二三四五2345两])?(?:连肖|连)|([二三四五2345两])肖)([\s\S]+?)(?=$|[\s,，](?:[二三四五2345两]?(?:连肖|连尾|不中|中)|平|包|各|买|压))/g;
-export const REGEX_MULTI_ZODIAC_V2 = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(复试|复式)?([二三四五2345])(?:连肖|连)(?:各组)?(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_NOT_IN = /(?:^|[\s,，])([五六七八九十]{1,2}|5|6|7|8|9|10|11|12)不中[:：]?([\s\S]+?)(?:买|包|各|各号|下单)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
-export const REGEX_EACH = /(?:^|[\s,，])([^各买压个\n平连中包不]+)(?:各|买|压|个)(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_GENERIC = /(?:^|[\s,，])([马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\d\.\s,，]*?(?:大|小|单|双|红|绿|蓝|家|野|合单|合双)+[马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\d\.\s,，]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，])/g;
-export const REGEX_BAO = /(?:^|[\s,，])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_PING = /(?:^|[\s,，])(?:(?:平特一肖|平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特一肖|平特肖|平特|平肖|平))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_TAIL = /(?:^|[\s,，])(?:平特|平)(\d+)尾(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_MULTI_TAIL_ADVANCED = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\s\S]+?)(?=$|[\s,，](?:[二三四五2345两]?(?:连肖|连尾|不中|中)|平|包|各|买|压))/g;
-export const REGEX_MULTI_TAIL_V2 = /(?:^|[\s,，])(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?([二三四五2345两])连尾(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_MULTI_TAIL_V3 = /(?:^|[\s,，])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)(?:[\-\s,，]*?(\d)尾[\-\s,，]*?(\d)尾[\-\s,，]*?(\d)尾(?:[\-\s,，]*?(\d)尾)?(?:[\-\s,，]*?(\d)尾)?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
-export const REGEX_FLAT_NUMBER = /(?:^|[\s,，])(?:(\d+)平码(\d+)|平码(\d+)-(\d+)|平码([\d\.\s,，]+)各(\d+)|平码(\d+)各(\d+))/g;
+export const REGEX_SIX_ZODIAC = /(?:^|[\s,，。；;.])(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_FIVE_ZODIAC = /(?:^|[\s,，。；;.])(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_FOUR_ZODIAC = /(?:^|[\s,，。；;.])(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_ZODIAC = /(?:^|[\s,，。；;.])([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖|连)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_ZODIAC_ADVANCED = /(?:^|[\s,，。；;.])(?:平特)?(?:([二三四五2345两])(?:连肖|连)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连))([\s\S]+?)(?=$|[\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|不中))/g;
+export const REGEX_MULTI_ZODIAC_V2 = /(?:^|[\s,，。；;.])([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(复试|复式)?([二三四五2345])(?:连肖|连)(?:各组)?(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_NOT_IN = /(?:^|[\s,，。；;.])([五六七八九十]{1,2}|5|6|7|8|9|10|11|12)不中[:：]?([\s\S]+?)(?:买|包|各|各号|下单)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|不中))/g;
+export const REGEX_EACH = /(?:^|[\s,，。；;.])([^各买压个\n平连中包不]+)(?:各|买|压|个)(?:号)?(?:[\s\W\u4e00-\u9fa5]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_GENERIC = /(?:^|[\s,，。；;.])([马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\d\.\s,，。；;.]*?(?:大|小|单|双|红|绿|蓝|家|野|合单|合双)+[马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\d\.\s,，。；;.]*?)(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?=$|[\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|不中))/g;
+export const REGEX_BAO = /(?:^|[\s,，。；;.])(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_PING = /(?:^|[\s,，。；;.])(?:(?:平特一肖|平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特一肖|平特肖|平特|平肖|平))(?:各|买|压|个)?(\d+|[零一二三四五六七八9十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_TAIL = /(?:^|[\s,，。；;.])(?:平特|平)(\d+)尾(?:各|买|压|个)?(\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_TAIL_ADVANCED = /(?:^|[\s,，。；;.])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\s\S]+?)(?=$|[\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|不中))/g;
+export const REGEX_MULTI_TAIL_V2 = /(?:^|[\s,，。；;.])(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?([二三四五2345两])连尾(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_MULTI_TAIL_V3 = /(?:^|[\s,，。；;.])(?:([二三四五2345两])?连尾|([二三四五2345两])尾)(?:[\-\s,，。；;.]*?(\d)尾[\-\s,，。；;.]*?(\d)尾[\-\s,，。；;.]*?(\d)尾(?:[\-\s,，。；;.]*?(\d)尾)?(?:[\-\s,，。；;.]*?(\d)尾)?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/g;
+export const REGEX_FLAT_NUMBER = /(?:^|[\s,，。；;.])(?:(\d+)平码(\d+)|平码(\d+)-(\d+)|平码([\d\.\s,，。；;.]+)各(\d+)|平码(\d+)各(\d+))/g;
 export const REGEX_INVALID_NUMBERS = /\d{3,}|[5-9]\d/g;
 
 export const parseBetInput = (inputText: string): ParsedInput => {
@@ -362,16 +368,16 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   // 1.05 "连肖" Pattern Advanced (Multiple groups)
   while ((match = REGEX_MULTI_ZODIAC_ADVANCED.exec(textForPatterns)) !== null) {
     const countStr = match[1] || match[2];
-    const content = match[3];
+    const content = match[4];
     
     // Split content by separators like commas, spaces, or "各/包" to find groups
-    const groups = content.split(/[,，\s]+/);
+    const groups = content.split(/[,，\s。；;.]+/);
     groups.forEach(group => {
       if (!group.trim()) return;
       
       // Try to find zodiacs and amount in this group
       // Match zodiacs (possibly in brackets/parentheses) and then an amount
-      const groupMatch = group.match(/(?:[\(\)（）【】]?([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[\(\)（）【】]?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/);
+      const groupMatch = group.match(/^(?:[\(\)（）【】]?([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[\(\)（）【】]?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)$/);
       if (groupMatch) {
         const zodiacNamesStr = groupMatch[1];
         const groupAmtStr = groupMatch[2];
@@ -609,13 +615,13 @@ export const parseBetInput = (inputText: string): ParsedInput => {
       
       // Split content by separators like commas, spaces, or "各/包" to find groups
       // Example content: "478包20，236包10" or "【36512】5"
-      const groups = content.split(/[,，\s]+/);
+      const groups = content.split(/[,，\s。；;.]+/);
       groups.forEach(group => {
         if (!group.trim()) return;
         
         // Try to find digits and amount in this group
         // Match digits (possibly in brackets) and then an amount
-        const groupMatch = group.match(/(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)/);
+        const groupMatch = group.match(/^(?:【?(\d{2,10})】?)(?:各|买|压|个|包)?(\+?\d+|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)$/);
         if (groupMatch) {
           const tailDigitsStr = groupMatch[1];
           const groupAmtStr = groupMatch[2];
@@ -753,4 +759,24 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     anyPatternFound,
     errors
   };
+};
+
+export const parseMultiLotteryInput = (inputText: string): ParsedSegment[] => {
+  if (!inputText.trim()) return [];
+
+  // Create a regex to split by lottery types using positive lookahead
+  // This ensures the lottery type keyword stays with the following content
+  const types = lotteryTypes.join('|');
+  const regex = new RegExp(`(?=【?(?:${types})】?)`, 'g');
+  
+  const parts = inputText.split(regex).filter(p => p.trim());
+  
+  return parts.map(part => {
+    const parsed = parseBetInput(part);
+    return {
+      lotteryType: parsed.recognizedLotteryType,
+      input: part,
+      parsed
+    };
+  });
 };

@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, isSumOdd, isSumEven } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_INVALID_NUMBERS } from './utils/betParser';
+import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_INVALID_NUMBERS } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
@@ -265,42 +265,77 @@ export default function App() {
 
   // Parsing logic for textarea input
   useEffect(() => {
-    const { 
-      selectedNumbers: newSelected, 
-      parsedBets: newParsedBets, 
-      parsedFlatBets: newParsedFlatBets,
-      parsedZodiacBets: newParsedZodiacBets, 
-      parsedTailBets: newParsedTailBets,
-      parsedMultiZodiacBets: newParsedMultiZodiacBets,
-      parsedSixZodiacBets: newParsedSixZodiacBets,
-      parsedFiveZodiacBets: newParsedFiveZodiacBets,
-      parsedFourZodiacBets: newParsedFourZodiacBets,
-      parsedMultiTailBets: newParsedMultiTailBets,
-      parsedNotInBets: newParsedNotInBets,
-      recognizedLotteryType,
-      lastAmount, 
-      anyPatternFound,
-      errors: newErrors
-    } = parseBetInput(inputText);
-
-    if (recognizedLotteryType && !isLotteryTypeLocked) {
-      setSelectedLotteryType(recognizedLotteryType);
+    const segments = parseMultiLotteryInput(inputText);
+    
+    if (segments.length === 0) {
+      setSelectedNumbers(new Set());
+      setAmount('');
+      setTextParsedBets({});
+      setTextParsedFlatBets({});
+      setTextParsedZodiacBets({});
+      setTextParsedTailBets({});
+      setTextParsedMultiZodiacBets([]);
+      setTextParsedSixZodiacBets([]);
+      setTextParsedFiveZodiacBets([]);
+      setTextParsedFourZodiacBets([]);
+      setTextParsedMultiTailBets([]);
+      setTextParsedNotInBets([]);
+      setTextParsedErrors([]);
+      return;
     }
 
-    if (anyPatternFound || newErrors.length > 0) {
-      setSelectedNumbers(newSelected);
+    const mergedSelected = new Set<number>();
+    const mergedBets: Record<number, number> = {};
+    const mergedFlatBets: Record<number, number> = {};
+    const mergedZodiacBets: Record<string, number> = {};
+    const mergedTailBets: Record<number, number> = {};
+    const mergedMultiZodiac: MultiZodiacBet[] = [];
+    const mergedSixZodiac: MultiZodiacBet[] = [];
+    const mergedFiveZodiac: MultiZodiacBet[] = [];
+    const mergedFourZodiac: MultiZodiacBet[] = [];
+    const mergedMultiTail: MultiZodiacBet[] = [];
+    const mergedNotIn: NotInBet[] = [];
+    const mergedErrors: string[] = [];
+    let lastAmount: number | '' = '';
+    let anyPatternFound = false;
+
+    segments.forEach(seg => {
+      const p = seg.parsed;
+      p.selectedNumbers.forEach(n => mergedSelected.add(n));
+      Object.entries(p.parsedBets).forEach(([n, a]) => mergedBets[Number(n)] = (mergedBets[Number(n)] || 0) + a);
+      Object.entries(p.parsedFlatBets).forEach(([n, a]) => mergedFlatBets[Number(n)] = (mergedFlatBets[Number(n)] || 0) + a);
+      Object.entries(p.parsedZodiacBets).forEach(([z, a]) => mergedZodiacBets[z] = (mergedZodiacBets[z] || 0) + a);
+      Object.entries(p.parsedTailBets).forEach(([t, a]) => mergedTailBets[Number(t)] = (mergedTailBets[Number(t)] || 0) + a);
+      mergedMultiZodiac.push(...p.parsedMultiZodiacBets);
+      mergedSixZodiac.push(...p.parsedSixZodiacBets);
+      mergedFiveZodiac.push(...p.parsedFiveZodiacBets);
+      mergedFourZodiac.push(...p.parsedFourZodiacBets);
+      mergedMultiTail.push(...p.parsedMultiTailBets);
+      mergedNotIn.push(...p.parsedNotInBets);
+      mergedErrors.push(...p.errors);
+      if (p.lastAmount !== '') lastAmount = p.lastAmount;
+      if (p.anyPatternFound) anyPatternFound = true;
+    });
+
+    const firstRecognized = segments.find(s => s.lotteryType)?.lotteryType;
+    if (firstRecognized && !isLotteryTypeLocked) {
+      setSelectedLotteryType(firstRecognized);
+    }
+
+    if (anyPatternFound || mergedErrors.length > 0) {
+      setSelectedNumbers(mergedSelected);
       setAmount(lastAmount);
-      setTextParsedBets(newParsedBets);
-      setTextParsedFlatBets(newParsedFlatBets);
-      setTextParsedZodiacBets(newParsedZodiacBets);
-      setTextParsedTailBets(newParsedTailBets);
-      setTextParsedMultiZodiacBets(newParsedMultiZodiacBets);
-      setTextParsedSixZodiacBets(newParsedSixZodiacBets);
-      setTextParsedFiveZodiacBets(newParsedFiveZodiacBets);
-      setTextParsedFourZodiacBets(newParsedFourZodiacBets);
-      setTextParsedMultiTailBets(newParsedMultiTailBets);
-      setTextParsedNotInBets(newParsedNotInBets);
-      setTextParsedErrors(newErrors);
+      setTextParsedBets(mergedBets);
+      setTextParsedFlatBets(mergedFlatBets);
+      setTextParsedZodiacBets(mergedZodiacBets);
+      setTextParsedTailBets(mergedTailBets);
+      setTextParsedMultiZodiacBets(mergedMultiZodiac);
+      setTextParsedSixZodiacBets(mergedSixZodiac);
+      setTextParsedFiveZodiacBets(mergedFiveZodiac);
+      setTextParsedFourZodiacBets(mergedFourZodiac);
+      setTextParsedMultiTailBets(mergedMultiTail);
+      setTextParsedNotInBets(mergedNotIn);
+      setTextParsedErrors(mergedErrors);
     } else {
       setSelectedNumbers(new Set());
       setAmount('');
@@ -429,69 +464,160 @@ export default function App() {
 
     // 1. Handle text input (Numbers, Zodiacs and Tails)
     if (inputText.trim()) {
-      const numberDeltas: Record<number, number> = {};
-      const flatNumberDeltas: Record<number, number> = {};
-      const zodiacDeltas: Record<string, number> = {};
-      const tailDeltas: Record<number, number> = {};
-      let addedTotal = 0;
+      const segments = parseMultiLotteryInput(inputText);
       
-      // Process parsed numbers
-      (Object.entries(textParsedBets) as [string, number][]).forEach(([numStr, amt]) => {
-        const num = parseInt(numStr);
-        numberDeltas[num] = (numberDeltas[num] || 0) + amt;
-        addedTotal += amt;
-      });
-
-      // Process parsed flat numbers
-      (Object.entries(textParsedFlatBets) as [string, number][]).forEach(([numStr, amt]) => {
-        const num = parseInt(numStr);
-        flatNumberDeltas[num] = (flatNumberDeltas[num] || 0) + amt;
-        addedTotal += amt;
-      });
-
-      // Process parsed zodiacs
-      (Object.entries(textParsedZodiacBets) as [string, number][]).forEach(([z, amt]) => {
-        zodiacDeltas[z] = (zodiacDeltas[z] || 0) + amt;
-        addedTotal += amt;
-      });
-
-      // Process parsed tails
-      (Object.entries(textParsedTailBets) as [string, number][]).forEach(([tailStr, amt]) => {
-        const tail = parseInt(tailStr);
-        tailDeltas[tail] = (tailDeltas[tail] || 0) + amt;
-        addedTotal += amt;
-      });
-
-      // Process multi-zodiacs (Keep in step 1 as they don't have a separate text-parsed step)
-      textParsedMultiZodiacBets.forEach(bet => {
-        addedTotal += bet.amount;
-      });
-
-      // Process multi-tails
-      textParsedMultiTailBets.forEach(bet => {
-        addedTotal += bet.amount;
-      });
-
-      if (addedTotal > 0) {
-        itemsToAdd.push({
-          id: Math.random().toString(36).substr(2, 9),
-          text: inputText.trim(),
-          numberDeltas,
-          flatNumberDeltas,
-          zodiacDeltas,
-          tailDeltas,
-          multiZodiacDeltas: [...textParsedMultiZodiacBets],
-          sixZodiacDeltas: [], 
-          fiveZodiacDeltas: [], 
-          fourZodiacDeltas: [],
-          multiTailDeltas: [...textParsedMultiTailBets],
-          notInDeltas: [], 
-          total: addedTotal,
-          lotteryType: selectedLotteryType,
-          timestamp: Date.now()
+      segments.forEach(seg => {
+        const p = seg.parsed;
+        const lotteryType = seg.lotteryType || selectedLotteryType;
+        const numberDeltas: Record<number, number> = {};
+        const flatNumberDeltas: Record<number, number> = {};
+        const zodiacDeltas: Record<string, number> = {};
+        const tailDeltas: Record<number, number> = {};
+        let mainTotal = 0;
+        
+        // Process parsed numbers
+        (Object.entries(p.parsedBets) as [string, number][]).forEach(([numStr, amt]) => {
+          const num = parseInt(numStr);
+          numberDeltas[num] = (numberDeltas[num] || 0) + amt;
+          mainTotal += amt;
         });
-        hasAction = true;
-      }
+
+        // Process parsed flat numbers
+        (Object.entries(p.parsedFlatBets) as [string, number][]).forEach(([numStr, amt]) => {
+          const num = parseInt(numStr);
+          flatNumberDeltas[num] = (flatNumberDeltas[num] || 0) + amt;
+          mainTotal += amt;
+        });
+
+        // Process parsed zodiacs
+        (Object.entries(p.parsedZodiacBets) as [string, number][]).forEach(([z, amt]) => {
+          zodiacDeltas[z] = (zodiacDeltas[z] || 0) + amt;
+          mainTotal += amt;
+        });
+
+        // Process parsed tails
+        (Object.entries(p.parsedTailBets) as [string, number][]).forEach(([tailStr, amt]) => {
+          const tail = parseInt(tailStr);
+          tailDeltas[tail] = (tailDeltas[tail] || 0) + amt;
+          mainTotal += amt;
+        });
+
+        // Process multi-zodiacs
+        p.parsedMultiZodiacBets.forEach(bet => {
+          mainTotal += bet.amount;
+        });
+
+        // Process multi-tails
+        p.parsedMultiTailBets.forEach(bet => {
+          mainTotal += bet.amount;
+        });
+
+        if (mainTotal > 0) {
+          itemsToAdd.push({
+            id: Math.random().toString(36).substr(2, 9),
+            text: seg.input.trim(),
+            numberDeltas,
+            flatNumberDeltas,
+            zodiacDeltas,
+            tailDeltas,
+            multiZodiacDeltas: [...p.parsedMultiZodiacBets],
+            sixZodiacDeltas: [], 
+            fiveZodiacDeltas: [], 
+            fourZodiacDeltas: [],
+            multiTailDeltas: [...p.parsedMultiTailBets],
+            notInDeltas: [], 
+            total: mainTotal,
+            lotteryType,
+            timestamp: Date.now()
+          });
+          hasAction = true;
+        }
+
+        // Special items (Six, Five, Four, NotIn) - separate items as per original design
+        p.parsedSixZodiacBets.forEach(bet => {
+          itemsToAdd.push({
+            id: Math.random().toString(36).substr(2, 9),
+            text: `六中${bet.zodiacs.join('')}下单${bet.amount}元`,
+            numberDeltas: {},
+            flatNumberDeltas: {},
+            zodiacDeltas: {},
+            tailDeltas: {},
+            multiZodiacDeltas: [],
+            sixZodiacDeltas: [bet],
+            fiveZodiacDeltas: [],
+            fourZodiacDeltas: [],
+            multiTailDeltas: [],
+            notInDeltas: [],
+            total: bet.amount,
+            lotteryType,
+            timestamp: Date.now()
+          });
+          hasAction = true;
+        });
+
+        p.parsedFiveZodiacBets.forEach(bet => {
+          itemsToAdd.push({
+            id: Math.random().toString(36).substr(2, 9),
+            text: `五中${bet.zodiacs.join('')}下单${bet.amount}元`,
+            numberDeltas: {},
+            flatNumberDeltas: {},
+            zodiacDeltas: {},
+            tailDeltas: {},
+            multiZodiacDeltas: [],
+            sixZodiacDeltas: [],
+            fiveZodiacDeltas: [bet],
+            fourZodiacDeltas: [],
+            multiTailDeltas: [],
+            notInDeltas: [],
+            total: bet.amount,
+            lotteryType,
+            timestamp: Date.now()
+          });
+          hasAction = true;
+        });
+
+        p.parsedFourZodiacBets.forEach(bet => {
+          itemsToAdd.push({
+            id: Math.random().toString(36).substr(2, 9),
+            text: `四中${bet.zodiacs.join('')}下单${bet.amount}元`,
+            numberDeltas: {},
+            flatNumberDeltas: {},
+            zodiacDeltas: {},
+            tailDeltas: {},
+            multiZodiacDeltas: [],
+            sixZodiacDeltas: [],
+            fiveZodiacDeltas: [],
+            fourZodiacDeltas: [bet],
+            multiTailDeltas: [],
+            notInDeltas: [],
+            total: bet.amount,
+            lotteryType,
+            timestamp: Date.now()
+          });
+          hasAction = true;
+        });
+
+        p.parsedNotInBets.forEach(bet => {
+          itemsToAdd.push({
+            id: Math.random().toString(36).substr(2, 9),
+            text: `${bet.x}不中${bet.numbers.map(n => formatNumber(n)).join('')}下单${bet.amount}元`,
+            numberDeltas: {},
+            flatNumberDeltas: {},
+            zodiacDeltas: {},
+            tailDeltas: {},
+            multiZodiacDeltas: [],
+            sixZodiacDeltas: [],
+            fiveZodiacDeltas: [],
+            fourZodiacDeltas: [],
+            multiTailDeltas: [],
+            notInDeltas: [bet],
+            total: bet.amount,
+            lotteryType,
+            timestamp: Date.now()
+          });
+          hasAction = true;
+        });
+      });
     }
 
     // 2. Handle manually selected numbers (that aren't already in textParsedBets)
@@ -659,108 +785,22 @@ export default function App() {
       hasAction = true;
     }
 
-    // 6. Handle text-parsed six-zodiac bets
-    if (textParsedSixZodiacBets.length > 0) {
-      textParsedSixZodiacBets.forEach(bet => {
-        itemsToAdd.push({
-          id: Math.random().toString(36).substr(2, 9),
-          text: `六中${bet.zodiacs.join('')}下单${bet.amount}元`,
-          numberDeltas: {},
-          flatNumberDeltas: {},
-          zodiacDeltas: {},
-          tailDeltas: {},
-          multiZodiacDeltas: [],
-          sixZodiacDeltas: [bet],
-          fiveZodiacDeltas: [],
-          fourZodiacDeltas: [],
-          multiTailDeltas: [],
-          notInDeltas: [],
-          total: bet.amount,
-          lotteryType: selectedLotteryType,
-          timestamp: Date.now()
-        });
-      });
-      hasAction = true;
-    }
+    // 6. Handle text-parsed six-zodiac bets (REMOVED: Handled in step 1)
 
-    // 6.5 Handle text-parsed five-zodiac bets
-    if (textParsedFiveZodiacBets.length > 0) {
-      textParsedFiveZodiacBets.forEach(bet => {
-        itemsToAdd.push({
-          id: Math.random().toString(36).substr(2, 9),
-          text: `五中${bet.zodiacs.join('')}下单${bet.amount}元`,
-          numberDeltas: {},
-          flatNumberDeltas: {},
-          zodiacDeltas: {},
-          tailDeltas: {},
-          multiZodiacDeltas: [],
-          sixZodiacDeltas: [],
-          fiveZodiacDeltas: [bet],
-          fourZodiacDeltas: [],
-          multiTailDeltas: [],
-          notInDeltas: [],
-          total: bet.amount,
-          lotteryType: selectedLotteryType,
-          timestamp: Date.now()
-        });
-      });
-      hasAction = true;
-    }
+    // 6.5 Handle text-parsed five-zodiac bets (REMOVED: Handled in step 1)
 
-    // 7. Handle text-parsed four-zodiac bets
-    if (textParsedFourZodiacBets.length > 0) {
-      textParsedFourZodiacBets.forEach(bet => {
-        itemsToAdd.push({
-          id: Math.random().toString(36).substr(2, 9),
-          text: `四中${bet.zodiacs.join('')}下单${bet.amount}元`,
-          numberDeltas: {},
-          flatNumberDeltas: {},
-          zodiacDeltas: {},
-          tailDeltas: {},
-          multiZodiacDeltas: [],
-          sixZodiacDeltas: [],
-          fiveZodiacDeltas: [],
-          fourZodiacDeltas: [bet],
-          multiTailDeltas: [],
-          notInDeltas: [],
-          total: bet.amount,
-          lotteryType: selectedLotteryType,
-          timestamp: Date.now()
-        });
-      });
-      hasAction = true;
-    }
+    // 7. Handle text-parsed four-zodiac bets (REMOVED: Handled in step 1)
 
-    // 8. Handle text-parsed x-not-in bets
-    if (textParsedNotInBets.length > 0) {
-      textParsedNotInBets.forEach(bet => {
-        itemsToAdd.push({
-          id: Math.random().toString(36).substr(2, 9),
-          text: `${bet.x}不中${bet.numbers.map(n => formatNumber(n)).join('')}下单${bet.amount}元`,
-          numberDeltas: {},
-          flatNumberDeltas: {},
-          zodiacDeltas: {},
-          tailDeltas: {},
-          multiZodiacDeltas: [],
-          sixZodiacDeltas: [],
-          fiveZodiacDeltas: [],
-          fourZodiacDeltas: [],
-          multiTailDeltas: [],
-          notInDeltas: [bet],
-          total: bet.amount,
-          lotteryType: selectedLotteryType,
-          timestamp: Date.now()
-        });
-      });
-      hasAction = true;
-    }
+    // 8. Handle text-parsed x-not-in bets (REMOVED: Handled in step 1)
 
     if (hasAction) {
-      const lotteryPrefix = `【${selectedLotteryType}】`;
-      const finalItemsToAdd = itemsToAdd.map(item => ({
-        ...item,
-        text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`
-      }));
+      const finalItemsToAdd = itemsToAdd.map(item => {
+        const lotteryPrefix = `【${item.lotteryType}】`;
+        return {
+          ...item,
+          text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`
+        };
+      });
       
       setPendingBets(prev => [...prev, ...finalItemsToAdd]);
       setZodiacBetAmounts(newZodiacBetAmounts);
@@ -899,12 +939,14 @@ export default function App() {
       const contentCell = row.getCell('content');
       const lines = order.content.split('\n');
       const richText: any[] = [];
+      let lastDetectedLotteryType = '';
 
       lines.forEach((line, lineIdx) => {
-        let currentLotteryType = '';
+        let currentLotteryType = lastDetectedLotteryType;
         const typeMatch = line.match(/【(.+?)】/);
         if (typeMatch) {
           currentLotteryType = typeMatch[1];
+          lastDetectedLotteryType = currentLotteryType;
         } else if (order.lotteryType && !order.lotteryType.includes(' ')) {
           currentLotteryType = order.lotteryType;
         }
@@ -1110,16 +1152,20 @@ export default function App() {
 
   const renderHighlightedText = (text: string, fallbackLotteryType?: string) => {
     const lines = text.split('\n');
+    let lastDetectedLotteryType = '';
+    
+    // If fallback is a single lottery type, use it as initial sticky type
+    if (fallbackLotteryType && !fallbackLotteryType.includes(' ')) {
+      lastDetectedLotteryType = fallbackLotteryType;
+    }
+
     return lines.map((line, lineIdx) => {
       // Detect lottery type from prefix like 【新澳】
-      let currentLotteryType = '';
+      let currentLotteryType = lastDetectedLotteryType;
       const typeMatch = line.match(/【(.+?)】/);
       if (typeMatch) {
         currentLotteryType = typeMatch[1];
-      } else if (fallbackLotteryType) {
-        if (!fallbackLotteryType.includes(' ')) {
-          currentLotteryType = fallbackLotteryType;
-        }
+        lastDetectedLotteryType = currentLotteryType;
       }
 
       const context = {
@@ -2105,8 +2151,37 @@ export default function App() {
           /* Draw Page (开奖页) */
           <div className="flex-grow flex flex-col gap-4 overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
-              <h1 className="text-xl font-bold text-stone-950">开奖号码设置</h1>
-              <p className="text-stone-400 text-xs">锁定号码后，注单确认页将自动高亮对应彩种的中奖号码</p>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold text-stone-950">开奖号码设置</h1>
+                <p className="text-stone-400 text-xs">锁定号码后，注单确认页将自动高亮对应彩种的中奖号码</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const allLocked = lotteryTypes.every(type => isDrawLocked[type]);
+                    const newLockedState = { ...isDrawLocked };
+                    lotteryTypes.forEach(type => {
+                      newLockedState[type] = !allLocked;
+                    });
+                    setIsDrawLocked(newLockedState);
+                  }}
+                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-lg text-xs font-medium transition-colors border border-stone-200"
+                >
+                  {lotteryTypes.every(type => isDrawLocked[type]) ? '一键解锁' : '一键锁定'}
+                </button>
+                <button
+                  onClick={() => {
+                    const newDrawNumbers = { ...drawNumbers };
+                    lotteryTypes.forEach(type => {
+                      newDrawNumbers[type] = Array(7).fill('');
+                    });
+                    setDrawNumbers(newDrawNumbers);
+                  }}
+                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-lg text-xs font-medium transition-colors border border-stone-200"
+                >
+                  重置全部彩种
+                </button>
+              </div>
             </div>
 
             <div className="flex-grow overflow-y-auto pr-2">
