@@ -468,7 +468,7 @@ export default function App() {
       
       segments.forEach(seg => {
         const p = seg.parsed;
-        const lotteryType = seg.lotteryType || selectedLotteryType;
+        const lotteryType = isLotteryTypeLocked ? selectedLotteryType : (seg.lotteryType || selectedLotteryType);
         const numberDeltas: Record<number, number> = {};
         const flatNumberDeltas: Record<number, number> = {};
         const zodiacDeltas: Record<string, number> = {};
@@ -2246,9 +2246,10 @@ export default function App() {
                                   if (isDrawLocked[type]) return;
                                   const rawVal = e.target.value.replace(/\D/g, '');
                                   const val = rawVal === '' ? '' : Number(rawVal);
-                                  if (val === '' || (val >= 1 && val <= 49)) {
+                                  // Allow 0 to clear the field, or 1-49
+                                  if (val === '' || (val >= 0 && val <= 49)) {
                                     const newDraw = { ...drawNumbers };
-                                    newDraw[type][idx] = val;
+                                    newDraw[type][idx] = (val === 0 || val === '') ? '' : val;
                                     setDrawNumbers(newDraw);
                                   }
                                 }}
@@ -2258,6 +2259,18 @@ export default function App() {
                                   ${isDrawLocked[type] ? 'cursor-not-allowed opacity-80' : 'cursor-text'}
                                 `}
                               />
+                              {num !== '' && !isDrawLocked[type] && (
+                                <button
+                                  onClick={() => {
+                                    const newDraw = { ...drawNumbers };
+                                    newDraw[type][idx] = '';
+                                    setDrawNumbers(newDraw);
+                                  }}
+                                  className="absolute -top-1 -right-1 w-5 h-5 bg-stone-800 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              )}
                             </div>
                             <span className={`text-sm font-black ${num ? 'text-stone-700' : 'text-stone-200'}`}>
                               {getZodiacFromNumber(num) || '—'}
@@ -2279,9 +2292,10 @@ export default function App() {
                               if (isDrawLocked[type]) return;
                               const rawVal = e.target.value.replace(/\D/g, '');
                               const val = rawVal === '' ? '' : Number(rawVal);
-                              if (val === '' || (val >= 1 && val <= 49)) {
+                              // Allow 0 to clear the field, or 1-49
+                              if (val === '' || (val >= 0 && val <= 49)) {
                                 const newDraw = { ...drawNumbers };
-                                newDraw[type][6] = val;
+                                newDraw[type][6] = (val === 0 || val === '') ? '' : val;
                                 setDrawNumbers(newDraw);
                               }
                             }}
@@ -2291,6 +2305,18 @@ export default function App() {
                               ${isDrawLocked[type] ? 'cursor-not-allowed opacity-90' : 'cursor-text'}
                             `}
                           />
+                          {drawNumbers[type][6] !== '' && !isDrawLocked[type] && (
+                            <button
+                              onClick={() => {
+                                const newDraw = { ...drawNumbers };
+                                newDraw[type][6] = '';
+                                setDrawNumbers(newDraw);
+                              }}
+                              className="absolute -top-1 -right-1 w-5 h-5 bg-stone-800 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                          )}
                         </div>
                         <span className={`text-sm font-black ${drawNumbers[type][6] ? 'text-emerald-600' : 'text-stone-200'}`}>
                           {getZodiacFromNumber(drawNumbers[type][6]) || '—'}
