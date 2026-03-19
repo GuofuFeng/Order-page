@@ -12,14 +12,16 @@ import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIA
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
-// Helper to get Beijing Date String (YYYY-MM-DD)
+// Helper to get Beijing Date String (YYYY-MM-DD) with 04:00 AM cutoff
 const getBeijingDateString = (timestamp: number) => {
+  // Subtract 4 hours (4 * 60 * 60 * 1000 ms) to shift the cutoff to 04:00 AM
+  const adjustedTimestamp = timestamp - 4 * 60 * 60 * 1000;
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  }).format(new Date(timestamp)).replace(/\//g, '-');
+  }).format(new Date(adjustedTimestamp)).replace(/\//g, '-');
 };
 
 // Helper to get color for a number
