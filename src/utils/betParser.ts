@@ -92,6 +92,38 @@ export const REGEX_MULTI_TAIL_V3 = /(?:^|[\s,，。；;.])(?:([二三四五2345�
 export const REGEX_FLAT_NUMBER = /(?:^|[\s,，。；;.])(?:(\d+)平码(\d+(?:\.\d+)?)|平码(\d+)-(\d+(?:\.\d+)?)|平码([\d\.\s,，。；;.]+)各(\d+(?:\.\d+)?)|平码(\d+)各(\d+(?:\.\d+)?))/g;
 export const REGEX_INVALID_NUMBERS = /\d{3,}|[5-9]\d/g;
 
+export const normalizeLotteryTypes = (text: string): string => {
+  let processedText = text;
+  
+  // Lottery type synonyms
+  processedText = processedText.replace(/奥大/g, '澳大');
+  processedText = processedText.replace(/新[cC][cC]/g, 'cc');
+  processedText = processedText.replace(/CC/g, 'cc');
+  
+  // New synonyms
+  const lotteryPrefix = '(^|[。，,；; \\n\\r\\t])\\s*';
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}新(?![澳])`, 'g'), '$1新澳');
+  processedText = processedText.replace(/【\s*新\s*】/g, '【新澳】');
+  
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:老奥|旧奥|旧澳|老澳|旧)(?![澳])`, 'g'), '$1老澳');
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}老(?![澳cc])`, 'g'), '$1老澳');
+  processedText = processedText.replace(/【\s*(?:老|老奥|旧奥|旧澳|老澳|旧)\s*】/g, '【老澳】');
+  
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:香港|香|港)(?![港])`, 'g'), (m, p1) => {
+    if (m.trim() === '香港') return m;
+    return p1 + '香港';
+  });
+  processedText = processedText.replace(/【\s*(?:香港|香|港)\s*】/g, '【香港】');
+  
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:旧[cC]{1,2}|旧cc|老cc)`, 'g'), (m, p1) => {
+    if (m.trim() === '老cc') return m;
+    return p1 + '老cc';
+  });
+  processedText = processedText.replace(/【\s*(?:旧[cC]{1,2}|旧cc|老cc)\s*】/g, '【老cc】');
+
+  return processedText;
+};
+
 export const parseBetInput = (inputText: string): ParsedInput => {
   // Reset all global regexes lastIndex to 0
   [
@@ -132,25 +164,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   processedText = processedText.replace(/万[和合]/g, '越南');
   processedText = processedText.replace(/(\d+(?:\.\d+)?)[文米]/g, '$1');
   
-  // Lottery type synonyms
-  processedText = processedText.replace(/奥大/g, '澳大');
-  processedText = processedText.replace(/新[cC][cC]/g, 'cc');
-  processedText = processedText.replace(/CC/g, 'cc');
-  
-  // New synonyms
-  const lotteryPrefix = '(^|[。，,；; \\n\\r\\t])\\s*';
-  processedText = processedText.replace(new RegExp(`${lotteryPrefix}新(?![澳])`, 'g'), '$1新澳');
-  processedText = processedText.replace(/【\s*新\s*】/g, '【新澳】');
-  
-  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:老奥|旧奥|旧澳|老澳)(?![澳])`, 'g'), '$1老澳');
-  processedText = processedText.replace(new RegExp(`${lotteryPrefix}老(?![澳cc])`, 'g'), '$1老澳');
-  processedText = processedText.replace(/【\s*(?:老|老奥|旧奥|旧澳|老澳)\s*】/g, '【老澳】');
-  
-  processedText = processedText.replace(new RegExp(`${lotteryPrefix}香(?![港])`, 'g'), '$1香港');
-  processedText = processedText.replace(/【\s*香\s*】/g, '【香港】');
-  
-  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:旧[cC]{1,2}|旧cc)`, 'g'), '$1老cc');
-  processedText = processedText.replace(/【\s*(?:旧[cC]{1,2}|旧cc|老cc)\s*】/g, '【老cc】');
+  processedText = normalizeLotteryTypes(processedText);
   
   const newSelected = new Set<number>();
   const newParsedBets: Record<number, number> = {};
@@ -779,12 +793,15 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 export const parseMultiLotteryInput = (inputText: string): ParsedSegment[] => {
   if (!inputText.trim()) return [];
 
+  // Normalize lottery types before splitting
+  const normalizedText = normalizeLotteryTypes(inputText);
+
   // Create a regex to split by lottery types using positive lookahead
   // This ensures the lottery type keyword stays with the following content
   const types = lotteryTypes.join('|');
   const regex = new RegExp(`(?=【?(?:${types})】?)`, 'g');
   
-  const parts = inputText.split(regex).filter(p => p.trim());
+  const parts = normalizedText.split(regex).filter(p => p.trim());
   
   return parts.map(part => {
     const parsed = parseBetInput(part);
