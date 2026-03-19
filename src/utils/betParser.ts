@@ -130,12 +130,27 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   processedText = processedText.replace(/大号/g, '大');
   processedText = processedText.replace(/号/g, '');
   processedText = processedText.replace(/万[和合]/g, '越南');
-  processedText = processedText.replace(/(\d+)文/g, '$1');
+  processedText = processedText.replace(/(\d+(?:\.\d+)?)[文米]/g, '$1');
   
   // Lottery type synonyms
   processedText = processedText.replace(/奥大/g, '澳大');
   processedText = processedText.replace(/新[cC][cC]/g, 'cc');
   processedText = processedText.replace(/CC/g, 'cc');
+  
+  // New synonyms
+  const lotteryPrefix = '(^|[。，,；; \\n\\r\\t])\\s*';
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}新(?![澳])`, 'g'), '$1新澳');
+  processedText = processedText.replace(/【\s*新\s*】/g, '【新澳】');
+  
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:老奥|旧奥|旧澳|老澳)(?![澳])`, 'g'), '$1老澳');
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}老(?![澳cc])`, 'g'), '$1老澳');
+  processedText = processedText.replace(/【\s*(?:老|老奥|旧奥|旧澳|老澳)\s*】/g, '【老澳】');
+  
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}香(?![港])`, 'g'), '$1香港');
+  processedText = processedText.replace(/【\s*香\s*】/g, '【香港】');
+  
+  processedText = processedText.replace(new RegExp(`${lotteryPrefix}(?:旧[cC]{1,2}|旧cc)`, 'g'), '$1老cc');
+  processedText = processedText.replace(/【\s*(?:旧[cC]{1,2}|旧cc|老cc)\s*】/g, '【老cc】');
   
   const newSelected = new Set<number>();
   const newParsedBets: Record<number, number> = {};
