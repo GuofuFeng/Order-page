@@ -1726,20 +1726,6 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      id="confirm-button"
-                      onClick={handleAddToPending}
-                      className="w-28 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide whitespace-nowrap"
-                    >
-                      确认
-                    </button>
-                    <button
-                      onClick={handleConfirmBets}
-                      className="w-28 py-2 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all font-bold text-xs flex items-center justify-center gap-1 whitespace-nowrap"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                      确认下单
-                    </button>
                     <div className="relative w-32">
                       <input
                         id="amount-input"
@@ -1776,6 +1762,13 @@ export default function App() {
                           </button>
                         ))}
                       </div>
+                      <button
+                        id="confirm-button"
+                        onClick={handleAddToPending}
+                        className="px-6 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide"
+                      >
+                        确认
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1856,6 +1849,14 @@ export default function App() {
                       <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
                       <span className="text-xs font-black text-stone-950">¥ {currentPendingTotal.toLocaleString()}</span>
                     </div>
+
+                    <button
+                      onClick={handleConfirmBets}
+                      className="w-full py-2 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all font-bold text-[10px] flex items-center justify-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      确认下单
+                    </button>
                   </div>
                 </section>
               </div>
