@@ -514,111 +514,52 @@ export default function App() {
           mainTotal += bet.amount;
         });
 
+        // Process special items (Six, Five, Four, NotIn) - merge into mainTotal
+        p.parsedSixZodiacBets.forEach(bet => {
+          mainTotal += bet.amount;
+        });
+        p.parsedFiveZodiacBets.forEach(bet => {
+          mainTotal += bet.amount;
+        });
+        p.parsedFourZodiacBets.forEach(bet => {
+          mainTotal += bet.amount;
+        });
+        p.parsedNotInBets.forEach(bet => {
+          mainTotal += bet.amount;
+        });
+
         if (mainTotal > 0) {
+          // Use the original segment input as text to keep it as a whole
+          let displayText = seg.originalInput.trim();
+          
+          // Remove the lottery type from the start if it's there to avoid double prefixing later
+          // but keep it if it's in brackets
+          for (const type of lotteryTypes) {
+            if (displayText.startsWith(type) && !displayText.startsWith('【')) {
+              displayText = displayText.slice(type.length).trim();
+              break;
+            }
+          }
+
           itemsToAdd.push({
             id: Math.random().toString(36).substr(2, 9),
-            text: seg.input.trim(),
+            text: displayText,
             numberDeltas,
             flatNumberDeltas,
             zodiacDeltas,
             tailDeltas,
             multiZodiacDeltas: [...p.parsedMultiZodiacBets],
-            sixZodiacDeltas: [], 
-            fiveZodiacDeltas: [], 
-            fourZodiacDeltas: [],
+            sixZodiacDeltas: [...p.parsedSixZodiacBets], 
+            fiveZodiacDeltas: [...p.parsedFiveZodiacBets], 
+            fourZodiacDeltas: [...p.parsedFourZodiacBets],
             multiTailDeltas: [...p.parsedMultiTailBets],
-            notInDeltas: [], 
+            notInDeltas: [...p.parsedNotInBets], 
             total: mainTotal,
             lotteryType,
             timestamp: Date.now()
           });
           hasAction = true;
         }
-
-        // Special items (Six, Five, Four, NotIn) - separate items as per original design
-        p.parsedSixZodiacBets.forEach(bet => {
-          itemsToAdd.push({
-            id: Math.random().toString(36).substr(2, 9),
-            text: `六中${bet.zodiacs.join('')}下单${bet.amount}元`,
-            numberDeltas: {},
-            flatNumberDeltas: {},
-            zodiacDeltas: {},
-            tailDeltas: {},
-            multiZodiacDeltas: [],
-            sixZodiacDeltas: [bet],
-            fiveZodiacDeltas: [],
-            fourZodiacDeltas: [],
-            multiTailDeltas: [],
-            notInDeltas: [],
-            total: bet.amount,
-            lotteryType,
-            timestamp: Date.now()
-          });
-          hasAction = true;
-        });
-
-        p.parsedFiveZodiacBets.forEach(bet => {
-          itemsToAdd.push({
-            id: Math.random().toString(36).substr(2, 9),
-            text: `五中${bet.zodiacs.join('')}下单${bet.amount}元`,
-            numberDeltas: {},
-            flatNumberDeltas: {},
-            zodiacDeltas: {},
-            tailDeltas: {},
-            multiZodiacDeltas: [],
-            sixZodiacDeltas: [],
-            fiveZodiacDeltas: [bet],
-            fourZodiacDeltas: [],
-            multiTailDeltas: [],
-            notInDeltas: [],
-            total: bet.amount,
-            lotteryType,
-            timestamp: Date.now()
-          });
-          hasAction = true;
-        });
-
-        p.parsedFourZodiacBets.forEach(bet => {
-          itemsToAdd.push({
-            id: Math.random().toString(36).substr(2, 9),
-            text: `四中${bet.zodiacs.join('')}下单${bet.amount}元`,
-            numberDeltas: {},
-            flatNumberDeltas: {},
-            zodiacDeltas: {},
-            tailDeltas: {},
-            multiZodiacDeltas: [],
-            sixZodiacDeltas: [],
-            fiveZodiacDeltas: [],
-            fourZodiacDeltas: [bet],
-            multiTailDeltas: [],
-            notInDeltas: [],
-            total: bet.amount,
-            lotteryType,
-            timestamp: Date.now()
-          });
-          hasAction = true;
-        });
-
-        p.parsedNotInBets.forEach(bet => {
-          itemsToAdd.push({
-            id: Math.random().toString(36).substr(2, 9),
-            text: `${bet.x}不中${bet.numbers.map(n => formatNumber(n)).join('')}下单${bet.amount}元`,
-            numberDeltas: {},
-            flatNumberDeltas: {},
-            zodiacDeltas: {},
-            tailDeltas: {},
-            multiZodiacDeltas: [],
-            sixZodiacDeltas: [],
-            fiveZodiacDeltas: [],
-            fourZodiacDeltas: [],
-            multiTailDeltas: [],
-            notInDeltas: [bet],
-            total: bet.amount,
-            lotteryType,
-            timestamp: Date.now()
-          });
-          hasAction = true;
-        });
       });
     }
 
@@ -1785,6 +1726,20 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      id="confirm-button"
+                      onClick={handleAddToPending}
+                      className="w-28 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide whitespace-nowrap"
+                    >
+                      确认
+                    </button>
+                    <button
+                      onClick={handleConfirmBets}
+                      className="w-28 py-2 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all font-bold text-xs flex items-center justify-center gap-1 whitespace-nowrap"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      确认下单
+                    </button>
                     <div className="relative w-32">
                       <input
                         id="amount-input"
@@ -1821,13 +1776,6 @@ export default function App() {
                           </button>
                         ))}
                       </div>
-                      <button
-                        id="confirm-button"
-                        onClick={handleAddToPending}
-                        className="px-6 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide"
-                      >
-                        确认
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -1908,14 +1856,6 @@ export default function App() {
                       <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
                       <span className="text-xs font-black text-stone-950">¥ {currentPendingTotal.toLocaleString()}</span>
                     </div>
-
-                    <button
-                      onClick={handleConfirmBets}
-                      className="w-full py-2 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all font-bold text-[10px] flex items-center justify-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                      确认下单
-                    </button>
                   </div>
                 </section>
               </div>
