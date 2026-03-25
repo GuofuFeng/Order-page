@@ -51,6 +51,20 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   if (part === '蓝') return blueNumbers.includes(specialNum);
   if (part === '绿') return greenNumbers.includes(specialNum);
 
+  // Check for Head (头) - Special Number only
+  const headMatch = part.match(/([0-4])头/);
+  if (headMatch) {
+    const head = parseInt(headMatch[1]);
+    return Math.floor(specialNum / 10) === head;
+  }
+
+  // Check for Tail (尾) - Special Number only
+  const tailMatch = part.match(/([0-9])尾/);
+  if (tailMatch && !part.startsWith('平')) {
+    const tail = parseInt(tailMatch[1]);
+    return specialNum % 10 === tail;
+  }
+
   return false;
 };
 

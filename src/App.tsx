@@ -529,21 +529,9 @@ export default function App() {
         });
 
         if (mainTotal > 0) {
-          // Use the original segment input as text to keep it as a whole
-          let displayText = seg.originalInput.trim();
-          
-          // Remove the lottery type from the start if it's there to avoid double prefixing later
-          // but keep it if it's in brackets
-          for (const type of lotteryTypes) {
-            if (displayText.startsWith(type) && !displayText.startsWith('【')) {
-              displayText = displayText.slice(type.length).trim();
-              break;
-            }
-          }
-
           itemsToAdd.push({
             id: Math.random().toString(36).substr(2, 9),
-            text: displayText,
+            text: seg.originalInput.trim(),
             numberDeltas,
             flatNumberDeltas,
             zodiacDeltas,
@@ -737,15 +725,7 @@ export default function App() {
     // 8. Handle text-parsed x-not-in bets (REMOVED: Handled in step 1)
 
     if (hasAction) {
-      const finalItemsToAdd = itemsToAdd.map(item => {
-        const lotteryPrefix = `【${item.lotteryType}】`;
-        return {
-          ...item,
-          text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`
-        };
-      });
-      
-      setPendingBets(prev => [...prev, ...finalItemsToAdd]);
+      setPendingBets(prev => [...prev, ...itemsToAdd]);
       setZodiacBetAmounts(newZodiacBetAmounts);
       setTailBetAmounts(newTailBetAmounts);
       setMultiZodiacSelection([]);
@@ -797,8 +777,10 @@ export default function App() {
     }
     
     // Add lottery type prefix to each line to ensure correct highlighting in the table
-    // Note: item.text already contains the prefix from handleAddToPending
-    const finalContent = pendingBets.map(item => item.text).join('\n');
+    const finalContent = pendingBets.map(item => {
+      const lotteryPrefix = `【${item.lotteryType}】`;
+      return item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`;
+    }).join('\n');
     const uniqueLotteryTypes = Array.from(new Set(pendingBets.map(item => item.lotteryType)));
     const lotteryTypeDisplay = uniqueLotteryTypes.join(' ');
     
