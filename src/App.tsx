@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, isSumOdd, isSumEven } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC } from './utils/betParser';
+import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
@@ -1162,7 +1162,7 @@ export default function App() {
 
     const validRegexes = [
       REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
-      REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC,
+      REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_HEAD_TAIL, REGEX_EACH, REGEX_GENERIC,
       REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3,
       REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC
     ];
