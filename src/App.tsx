@@ -529,9 +529,21 @@ export default function App() {
         });
 
         if (mainTotal > 0) {
+          // Use the original segment input as text to keep it as a whole
+          let displayText = seg.originalInput.trim();
+          
+          // Remove the lottery type from the start if it's there to avoid double prefixing later
+          // but keep it if it's in brackets
+          for (const type of lotteryTypes) {
+            if (displayText.startsWith(type) && !displayText.startsWith('【')) {
+              displayText = displayText.slice(type.length).trim();
+              break;
+            }
+          }
+
           itemsToAdd.push({
             id: Math.random().toString(36).substr(2, 9),
-            text: seg.originalInput.trim(),
+            text: displayText,
             numberDeltas,
             flatNumberDeltas,
             zodiacDeltas,
@@ -725,7 +737,15 @@ export default function App() {
     // 8. Handle text-parsed x-not-in bets (REMOVED: Handled in step 1)
 
     if (hasAction) {
-      setPendingBets(prev => [...prev, ...itemsToAdd]);
+      const finalItemsToAdd = itemsToAdd.map(item => {
+        const lotteryPrefix = `【${item.lotteryType}】`;
+        return {
+          ...item,
+          text: item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`
+        };
+      });
+      
+      setPendingBets(prev => [...prev, ...finalItemsToAdd]);
       setZodiacBetAmounts(newZodiacBetAmounts);
       setTailBetAmounts(newTailBetAmounts);
       setMultiZodiacSelection([]);
@@ -777,10 +797,8 @@ export default function App() {
     }
     
     // Add lottery type prefix to each line to ensure correct highlighting in the table
-    const finalContent = pendingBets.map(item => {
-      const lotteryPrefix = `【${item.lotteryType}】`;
-      return item.text.startsWith('【') ? item.text : `${lotteryPrefix}${item.text}`;
-    }).join('\n');
+    // Note: item.text already contains the prefix from handleAddToPending
+    const finalContent = pendingBets.map(item => item.text).join('\n');
     const uniqueLotteryTypes = Array.from(new Set(pendingBets.map(item => item.lotteryType)));
     const lotteryTypeDisplay = uniqueLotteryTypes.join(' ');
     
@@ -1422,7 +1440,11 @@ export default function App() {
                   {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(t => (
                     <div key={t} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-7 h-7 flex items-center justify-center bg-stone-50 rounded-lg font-bold text-[10px] text-stone-600 border border-stone-100 group-hover:border-stone-300 transition-colors shrink-0">
+                        <span className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-[10px] border transition-colors shrink-0 ${
+                          (tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || textParsedTailBets[t] !== undefined
+                            ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
+                            : 'bg-stone-50 text-stone-600 border-stone-100 group-hover:border-stone-300'
+                        }`}>
                           {t}尾
                         </span>
                         <div className="relative flex-grow">
@@ -1484,7 +1506,11 @@ export default function App() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => selectZodiacColumn(idx)}
-                      className="h-7 w-full flex items-center justify-center rounded-lg text-xs font-bold bg-stone-50 text-stone-500 hover:bg-stone-100 border border-stone-100 transition-colors"
+                      className={`h-7 w-full flex items-center justify-center rounded-lg text-xs font-bold transition-colors border ${
+                        (numbers.filter(n => getZodiacFromNumber(n) === zodiac).every(n => selectedNumbers.has(n) || textParsedBets[n] !== undefined || textParsedFlatBets[n] !== undefined) || textParsedZodiacBets[zodiac] !== undefined)
+                          ? 'bg-stone-800 text-white border-stone-800 shadow-md'
+                          : 'bg-stone-50 text-stone-500 hover:bg-stone-100 border-stone-100'
+                      }`}
                     >
                       {zodiac}
                     </motion.button>
@@ -1504,7 +1530,7 @@ export default function App() {
                         id={`btn-num-${num}`}
                         className={`
                           h-10 w-full flex flex-col items-center justify-center rounded-lg transition-colors relative border-2
-                          ${selectedNumbers.has(num) 
+                          ${(selectedNumbers.has(num) || textParsedBets[num] !== undefined || textParsedFlatBets[num] !== undefined) 
                             ? `${colorClasses.bg} text-white shadow-md ${colorClasses.border}` 
                             : `bg-white text-stone-500 border-stone-100 hover:bg-stone-50`}
                         `}
@@ -1856,7 +1882,11 @@ export default function App() {
                   {zodiacs.map(z => (
                     <div key={z} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-7 h-7 flex items-center justify-center bg-stone-50 rounded-lg font-bold text-[10px] text-stone-600 border border-stone-100 group-hover:border-stone-300 transition-colors shrink-0">
+                        <span className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-[10px] border transition-colors shrink-0 ${
+                          (zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || textParsedZodiacBets[z] !== undefined
+                            ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
+                            : 'bg-stone-50 text-stone-600 border-stone-100 group-hover:border-stone-300'
+                        }`}>
                           {z}
                         </span>
                         <div className="relative flex-grow">
@@ -1918,7 +1948,11 @@ export default function App() {
                           );
                         }}
                         className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all border ${
-                          multiZodiacSelection.includes(z)
+                          (multiZodiacSelection.includes(z) || 
+                           textParsedMultiZodiacBets.some(b => b.zodiacs.includes(z)) ||
+                           textParsedSixZodiacBets.some(b => b.zodiacs.includes(z)) ||
+                           textParsedFiveZodiacBets.some(b => b.zodiacs.includes(z)) ||
+                           textParsedFourZodiacBets.some(b => b.zodiacs.includes(z)))
                             ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
                             : 'bg-stone-50 text-stone-600 border-stone-100 hover:border-stone-300'
                         }`}
