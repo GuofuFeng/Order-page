@@ -123,6 +123,8 @@ export const normalizeLotteryTypes = (text: string): string => {
   processedText = processedText.replace(/新澳/g, '新澳');
   processedText = processedText.replace(/老澳/g, '老澳');
   processedText = processedText.replace(/香港/g, '香港');
+  processedText = processedText.replace(/万和/g, '越南');
+  processedText = processedText.replace(/万合/g, '越南');
   return processedText;
 };
 
