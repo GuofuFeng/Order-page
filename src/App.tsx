@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, isSumOdd, isSumEven } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_INVALID_NUMBERS } from './utils/betParser';
+import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet } from './types';
 
@@ -471,95 +471,28 @@ export default function App() {
       segments.forEach(seg => {
         const p = seg.parsed;
         const lotteryType = isLotteryTypeLocked ? selectedLotteryType : (seg.lotteryType || selectedLotteryType);
-        const numberDeltas: Record<number, number> = {};
-        const flatNumberDeltas: Record<number, number> = {};
-        const zodiacDeltas: Record<string, number> = {};
-        const tailDeltas: Record<number, number> = {};
-        let mainTotal = 0;
         
-        // Process parsed numbers
-        (Object.entries(p.parsedBets) as [string, number][]).forEach(([numStr, amt]) => {
-          const num = parseInt(numStr);
-          numberDeltas[num] = (numberDeltas[num] || 0) + amt;
-          mainTotal += amt;
-        });
-
-        // Process parsed flat numbers
-        (Object.entries(p.parsedFlatBets) as [string, number][]).forEach(([numStr, amt]) => {
-          const num = parseInt(numStr);
-          flatNumberDeltas[num] = (flatNumberDeltas[num] || 0) + amt;
-          mainTotal += amt;
-        });
-
-        // Process parsed zodiacs
-        (Object.entries(p.parsedZodiacBets) as [string, number][]).forEach(([z, amt]) => {
-          zodiacDeltas[z] = (zodiacDeltas[z] || 0) + amt;
-          mainTotal += amt;
-        });
-
-        // Process parsed tails
-        (Object.entries(p.parsedTailBets) as [string, number][]).forEach(([tailStr, amt]) => {
-          const tail = parseInt(tailStr);
-          tailDeltas[tail] = (tailDeltas[tail] || 0) + amt;
-          mainTotal += amt;
-        });
-
-        // Process multi-zodiacs
-        p.parsedMultiZodiacBets.forEach(bet => {
-          mainTotal += bet.amount;
-        });
-
-        // Process multi-tails
-        p.parsedMultiTailBets.forEach(bet => {
-          mainTotal += bet.amount;
-        });
-
-        // Process special items (Six, Five, Four, NotIn) - merge into mainTotal
-        p.parsedSixZodiacBets.forEach(bet => {
-          mainTotal += bet.amount;
-        });
-        p.parsedFiveZodiacBets.forEach(bet => {
-          mainTotal += bet.amount;
-        });
-        p.parsedFourZodiacBets.forEach(bet => {
-          mainTotal += bet.amount;
-        });
-        p.parsedNotInBets.forEach(bet => {
-          mainTotal += bet.amount;
-        });
-
-        if (mainTotal > 0) {
-          // Use the original segment input as text to keep it as a whole
-          let displayText = seg.originalInput.trim();
-          
-          // Remove the lottery type from the start if it's there to avoid double prefixing later
-          // but keep it if it's in brackets
-          for (const type of lotteryTypes) {
-            if (displayText.startsWith(type) && !displayText.startsWith('【')) {
-              displayText = displayText.slice(type.length).trim();
-              break;
-            }
-          }
-
+        // Process granular items for splitting
+        p.items.forEach(item => {
           itemsToAdd.push({
             id: Math.random().toString(36).substr(2, 9),
-            text: displayText,
-            numberDeltas,
-            flatNumberDeltas,
-            zodiacDeltas,
-            tailDeltas,
-            multiZodiacDeltas: [...p.parsedMultiZodiacBets],
-            sixZodiacDeltas: [...p.parsedSixZodiacBets], 
-            fiveZodiacDeltas: [...p.parsedFiveZodiacBets], 
-            fourZodiacDeltas: [...p.parsedFourZodiacBets],
-            multiTailDeltas: [...p.parsedMultiTailBets],
-            notInDeltas: [...p.parsedNotInBets], 
-            total: mainTotal,
+            text: item.text,
+            numberDeltas: item.numberDeltas,
+            flatNumberDeltas: item.flatNumberDeltas,
+            zodiacDeltas: item.zodiacDeltas,
+            tailDeltas: item.tailDeltas,
+            multiZodiacDeltas: [...item.multiZodiacBets],
+            sixZodiacDeltas: [...item.sixZodiacBets], 
+            fiveZodiacDeltas: [...item.fiveZodiacBets], 
+            fourZodiacDeltas: [...item.fourZodiacBets],
+            multiTailDeltas: [...item.multiTailBets],
+            notInDeltas: [...item.notInBets], 
+            total: item.total,
             lotteryType,
             timestamp: Date.now()
           });
           hasAction = true;
-        }
+        });
       });
     }
 
@@ -1256,22 +1189,8 @@ export default function App() {
     });
 
     let m;
-    const rInvalid = new RegExp(REGEX_INVALID_NUMBERS.source, REGEX_INVALID_NUMBERS.flags);
-    while ((m = rInvalid.exec(text)) !== null) {
-      const start = m.index;
-      const end = m.index + m[0].length;
-      
-      // Check if this invalid number overlaps with any amount range
-      const isAmount = amountRanges.some(range => 
-        (start >= range.start && start < range.end) || 
-        (end > range.start && end <= range.end)
-      );
-      
-      if (!isAmount) {
-        invalidMatches.push({ start, end });
-      }
-    }
-
+    // REGEX_INVALID_NUMBERS REMOVED
+    
     const mergeMatches = (matches: { start: number; end: number }[]) => {
       if (matches.length === 0) return [];
       matches.sort((a, b) => a.start - b.start);
