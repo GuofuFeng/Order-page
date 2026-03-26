@@ -503,7 +503,10 @@ export default function App() {
         return;
       }
       
-      const processedNums = new Set(Object.keys(textParsedBets).map(Number));
+      const processedNums = new Set([
+        ...Object.keys(textParsedBets).map(Number),
+        ...Object.keys(textParsedFlatBets).map(Number)
+      ]);
       const manualNums = [...selectedNumbers].filter(n => !processedNums.has(n));
       
       if (manualNums.length > 0) {
@@ -1089,7 +1092,7 @@ export default function App() {
 
     function renderBetContent(text: string, context: any) {
       // Updated regex to capture multi-digit tails like "246尾" and "x不中" prefix
-      const parts = text.split(/(平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中)/);
+      const parts = text.split(/(平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -1136,6 +1139,8 @@ export default function App() {
                 </span>
               );
             }
+          } else if (part === '平码' || part === '独平') {
+            return <span key={partIdx} className="text-blue-600 font-bold">{part}</span>;
           } else if (zodiacs.includes(part)) {
             if (part === winningZodiacSpecial) {
               return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
@@ -1171,12 +1176,12 @@ export default function App() {
       let m;
       const r = new RegExp(re.source, re.flags);
       while ((m = r.exec(text)) !== null) {
-        let start = m.index;
-        let matchStr = m[0];
-        if (matchStr.length > 0 && /^[\s,，]/.test(matchStr)) {
-          start += 1;
+        const matchStr = m[0];
+        let offset = 0;
+        while (offset < matchStr.length && /[\s,，。；;.、/]/.test(matchStr[offset])) {
+          offset++;
         }
-        validMatches.push({ start, end: m.index + m[0].length });
+        validMatches.push({ start: m.index + offset, end: m.index + m[0].length });
 
         // Identify amount part to exclude from invalid number checks
         // Most regexes have amount as the last capturing group
