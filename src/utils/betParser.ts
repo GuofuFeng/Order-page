@@ -92,38 +92,47 @@ export interface ParsedSegment {
 
 // Regular Expressions
 const BOUNDARY = '(?:^|[\\s,，。；;.、/]|' + lotteryTypes.join('|') + ')+';
+const LOOKAHEAD = '(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + ')|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + '))';
 
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 
 export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖|连)(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
-export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五2345两])(?:连肖|连)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连))([\\s\\S]+?)(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|个|不中|特码|正码|合计|计|总计|共|总)|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|个|不中|特码|正码|合计|计|总计|共|总))', 'g');
+export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五2345两])(?:连肖|连|连买|买)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连))([\\s\\S]+?)' + LOOKAHEAD, 'g');
 export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(复试|复式|复)?([二三四五六七八九十2345678910两])(?:连肖|连|连各)?(?:各组)?(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
-export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{1,11})拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]{1,11})([二三四五六七八九十2345678910两])(?:连肖|连|连各)?(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 
-export const REGEX_NOT_IN = new RegExp(BOUNDARY + '([五六七八九十]{1,2}|5|6|7|8|9|10|11|12)不中[:：]?([\\d\\-\\s,，。；;.]+?)(?:买|包|各|各号|下单|\\s+)\\s*(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
+export const REGEX_NOT_IN = new RegExp(BOUNDARY + '(\\d+)(?:不中|中)(\\d+(?:[\\s,，。；;.]+\\d+)*)(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 
-export const REGEX_HEAD_TAIL = new RegExp(BOUNDARY + '(\\d+)(头|尾)(?:各|买|压|个|数)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|#)?', 'g');
-export const REGEX_EACH = new RegExp(BOUNDARY + '([^各买压个\\n连中包不]+)(?:各|买|压|个)(?:号|码|数)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|#)?', 'g');
-export const REGEX_GENERIC = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\\d\\.\\s,，。；;.]*?(?:大|小|单|双|红|绿|蓝|家|野|合单|合双)+[马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖\\d\\.\\s,，。；;.]*?)(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|#)?(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|个|不中|特码|正码|合计|计|总计|共|总)|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|个|不中|特码|正码|合计|计|总计|共|总))', 'g');
-
-export const REGEX_BAO = new RegExp(BOUNDARY + '(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
-export const REGEX_PING = new RegExp(BOUNDARY + '(?:(?:平特一肖|平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特一肖|平特肖|平特|平肖|平))(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八9十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
+export const REGEX_BAO = new RegExp(BOUNDARY + '(?:([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)包|包([马蛇龙兔虎牛鼠猪狗鸡猴羊]+))(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
+export const REGEX_PING = new RegExp(BOUNDARY + '(?:(?:平特一肖|平特肖|平特|平肖|平)([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)(?:平特一肖|平特肖|平特|平肖|平))(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 export const REGEX_TAIL = new RegExp(BOUNDARY + '(?:平特|平)(\\d+)尾(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 
-export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\\s\\S]+?)(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|个|不中|特码|正码|合计|计|总计|共|总)|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|包|各|买|压|个|不中|特码|正码|合计|计|总计|共|总))', 'g');
+export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五2345两])尾)([\\s\\S]+?)' + LOOKAHEAD, 'g');
 export const REGEX_MULTI_TAIL_V2 = new RegExp(BOUNDARY + '(?:【?(\\d{2,10})】?)(?:各|买|压|个|包)?([二三四五2345两])连尾(?:各|买|压|个|包)?(\\+?\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 export const REGEX_MULTI_TAIL_V3 = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五2345两])尾)(?:[\\-\\s,，。；;.]*?(\\d)尾[\\-\\s,，。；;.]*?(\\d)尾[\\-\\s,，。；;.]*?(\\d)尾(?:[\\-\\s,，。；;.]*?(\\d)尾)?(?:[\\-\\s,，。；;.]*?(\\d)尾)?)(?:各|买|压|个|包)?(\\+?\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
 
-export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY + '(?:(\\d+)(?:平码|独平)(\\d+(?:\\.\\d+)?)|(?:平码|独平)(\\d+)-(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;.]+)各(\\d+(?:\\.\\d+)?)|(?:平码|独平)(\\d+)各(\\d+(?:\\.\\d+)?))', 'g');
+export const REGEX_HEAD_TAIL = new RegExp(BOUNDARY + '(\\d+)(头|尾)(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
+
+export const REGEX_EACH = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖大小单双红绿蓝头尾\\d\\.\\s,，。；;./]*?)各(?:/|\\s)*(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?' + LOOKAHEAD, 'g');
+
+export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY + '(?:([\\d\\.\\s,，。；;./]+)(?:平码|独平)(?:各)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./]+)-(?:各)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./]+)各(\\d+(?:\\.\\d+)?))', 'g');
+
 export const REGEX_TUO_ZODIAC = new RegExp(BOUNDARY + '([二三四五2345两])拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
+export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)([二三四五六七八九十2345678910两])(?:连肖|连|连各)?(?:各组)?(?:各|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块)?', 'g');
+
+export const REGEX_GENERIC = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖大小单双红绿蓝头尾\\d\\.\\s,，。；;./]*?(?:大|小|单|双|红|绿|蓝|家|野|合单|合双)+[马蛇龙兔虎牛鼠猪狗鸡猴羊合家野肖大小单双红绿蓝头尾\\d\\.\\s,，。；;./]*?)(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|#)?' + LOOKAHEAD, 'g');
 
 export const normalizeLotteryTypes = (text: string): string => {
   let processedText = text;
   processedText = processedText.replace(/奥大/g, '澳大');
-  processedText = processedText.replace(/新cc/g, 'cc');
-  processedText = processedText.replace(/老cc/g, '老cc');
+  
+  // Normalize 'cc' aliases
+  processedText = processedText.replace(/(?:新[cC]{1,2}|新西西|[cC]{2})/g, 'cc');
+  
+  // Normalize '老cc' aliases
+  processedText = processedText.replace(/(?:[旧老][cC]{1,2}|[旧老]西西)/g, '老cc');
+  
   processedText = processedText.replace(/新澳/g, '新澳');
   processedText = processedText.replace(/老澳/g, '老澳');
   processedText = processedText.replace(/香港/g, '香港');
@@ -280,8 +289,10 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     if (prefix.includes('小')) filtered = filtered.filter(n => n <= 24);
 
     // Parity
-    if (prefix.includes('单')) filtered = filtered.filter(n => n % 2 !== 0);
-    if (prefix.includes('双')) filtered = filtered.filter(n => n % 2 === 0);
+    const hasStandaloneOdd = prefix.replace(/合单/g, '').includes('单');
+    const hasStandaloneEven = prefix.replace(/合双/g, '').includes('双');
+    if (hasStandaloneOdd) filtered = filtered.filter(n => n % 2 !== 0);
+    if (hasStandaloneEven) filtered = filtered.filter(n => n % 2 === 0);
 
     // Sum Parity
     if (prefix.includes('合单')) filtered = filtered.filter(n => isSumOdd(n));
@@ -703,27 +714,19 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         break;
       }
       case 'FLAT_NUMBER': {
-        const num1 = groups[1] || groups[3] || groups[7];
-        const amt1 = groups[2] || groups[4] || groups[8];
-        const numsStr = groups[5];
-        const amt2 = groups[6];
+        const num1 = groups[1] || groups[3] || groups[5];
+        const amt1 = groups[2] || groups[4] || groups[6];
 
         if (num1 && amt1) {
-          const n = parseInt(num1);
           const a = chineseToNumber(amt1);
-          item.flatNumberDeltas[n] = (item.flatNumberDeltas[n] || 0) + a;
-          item.total = a;
-          result.parsedFlatBets[n] = (result.parsedFlatBets[n] || 0) + a;
-          result.lastAmount = a;
-        } else if (numsStr && amt2) {
-          const a = chineseToNumber(amt2);
-          const nums = numsStr.match(/\d+/g)?.map(Number).filter(n => n >= 1 && n <= 49) || [];
+          const nums = num1.match(/\d+/g)?.map(Number).filter(n => n >= 1 && n <= 49) || [];
           nums.forEach(n => {
-            const subItem = createEmptyBetItem(`${n}平码${amt2}`);
+            const subItem = createEmptyBetItem(`${n}平码${amt1}`);
             subItem.flatNumberDeltas[n] = (subItem.flatNumberDeltas[n] || 0) + a;
             subItem.total = a;
             result.parsedFlatBets[n] = (result.parsedFlatBets[n] || 0) + a;
             result.items.push(subItem);
+            result.selectedNumbers.add(n);
           });
           result.lastAmount = a;
         }
@@ -798,28 +801,24 @@ export const parseMultiLotteryInput = (inputText: string): ParsedSegment[] => {
         });
       });
       pendingTypes = [];
-
-      // Then push the current type (or the one with content)
+      
       if (type) {
         parsed.recognizedLotteryType = type;
-      }
-      segments.push({
-        lotteryType: type,
-        originalInput: part,
-        parsed
-      });
-    } else if (type) {
-      // Check if there's any non-separator text in content
-      const cleanContent = content.replace(/[\s\+\.\,，。；;\/]+/g, '');
-      if (cleanContent.length === 0) {
-        pendingTypes.push(type);
-      } else {
         segments.push({
           lotteryType: type,
           originalInput: part,
-          parsed
+          parsed: parsed
+        });
+      } else {
+        // No lottery type specified, just add the segment
+        segments.push({
+          lotteryType: '',
+          originalInput: part,
+          parsed: parsed
         });
       }
+    } else if (type) {
+      pendingTypes.push(type);
     }
   });
 

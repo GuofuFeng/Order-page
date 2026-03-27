@@ -1,6 +1,6 @@
 export const numbers = Array.from({ length: 49 }, (_, i) => i + 1);
 export const zodiacs = ['马', '蛇', '龙', '兔', '虎', '牛', '鼠', '猪', '狗', '鸡', '猴', '羊'];
-export const lotteryTypes = ['新澳', '老澳', '香港', 'cc', '老cc', '越南', '泰国', '海天', '巴黎', '迪拜', '七星', '印度', '金沙', '澳大', '万和'];
+export const lotteryTypes = ['新澳', '老澳', '香港', 'cc', '老cc', '越南', '泰国', '海天', '巴黎', '迪拜', '七星', '印度', '金沙', '澳大'];
 
 export const chineseNumberMap: Record<string, number> = {
   '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,

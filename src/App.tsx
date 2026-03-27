@@ -1462,7 +1462,11 @@ export default function App() {
                         {((pendingAmt !== null && pendingAmt !== '') || textParsedFlatBets[num]) && (
                           <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-stone-900 text-[9px] px-1 py-0.5 rounded-full shadow-md z-10 font-black border border-amber-500/50 flex flex-col items-center gap-0">
                             {pendingAmt !== null && pendingAmt !== '' && <span>{pendingAmt}</span>}
-                            {textParsedFlatBets[num] && <span className="text-[7px] border-t border-amber-600/30 w-full text-center">平:{textParsedFlatBets[num]}</span>}
+                            {textParsedFlatBets[num] && (
+                              <span className={`text-[7px] ${pendingAmt !== null && pendingAmt !== '' ? 'border-t border-amber-600/30' : ''} w-full text-center`}>
+                                平:{textParsedFlatBets[num]}
+                              </span>
+                            )}
                           </span>
                         )}
                         <span className="text-xs font-medium leading-tight">{formatNumber(num)}</span>
@@ -1658,6 +1662,20 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      id="confirm-button"
+                      onClick={handleAddToPending}
+                      className="px-6 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide"
+                    >
+                      确认
+                    </button>
+                    <button
+                      onClick={handleConfirmBets}
+                      className="px-6 py-2 bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all font-bold text-xs tracking-wide flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      下单
+                    </button>
                     <div className="relative w-32">
                       <input
                         id="amount-input"
@@ -1682,25 +1700,16 @@ export default function App() {
                         </button>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex bg-stone-100 p-1 rounded-xl">
-                        {baskets.map(b => (
-                          <button
-                            key={b}
-                            onClick={() => setSelectedBasketId(b)}
-                            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedBasketId === b ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
-                          >
-                            篮子 {b}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        id="confirm-button"
-                        onClick={handleAddToPending}
-                        className="px-6 py-2 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-900 active:scale-95 transition-all font-bold text-xs tracking-wide"
-                      >
-                        确认
-                      </button>
+                    <div className="flex bg-stone-100 p-1 rounded-xl">
+                      {baskets.map(b => (
+                        <button
+                          key={b}
+                          onClick={() => setSelectedBasketId(b)}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedBasketId === b ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                        >
+                          篮子 {b}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1781,14 +1790,6 @@ export default function App() {
                       <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
                       <span className="text-xs font-black text-stone-950">¥ {currentPendingTotal.toLocaleString()}</span>
                     </div>
-
-                    <button
-                      onClick={handleConfirmBets}
-                      className="w-full py-2 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all font-bold text-[10px] flex items-center justify-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                      确认下单
-                    </button>
                   </div>
                 </section>
               </div>
