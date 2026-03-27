@@ -1193,8 +1193,21 @@ export default function App() {
       }
     });
 
-    let m;
-    // REGEX_INVALID_NUMBERS REMOVED
+    // Identify invalid numbers (> 49) that are not part of an amount
+    const numRegex = /\d+/g;
+    let numMatch;
+    while ((numMatch = numRegex.exec(text)) !== null) {
+      const val = parseInt(numMatch[0]);
+      const start = numMatch.index;
+      const end = start + numMatch[0].length;
+      
+      // Check if this number is within any amount range
+      const isAmount = amountRanges.some(range => start >= range.start && end <= range.end);
+      
+      if (!isAmount && val > 49) {
+        invalidMatches.push({ start, end });
+      }
+    }
     
     const mergeMatches = (matches: { start: number; end: number }[]) => {
       if (matches.length === 0) return [];
