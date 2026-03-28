@@ -713,6 +713,12 @@ export default function App() {
     setDeletedBetsHistory(prev => [...prev, { item: itemToDelete, index }]);
   };
 
+  const clearAllPendingBets = () => {
+    if (pendingBets.length === 0) return;
+    setPendingBets([]);
+    setDeletedBetsHistory([]);
+  };
+
   const undoDeletePendingBet = () => {
     if (deletedBetsHistory.length === 0) return;
 
@@ -1769,6 +1775,15 @@ export default function App() {
                   <div className="mb-2 flex items-center justify-center gap-2">
                     <div className="h-px bg-stone-100 flex-grow"></div>
                     <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">待确认注单</h2>
+                    {pendingBets.length > 0 && (
+                      <button 
+                        onClick={clearAllPendingBets}
+                        className="p-1 bg-stone-100 hover:bg-red-50 text-stone-400 hover:text-red-500 rounded-lg transition-all shadow-sm"
+                        title="清空所有注单"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
                     <div className="h-px bg-stone-100 flex-grow"></div>
                   </div>
                   
