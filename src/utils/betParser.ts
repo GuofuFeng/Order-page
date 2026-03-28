@@ -810,8 +810,21 @@ export const parseMultiLotteryInput = (inputText: string): ParsedSegment[] => {
   const typePattern = sortedTypes.join('|');
   
   const segments: ParsedSegment[] = [];
-  // Use a positive lookahead to split by lottery types, keeping the type with the following content
-  const parts = normalized.split(new RegExp(`(?=${typePattern})`, 'g')).filter(Boolean);
+  const matches = [...normalized.matchAll(new RegExp(typePattern, 'g'))];
+  
+  const parts: string[] = [];
+  if (matches.length === 0) {
+    parts.push(normalized);
+  } else {
+    matches.forEach((match, i) => {
+      if (i === 0 && match.index > 0) {
+        parts.push(normalized.substring(0, match.index));
+      }
+      const nextMatch = matches[i + 1];
+      const end = nextMatch ? nextMatch.index : normalized.length;
+      parts.push(normalized.substring(match.index!, end));
+    });
+  }
   
   let pendingTypes: string[] = [];
 
