@@ -1,5 +1,5 @@
 import { zodiacs, redNumbers, blueNumbers, greenNumbers } from '../constants';
-import { MultiZodiacBet, NotInBet } from '../types';
+import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 
 export const getZodiacFromNumber = (num: number | '') => {
   if (num === '' || num < 1 || num > 49) return '';
@@ -72,6 +72,7 @@ export const calculateWinAmount = (
   numberDeltas: Record<number, number> = {},
   flatNumberDeltas: Record<number, number> = {},
   zodiacDeltas: Record<string, number> = {},
+  teXiaoDeltas: Record<string, number> = {},
   tailDeltas: Record<number, number> = {},
   multiZodiacDeltas: MultiZodiacBet[] = [],
   sixZodiacDeltas: MultiZodiacBet[] = [],
@@ -79,6 +80,7 @@ export const calculateWinAmount = (
   fourZodiacDeltas: MultiZodiacBet[] = [],
   multiTailDeltas: MultiZodiacBet[] = [],
   notInDeltas: NotInBet[] = [],
+  combinationWinDeltas: CombinationWinBet[] = [],
   drawNumbers: (number | '')[],
   lotteryType?: string
 ): number | null => {
@@ -102,6 +104,15 @@ export const calculateWinAmount = (
     totalWin += betAmount * multiplier;
     hasWin = true;
   }
+
+  // 1.2 Te Xiao (特肖) calculation: 11x multiplier (9x for Horse) if special zodiac matches
+  Object.entries(teXiaoDeltas).forEach(([z, amt]) => {
+    if (specialZodiac === z) {
+      const multiplier = z === '马' ? 9 : 11;
+      totalWin += amt * multiplier;
+      hasWin = true;
+    }
+  });
 
   // 1.5 Flat Number (平码) calculation: 7x multiplier if in first 6 numbers
   Object.entries(flatNumberDeltas).forEach(([numStr, amt]) => {
@@ -231,6 +242,23 @@ export const calculateWinAmount = (
     });
   }
 
+  // 9. Combination Win (二中二, 三中三) calculation
+  if (combinationWinDeltas) {
+    combinationWinDeltas.forEach(bet => {
+      const allPresent = bet.numbers.every(n => normalNums.includes(n));
+      if (allPresent) {
+        let multiplier = 0;
+        if (bet.type === '二中二') multiplier = 60;
+        else if (bet.type === '三中三') multiplier = 600;
+
+        if (multiplier > 0) {
+          totalWin += bet.amount * multiplier;
+          hasWin = true;
+        }
+      }
+    });
+  }
+
   return hasWin ? totalWin : 0;
 };
 
@@ -238,6 +266,7 @@ export const getWinningDetails = (
   numberDeltas: Record<number, number> = {},
   flatNumberDeltas: Record<number, number> = {},
   zodiacDeltas: Record<string, number> = {},
+  teXiaoDeltas: Record<string, number> = {},
   tailDeltas: Record<number, number> = {},
   multiZodiacDeltas: MultiZodiacBet[] = [],
   sixZodiacDeltas: MultiZodiacBet[] = [],
@@ -245,6 +274,7 @@ export const getWinningDetails = (
   fourZodiacDeltas: MultiZodiacBet[] = [],
   multiTailDeltas: MultiZodiacBet[] = [],
   notInDeltas: NotInBet[] = [],
+  combinationWinDeltas: CombinationWinBet[] = [],
   drawNumbers: (number | '')[]
 ): Record<string, number> => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return {};
@@ -263,6 +293,13 @@ export const getWinningDetails = (
   if (betAmount) {
     typeSums['特'] = (typeSums['特'] || 0) + betAmount;
   }
+
+  // 1.2 Te Xiao
+  Object.entries(teXiaoDeltas).forEach(([z, amt]) => {
+    if (specialZodiac === z) {
+      typeSums['特肖'] = (typeSums['特肖'] || 0) + amt;
+    }
+  });
 
   // 1.5 Flat Number
   Object.entries(flatNumberDeltas).forEach(([numStr, amt]) => {
@@ -343,6 +380,15 @@ export const getWinningDetails = (
       if (betTails.every(t => winningTails.includes(t))) {
         const type = `${bet.zodiacs.length}连尾`;
         typeSums[type] = (typeSums[type] || 0) + bet.amount;
+      }
+    });
+  }
+
+  // 9. Combination Win
+  if (combinationWinDeltas) {
+    combinationWinDeltas.forEach(bet => {
+      if (bet.numbers.every(n => normalNums.includes(n))) {
+        typeSums[bet.type] = (typeSums[bet.type] || 0) + bet.amount;
       }
     });
   }
