@@ -58,3 +58,19 @@ export interface AppState {
   isDrawLocked: Record<string, boolean>;
   selectedLotteryType: string;
 }
+
+export interface TextParsedData {
+  bets: Record<number, number>;
+  flatBets: Record<number, number>;
+  zodiacBets: Record<string, number>;
+  tailBets: Record<number, number>;
+  teXiaoBets: Record<string, number>;
+  multiZodiacBets: MultiZodiacBet[];
+  sixZodiacBets: MultiZodiacBet[];
+  fiveZodiacBets: MultiZodiacBet[];
+  fourZodiacBets: MultiZodiacBet[];
+  multiTailBets: MultiZodiacBet[];
+  notInBets: NotInBet[];
+  combinationWinBets: CombinationWinBet[];
+  errors: string[];
+}

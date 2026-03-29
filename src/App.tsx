@@ -10,7 +10,7 @@ import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, 
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
 import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
-import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet } from './types';
+import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData } from './types';
 
 // Helper to get Beijing Date String (YYYY-MM-DD) with 04:00 AM cutoff
 const getBeijingDateString = (timestamp: number) => {
@@ -57,19 +57,69 @@ export default function App() {
     index: number;
   }[]>([]);
   const [amount, setAmount] = useState<number | ''>('');
-  const [textParsedBets, setTextParsedBets] = useState<Record<number, number>>({});
-  const [textParsedFlatBets, setTextParsedFlatBets] = useState<Record<number, number>>({});
-  const [textParsedZodiacBets, setTextParsedZodiacBets] = useState<Record<string, number>>({});
-  const [textParsedTailBets, setTextParsedTailBets] = useState<Record<number, number>>({});
-  const [textParsedTeXiaoBets, setTextParsedTeXiaoBets] = useState<Record<string, number>>({});
-  const [textParsedMultiZodiacBets, setTextParsedMultiZodiacBets] = useState<MultiZodiacBet[]>([]);
-  const [textParsedSixZodiacBets, setTextParsedSixZodiacBets] = useState<MultiZodiacBet[]>([]);
-  const [textParsedFiveZodiacBets, setTextParsedFiveZodiacBets] = useState<MultiZodiacBet[]>([]);
-  const [textParsedFourZodiacBets, setTextParsedFourZodiacBets] = useState<MultiZodiacBet[]>([]);
-  const [textParsedMultiTailBets, setTextParsedMultiTailBets] = useState<MultiZodiacBet[]>([]);
-  const [textParsedNotInBets, setTextParsedNotInBets] = useState<NotInBet[]>([]);
-  const [textParsedCombinationWinBets, setTextParsedCombinationWinBets] = useState<CombinationWinBet[]>([]);
-  const [textParsedErrors, setTextParsedErrors] = useState<string[]>([]);
+  
+  // Parsing logic for textarea input
+  const parsedResult = useMemo(() => parseMultiLotteryInput(inputText), [inputText]);
+
+  const mergedParsedData = useMemo(() => {
+    const { segments } = parsedResult;
+    const merged: TextParsedData = {
+      bets: {},
+      flatBets: {},
+      zodiacBets: {},
+      tailBets: {},
+      teXiaoBets: {},
+      multiZodiacBets: [],
+      sixZodiacBets: [],
+      fiveZodiacBets: [],
+      fourZodiacBets: [],
+      multiTailBets: [],
+      notInBets: [],
+      combinationWinBets: [],
+      errors: []
+    };
+
+    let lastAmount: number | '' = '';
+    let anyPatternFound = false;
+    const mergedSelected = new Set<number>();
+
+    segments.forEach(seg => {
+      const p = seg.parsed;
+      p.selectedNumbers.forEach(n => mergedSelected.add(n));
+      Object.entries(p.parsedBets).forEach(([n, a]) => merged.bets[Number(n)] = (merged.bets[Number(n)] || 0) + (a as number));
+      Object.entries(p.parsedFlatBets).forEach(([n, a]) => merged.flatBets[Number(n)] = (merged.flatBets[Number(n)] || 0) + (a as number));
+      Object.entries(p.parsedZodiacBets).forEach(([z, a]) => merged.zodiacBets[z] = (merged.zodiacBets[z] || 0) + (a as number));
+      Object.entries(p.parsedTailBets).forEach(([t, a]) => merged.tailBets[Number(t)] = (merged.tailBets[Number(t)] || 0) + (a as number));
+      Object.entries(p.parsedTeXiaoBets).forEach(([z, a]) => merged.teXiaoBets[z] = (merged.teXiaoBets[z] || 0) + (a as number));
+      merged.multiZodiacBets.push(...p.parsedMultiZodiacBets);
+      merged.sixZodiacBets.push(...p.parsedSixZodiacBets);
+      merged.fiveZodiacBets.push(...p.parsedFiveZodiacBets);
+      merged.fourZodiacBets.push(...p.parsedFourZodiacBets);
+      merged.multiTailBets.push(...p.parsedMultiTailBets);
+      merged.notInBets.push(...p.parsedNotInBets);
+      merged.combinationWinBets.push(...p.parsedCombinationWinBets);
+      merged.errors.push(...p.errors);
+      if (p.lastAmount !== '') lastAmount = p.lastAmount;
+      if (p.anyPatternFound) anyPatternFound = true;
+    });
+
+    return { ...merged, lastAmount, anyPatternFound, selectedNumbers: mergedSelected };
+  }, [parsedResult]);
+
+  useEffect(() => {
+    if (mergedParsedData.anyPatternFound || mergedParsedData.errors.length > 0) {
+      setSelectedNumbers(mergedParsedData.selectedNumbers);
+      setAmount(mergedParsedData.lastAmount);
+    } else {
+      setSelectedNumbers(new Set());
+      setAmount('');
+    }
+
+    const firstRecognized = parsedResult.segments.find(s => s.lotteryType)?.lotteryType;
+    if (firstRecognized && !isLotteryTypeLocked) {
+      setSelectedLotteryType(firstRecognized);
+    }
+  }, [mergedParsedData, isLotteryTypeLocked, parsedResult.segments]);
   
   const [oddEvenFilter, setOddEvenFilter] = useState<'odd' | 'even' | null>(null);
   const [sumOddEvenFilter, setSumOddEvenFilter] = useState<'odd' | 'even' | null>(null);
@@ -278,106 +328,6 @@ export default function App() {
     saveToStorage(STORAGE_KEYS.ALL_PENDING_BETS, allPendingBets);
   }, [allPendingBets]);
 
-  // Parsing logic for textarea input
-  useEffect(() => {
-    const segments = parseMultiLotteryInput(inputText);
-    
-    if (segments.length === 0) {
-      setSelectedNumbers(new Set());
-      setAmount('');
-      setTextParsedBets({});
-      setTextParsedFlatBets({});
-      setTextParsedZodiacBets({});
-      setTextParsedTailBets({});
-      setTextParsedTeXiaoBets({});
-      setTextParsedMultiZodiacBets([]);
-      setTextParsedSixZodiacBets([]);
-      setTextParsedFiveZodiacBets([]);
-      setTextParsedFourZodiacBets([]);
-      setTextParsedMultiTailBets([]);
-      setTextParsedNotInBets([]);
-      setTextParsedCombinationWinBets([]);
-      setTextParsedErrors([]);
-      return;
-    }
-
-    const mergedSelected = new Set<number>();
-    const mergedBets: Record<number, number> = {};
-    const mergedFlatBets: Record<number, number> = {};
-    const mergedZodiacBets: Record<string, number> = {};
-    const mergedTailBets: Record<number, number> = {};
-    const mergedTeXiaoBets: Record<string, number> = {};
-    const mergedMultiZodiac: MultiZodiacBet[] = [];
-    const mergedSixZodiac: MultiZodiacBet[] = [];
-    const mergedFiveZodiac: MultiZodiacBet[] = [];
-    const mergedFourZodiac: MultiZodiacBet[] = [];
-    const mergedMultiTail: MultiZodiacBet[] = [];
-    const mergedNotIn: NotInBet[] = [];
-    const mergedCombinationWin: CombinationWinBet[] = [];
-    const mergedErrors: string[] = [];
-    let lastAmount: number | '' = '';
-    let anyPatternFound = false;
-
-    segments.forEach(seg => {
-      const p = seg.parsed;
-      p.selectedNumbers.forEach(n => mergedSelected.add(n));
-      Object.entries(p.parsedBets).forEach(([n, a]) => mergedBets[Number(n)] = (mergedBets[Number(n)] || 0) + a);
-      Object.entries(p.parsedFlatBets).forEach(([n, a]) => mergedFlatBets[Number(n)] = (mergedFlatBets[Number(n)] || 0) + a);
-      Object.entries(p.parsedZodiacBets).forEach(([z, a]) => mergedZodiacBets[z] = (mergedZodiacBets[z] || 0) + a);
-      Object.entries(p.parsedTailBets).forEach(([t, a]) => mergedTailBets[Number(t)] = (mergedTailBets[Number(t)] || 0) + a);
-      Object.entries(p.parsedTeXiaoBets).forEach(([z, a]) => mergedTeXiaoBets[z] = (mergedTeXiaoBets[z] || 0) + a);
-      mergedMultiZodiac.push(...p.parsedMultiZodiacBets);
-      mergedSixZodiac.push(...p.parsedSixZodiacBets);
-      mergedFiveZodiac.push(...p.parsedFiveZodiacBets);
-      mergedFourZodiac.push(...p.parsedFourZodiacBets);
-      mergedMultiTail.push(...p.parsedMultiTailBets);
-      mergedNotIn.push(...p.parsedNotInBets);
-      mergedCombinationWin.push(...p.parsedCombinationWinBets);
-      mergedErrors.push(...p.errors);
-      if (p.lastAmount !== '') lastAmount = p.lastAmount;
-      if (p.anyPatternFound) anyPatternFound = true;
-    });
-
-    const firstRecognized = segments.find(s => s.lotteryType)?.lotteryType;
-    if (firstRecognized && !isLotteryTypeLocked) {
-      setSelectedLotteryType(firstRecognized);
-    }
-
-    if (anyPatternFound || mergedErrors.length > 0) {
-      setSelectedNumbers(mergedSelected);
-      setAmount(lastAmount);
-      setTextParsedBets(mergedBets);
-      setTextParsedFlatBets(mergedFlatBets);
-      setTextParsedZodiacBets(mergedZodiacBets);
-      setTextParsedTailBets(mergedTailBets);
-      setTextParsedTeXiaoBets(mergedTeXiaoBets);
-      setTextParsedMultiZodiacBets(mergedMultiZodiac);
-      setTextParsedSixZodiacBets(mergedSixZodiac);
-      setTextParsedFiveZodiacBets(mergedFiveZodiac);
-      setTextParsedFourZodiacBets(mergedFourZodiac);
-      setTextParsedMultiTailBets(mergedMultiTail);
-      setTextParsedNotInBets(mergedNotIn);
-      setTextParsedCombinationWinBets(mergedCombinationWin);
-      setTextParsedErrors(mergedErrors);
-    } else {
-      setSelectedNumbers(new Set());
-      setAmount('');
-      setTextParsedBets({});
-      setTextParsedFlatBets({});
-      setTextParsedZodiacBets({});
-      setTextParsedTailBets({});
-      setTextParsedTeXiaoBets({});
-      setTextParsedMultiZodiacBets([]);
-      setTextParsedSixZodiacBets([]);
-      setTextParsedFiveZodiacBets([]);
-      setTextParsedFourZodiacBets([]);
-      setTextParsedMultiTailBets([]);
-      setTextParsedNotInBets([]);
-      setTextParsedCombinationWinBets([]);
-      setTextParsedErrors([]);
-    }
-  }, [inputText]);
-
   // Effect to handle simultaneous filters
   useEffect(() => {
     if (oddEvenFilter === null && colorFilter === null && sizeFilter === null && domesticWildFilter === null && sumOddEvenFilter === null) {
@@ -477,8 +427,8 @@ export default function App() {
 
   // Add to pending bets list
   const handleAddToPending = () => {
-    if (textParsedErrors.length > 0) {
-      alert(textParsedErrors.join('\n'));
+    if (mergedParsedData.errors.length > 0) {
+      alert(mergedParsedData.errors.join('\n'));
       return;
     }
 
@@ -489,7 +439,7 @@ export default function App() {
 
     // 1. Handle text input (Numbers, Zodiacs and Tails)
     if (inputText.trim()) {
-      const segments = parseMultiLotteryInput(inputText);
+      const { segments } = parseMultiLotteryInput(inputText);
       
       segments.forEach(seg => {
         const p = seg.parsed;
@@ -521,7 +471,7 @@ export default function App() {
       });
     }
 
-    // 2. Handle manually selected numbers (that aren't already in textParsedBets)
+    // 2. Handle manually selected numbers (that aren't already in mergedParsedData.bets)
     if (selectedNumbers.size > 0 && amount !== '') {
       if (amount < 0) {
         alert('金额不能为负数');
@@ -529,10 +479,10 @@ export default function App() {
       }
       
       const processedNums = new Set([
-        ...Object.keys(textParsedBets).map(Number),
-        ...Object.keys(textParsedFlatBets).map(Number),
-        ...textParsedCombinationWinBets.flatMap(bet => bet.numbers),
-        ...textParsedNotInBets.flatMap(bet => bet.numbers)
+        ...Object.keys(mergedParsedData.bets).map(Number),
+        ...Object.keys(mergedParsedData.flatBets).map(Number),
+        ...mergedParsedData.combinationWinBets.flatMap(bet => bet.numbers),
+        ...mergedParsedData.notInBets.flatMap(bet => bet.numbers)
       ]);
       const manualNums = [...selectedNumbers].filter(n => !processedNums.has(n));
       
@@ -570,11 +520,11 @@ export default function App() {
       }
     }
 
-    // 3. Handle manual zodiac bets (that aren't already in textParsedZodiacBets)
+    // 3. Handle manual zodiac bets (that aren't already in mergedParsedData.zodiacBets)
     let hasNegativeZodiac = false;
     zodiacs.forEach(z => {
       const val = zodiacBetAmounts[z];
-      const parsedVal = textParsedZodiacBets[z];
+      const parsedVal = mergedParsedData.zodiacBets[z];
       
       if (val !== undefined && val !== '') {
         if (val < 0) {
@@ -615,12 +565,12 @@ export default function App() {
       return;
     }
 
-    // 4. Handle manual tail bets (that aren't already in textParsedTailBets)
+    // 4. Handle manual tail bets (that aren't already in mergedParsedData.tailBets)
     let hasNegativeTail = false;
     const newTailBetAmounts = { ...tailBetAmounts };
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(t => {
       const val = tailBetAmounts[t];
-      const parsedVal = textParsedTailBets[t];
+      const parsedVal = mergedParsedData.tailBets[t];
       
       if (val !== undefined && val !== '') {
         if (val < 0) {
@@ -727,14 +677,6 @@ export default function App() {
       setOddEvenFilter(null);
       setColorFilter(null);
       setSizeFilter(null);
-      setTextParsedBets({});
-      setTextParsedZodiacBets({});
-      setTextParsedTeXiaoBets({});
-      setTextParsedTailBets({});
-      setTextParsedMultiZodiacBets([]);
-      setTextParsedSixZodiacBets([]);
-      setTextParsedFourZodiacBets([]);
-      setTextParsedNotInBets([]);
     } else {
       alert('请先选择数字、生肖或尾数并输入金额');
     }
@@ -1207,56 +1149,8 @@ export default function App() {
     }
   };
 
-  const renderHighlightedInput = (text: string) => {
+  const renderHighlightedInput = (text: string, validMatches: { start: number; end: number }[], invalidMatches: { start: number; end: number }[]) => {
     if (!text) return null;
-    
-    const validMatches: { start: number; end: number }[] = [];
-    const amountRanges: { start: number; end: number }[] = [];
-    const invalidMatches: { start: number; end: number }[] = [];
-
-    const validRegexes = [
-      REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC,
-      REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_HEAD_TAIL, REGEX_EACH, REGEX_GENERIC,
-      REGEX_BAO, REGEX_PING, REGEX_TE_XIAO, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3,
-      REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_COMBINATION_WIN
-    ];
-
-    validRegexes.forEach(re => {
-      let m;
-      const r = new RegExp(re.source, re.flags);
-      while ((m = r.exec(text)) !== null) {
-        const matchStr = m[0];
-        let offset = 0;
-        while (offset < matchStr.length && /[\s,，。；;.、/]/.test(matchStr[offset])) {
-          offset++;
-        }
-        validMatches.push({ start: m.index + offset, end: m.index + m[0].length });
-
-        // Identify amount part to exclude from invalid number checks
-        // Most regexes have amount as the last capturing group
-        const lastGroup = m[m.length - 1];
-        if (lastGroup && !isNaN(Number(lastGroup.replace('+', '')))) {
-          const amountStart = m.index + m[0].lastIndexOf(lastGroup);
-          amountRanges.push({ start: amountStart, end: amountStart + lastGroup.length });
-        }
-      }
-    });
-
-    // Identify invalid numbers (> 49) that are not part of an amount
-    const numRegex = /\d+/g;
-    let numMatch;
-    while ((numMatch = numRegex.exec(text)) !== null) {
-      const val = parseInt(numMatch[0]);
-      const start = numMatch.index;
-      const end = start + numMatch[0].length;
-      
-      // Check if this number is within any amount range
-      const isAmount = amountRanges.some(range => start >= range.start && end <= range.end);
-      
-      if (!isAmount && val > 49) {
-        invalidMatches.push({ start, end });
-      }
-    }
     
     const mergeMatches = (matches: { start: number; end: number }[]) => {
       if (matches.length === 0) return [];
@@ -1337,6 +1231,8 @@ export default function App() {
       handleAddToPending();
     }
   };
+
+  const highlightedInput = useMemo(() => renderHighlightedInput(inputText, parsedResult.validMatches, parsedResult.invalidMatches), [inputText, parsedResult.validMatches, parsedResult.invalidMatches]);
 
   return (
     <div className="h-screen bg-stone-50 text-stone-950 font-sans flex flex-col overflow-hidden">
@@ -1427,7 +1323,7 @@ export default function App() {
                     <div key={t} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-[10px] border transition-colors shrink-0 ${
-                          (tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || textParsedTailBets[t] !== undefined
+                          (tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || mergedParsedData.tailBets[t] !== undefined
                             ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
                             : 'bg-stone-50 text-stone-600 border-stone-100 group-hover:border-stone-300'
                         }`}>
@@ -1438,7 +1334,7 @@ export default function App() {
                             type="number"
                             min="0"
                             placeholder="金额"
-                            value={tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '' ? tailBetAmounts[t] : (textParsedTailBets[t] || '')}
+                            value={tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '' ? tailBetAmounts[t] : (mergedParsedData.tailBets[t] || '')}
                             onKeyDown={handleKeyDown}
                             onChange={(e) => {
                               const val = e.target.value === '' ? '' : Number(e.target.value);
@@ -1447,12 +1343,12 @@ export default function App() {
                               }
                             }}
                             className={`w-full p-1.5 pr-6 border rounded-lg text-[10px] outline-none transition-all ${
-                              textParsedTailBets[t] 
+                              mergedParsedData.tailBets[t] 
                                 ? 'bg-amber-50 border-amber-200 focus:ring-amber-200 focus:bg-white' 
                                 : 'bg-stone-50 border-stone-100 focus:ring-stone-200 focus:bg-white'
                             }`}
                           />
-                          {(tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || textParsedTailBets[t] ? (
+                          {(tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || mergedParsedData.tailBets[t] ? (
                             <button 
                               onClick={() => {
                                 setTailBetAmounts(prev => ({ ...prev, [t]: '' }));
@@ -1493,7 +1389,7 @@ export default function App() {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => selectZodiacColumn(idx)}
                       className={`h-7 w-full flex items-center justify-center rounded-lg text-xs font-bold transition-colors border ${
-                        (numbers.filter(n => getZodiacFromNumber(n) === zodiac).every(n => selectedNumbers.has(n) || textParsedBets[n] !== undefined || textParsedFlatBets[n] !== undefined) || textParsedZodiacBets[zodiac] !== undefined)
+                        (numbers.filter(n => getZodiacFromNumber(n) === zodiac).every(n => selectedNumbers.has(n) || mergedParsedData.bets[n] !== undefined || mergedParsedData.flatBets[n] !== undefined) || mergedParsedData.zodiacBets[zodiac] !== undefined)
                           ? 'bg-stone-800 text-white border-stone-800 shadow-md'
                           : 'bg-stone-50 text-stone-500 hover:bg-stone-100 border-stone-100'
                       }`}
@@ -1505,7 +1401,7 @@ export default function App() {
 
                 <div className="grid grid-cols-12 gap-1 overflow-y-auto pr-1">
                   {numbers.map((num) => {
-                    const pendingAmt = textParsedBets[num] || (selectedNumbers.has(num) ? amount : null);
+                    const pendingAmt = mergedParsedData.bets[num] || (selectedNumbers.has(num) ? amount : null);
                     const colorClasses = getNumberColor(num);
                     return (
                       <motion.button
@@ -1516,17 +1412,17 @@ export default function App() {
                         id={`btn-num-${num}`}
                         className={`
                           h-10 w-full flex flex-col items-center justify-center rounded-lg transition-colors relative border-2
-                          ${(selectedNumbers.has(num) || textParsedBets[num] !== undefined || textParsedFlatBets[num] !== undefined) 
+                          ${(selectedNumbers.has(num) || mergedParsedData.bets[num] !== undefined || mergedParsedData.flatBets[num] !== undefined) 
                             ? `${colorClasses.bg} text-white shadow-md ${colorClasses.border}` 
                             : `bg-white text-stone-500 border-stone-100 hover:bg-stone-50`}
                         `}
                       >
-                        {((pendingAmt !== null && pendingAmt !== '') || textParsedFlatBets[num]) && (
+                        {((pendingAmt !== null && pendingAmt !== '') || mergedParsedData.flatBets[num]) && (
                           <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-stone-900 text-[9px] px-1 py-0.5 rounded-full shadow-md z-10 font-black border border-amber-500/50 flex flex-col items-center gap-0">
                             {pendingAmt !== null && pendingAmt !== '' && <span>{pendingAmt}</span>}
-                            {textParsedFlatBets[num] && (
+                            {mergedParsedData.flatBets[num] && (
                               <span className={`text-[7px] ${pendingAmt !== null && pendingAmt !== '' ? 'border-t border-amber-600/30' : ''} w-full text-center`}>
-                                平:{textParsedFlatBets[num]}
+                                平:{mergedParsedData.flatBets[num]}
                               </span>
                             )}
                           </span>
@@ -1784,7 +1680,7 @@ export default function App() {
                     className="absolute inset-0 m-0 p-3 pointer-events-none whitespace-pre-wrap break-words text-sm leading-6 tracking-normal text-transparent overflow-y-scroll border border-transparent font-sans scrollbar-hide"
                     aria-hidden="true"
                   >
-                    {renderHighlightedInput(inputText)}
+                    {highlightedInput}
                     {/* Add an extra character to ensure scroll height matches if ending with newline */}
                     {inputText.endsWith('\n') ? '\n ' : ''}
                   </div>
@@ -1879,7 +1775,7 @@ export default function App() {
                     <div key={z} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-[10px] border transition-colors shrink-0 ${
-                          (zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || textParsedZodiacBets[z] !== undefined
+                          (zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || mergedParsedData.zodiacBets[z] !== undefined
                             ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
                             : 'bg-stone-50 text-stone-600 border-stone-100 group-hover:border-stone-300'
                         }`}>
@@ -1890,7 +1786,7 @@ export default function App() {
                             type="number"
                             min="0"
                             placeholder="金额"
-                            value={zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '' ? zodiacBetAmounts[z] : (textParsedZodiacBets[z] || '')}
+                            value={zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '' ? zodiacBetAmounts[z] : (mergedParsedData.zodiacBets[z] || '')}
                             onKeyDown={handleKeyDown}
                             onChange={(e) => {
                               const val = e.target.value === '' ? '' : Number(e.target.value);
@@ -1899,12 +1795,12 @@ export default function App() {
                               }
                             }}
                             className={`w-full p-1.5 pr-6 border rounded-lg text-[10px] outline-none transition-all ${
-                              textParsedZodiacBets[z] 
+                              mergedParsedData.zodiacBets[z] 
                                 ? 'bg-amber-50 border-amber-200 focus:ring-amber-200 focus:bg-white' 
                                 : 'bg-stone-50 border-stone-100 focus:ring-stone-200 focus:bg-white'
                             }`}
                           />
-                          {(zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || textParsedZodiacBets[z] ? (
+                          {(zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || mergedParsedData.zodiacBets[z] ? (
                             <button 
                               onClick={() => {
                                 setZodiacBetAmounts(prev => ({ ...prev, [z]: '' }));
@@ -1945,10 +1841,10 @@ export default function App() {
                         }}
                         className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                           (multiZodiacSelection.includes(z) || 
-                           textParsedMultiZodiacBets.some(b => b.zodiacs.includes(z)) ||
-                           textParsedSixZodiacBets.some(b => b.zodiacs.includes(z)) ||
-                           textParsedFiveZodiacBets.some(b => b.zodiacs.includes(z)) ||
-                           textParsedFourZodiacBets.some(b => b.zodiacs.includes(z)))
+                           mergedParsedData.multiZodiacBets.some(b => b.zodiacs.includes(z)) ||
+                           mergedParsedData.sixZodiacBets.some(b => b.zodiacs.includes(z)) ||
+                           mergedParsedData.fiveZodiacBets.some(b => b.zodiacs.includes(z)) ||
+                           mergedParsedData.fourZodiacBets.some(b => b.zodiacs.includes(z)))
                             ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
                             : 'bg-stone-50 text-stone-600 border-stone-100 hover:border-stone-300'
                         }`}
@@ -2010,23 +1906,23 @@ export default function App() {
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
                 <div className="flex flex-col gap-2 overflow-y-auto pr-1">
-                  {textParsedMultiZodiacBets.length === 0 && 
-                   textParsedMultiTailBets.length === 0 && 
-                   textParsedFiveZodiacBets.length === 0 && 
-                   textParsedFourZodiacBets.length === 0 && 
-                   textParsedSixZodiacBets.length === 0 && 
-                   textParsedNotInBets.length === 0 && 
-                   Object.keys(textParsedTeXiaoBets || {}).length === 0 &&
-                   textParsedCombinationWinBets.length === 0 && (
+                  {mergedParsedData.multiZodiacBets.length === 0 && 
+                   mergedParsedData.multiTailBets.length === 0 && 
+                   mergedParsedData.fiveZodiacBets.length === 0 && 
+                   mergedParsedData.fourZodiacBets.length === 0 && 
+                   mergedParsedData.sixZodiacBets.length === 0 && 
+                   mergedParsedData.notInBets.length === 0 && 
+                   Object.keys(mergedParsedData.teXiaoBets || {}).length === 0 &&
+                   mergedParsedData.combinationWinBets.length === 0 && (
                     <div className="h-full flex items-center justify-center py-4">
                       <span className="text-[9px] text-stone-300 italic">暂无识别内容...</span>
                     </div>
                   )}
-                  {textParsedCombinationWinBets.length > 0 && (
+                  {mergedParsedData.combinationWinBets.length > 0 && (
                     <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-100">
                       <div className="text-[7px] font-bold text-rose-600 uppercase mb-0.5">识别到中中:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedCombinationWinBets.map((bet, idx) => (
+                        {mergedParsedData.combinationWinBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.numbers.map(n => n.toString().padStart(2, '0')).join(',')} ({bet.type})</span>
                             <span className="text-rose-600 font-black">¥{bet.amount}</span>
@@ -2035,11 +1931,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedMultiZodiacBets.length > 0 && (
+                  {mergedParsedData.multiZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100">
                       <div className="text-[7px] font-bold text-amber-600 uppercase mb-0.5">识别到连肖:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedMultiZodiacBets.map((bet, idx) => (
+                        {mergedParsedData.multiZodiacBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
                             <span className="text-amber-600 font-black">¥{bet.amount}</span>
@@ -2048,11 +1944,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedMultiTailBets.length > 0 && (
+                  {mergedParsedData.multiTailBets.length > 0 && (
                     <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
                       <div className="text-[7px] font-bold text-indigo-600 uppercase mb-0.5">识别到连尾:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedMultiTailBets.map((bet, idx) => (
+                        {mergedParsedData.multiTailBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}尾</span>
                             <span className="text-indigo-600 font-black">¥{bet.amount}</span>
@@ -2061,11 +1957,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedFiveZodiacBets.length > 0 && (
+                  {mergedParsedData.fiveZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-purple-50 rounded-lg border border-purple-100">
                       <div className="text-[7px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedFiveZodiacBets.map((bet, idx) => (
+                        {mergedParsedData.fiveZodiacBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
                             <span className="text-purple-600 font-black">¥{bet.amount}</span>
@@ -2074,11 +1970,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedFourZodiacBets.length > 0 && (
+                  {mergedParsedData.fourZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
                       <div className="text-[7px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedFourZodiacBets.map((bet, idx) => (
+                        {mergedParsedData.fourZodiacBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
                             <span className="text-blue-600 font-black">¥{bet.amount}</span>
@@ -2087,11 +1983,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedSixZodiacBets.length > 0 && (
+                  {mergedParsedData.sixZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
                       <div className="text-[7px] font-bold text-emerald-600 uppercase mb-0.5">识别到六中:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedSixZodiacBets.map((bet, idx) => (
+                        {mergedParsedData.sixZodiacBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
                             <span className="text-emerald-600 font-black">¥{bet.amount}</span>
@@ -2100,11 +1996,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedNotInBets.length > 0 && (
+                  {mergedParsedData.notInBets.length > 0 && (
                     <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-100">
                       <div className="text-[7px] font-bold text-rose-600 uppercase mb-0.5">识别到不中:</div>
                       <div className="flex flex-col gap-0.5">
-                        {textParsedNotInBets.map((bet, idx) => (
+                        {mergedParsedData.notInBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{bet.x}不中 {bet.numbers.map(n => formatNumber(n)).join('-')}</span>
                             <span className="text-rose-600 font-black">¥{bet.amount}</span>
@@ -2113,11 +2009,11 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {textParsedTeXiaoBets && Object.keys(textParsedTeXiaoBets).length > 0 && (
+                  {mergedParsedData.teXiaoBets && Object.keys(mergedParsedData.teXiaoBets).length > 0 && (
                     <div className="p-1.5 bg-orange-50 rounded-lg border border-orange-100">
                       <div className="text-[7px] font-bold text-orange-600 uppercase mb-0.5">识别到特肖:</div>
                       <div className="flex flex-col gap-0.5">
-                        {Object.entries(textParsedTeXiaoBets).map(([z, amt], idx) => (
+                        {Object.entries(mergedParsedData.teXiaoBets).map(([z, amt], idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
                             <span className="text-stone-700 font-bold">{z}</span>
                             <span className="text-orange-600 font-black">¥{amt}</span>
