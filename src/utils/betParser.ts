@@ -110,7 +110,7 @@ export interface ParsedSegment {
 }
 
 // Regular Expressions
-const LOTTERY_ALIASES = '(?:新㏄|老㏄|旧㏄|㏄|新澳|老澳|香港|老cc|cc|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|新cc|新西西|西西|老c|老cc|老西西|旧c|旧cc|旧西西|c)';
+const LOTTERY_ALIASES = '(?:新㏄|老㏄|旧㏄|㏄|新澳|老澳|香港|老cc|cc|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|新cc|新西西|西西|老c|老cc|老西西|旧c|旧cc|旧西西|c|旧澳|旧奥|旧澳门|旧)';
 const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
@@ -118,14 +118,14 @@ const LOOKAHEAD = '(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|
 const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野])';
 const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特肖|特码|包肖|平特|平肖|不中|六中|五中|四中|六肖|五肖|四肖|6中|5中|4中|二尾|三尾|四尾|五尾|两尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\u4e00-\u9fa5])+?)';
 
-export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*|[\\n\\r]*)\\d{2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
+export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*)\\d{2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?:((?:\\d{1,2}[\\s,，。；;.、/\\-]*)+)[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?|(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?[^\\d\\n\\r]*?((?:\\d{1,2}[\\s,，。；;.、/\\-]*)+))[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖|连)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五2345两])(?:连肖|连(?!尾)|连买|买)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连(?!尾)))((?:(?:\\s*|[\\n\\r]*)[马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
+export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五2345两])(?:连肖|连(?!尾)|连买|买)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
 export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[^\\d\\n\\r]*?(' + 
   '(?:复试|复式|复)[^\\d\\n\\r]*?(?:[二三四五六七八九十2-9]|10|两)?(?:连肖|连|连各|连每)?' + 
   '|' +
@@ -173,6 +173,10 @@ export const normalizeLotteryTypes = (text: string): string => {
   // 3. New aliases: '新' -> '新澳', '老' -> '老澳', '香'/'港' -> '香港'
   processedText = processedText.replace(/新(?![澳cC㏄])/gi, '新澳');
   processedText = processedText.replace(/老(?![澳cC㏄])/gi, '老澳');
+  processedText = processedText.replace(/旧(?![澳cC㏄])/gi, '老澳');
+  processedText = processedText.replace(/旧澳/g, '老澳');
+  processedText = processedText.replace(/旧奥/g, '老澳');
+  processedText = processedText.replace(/旧澳门/g, '老澳');
   processedText = processedText.replace(/香(?![港])/g, '香港');
   processedText = processedText.replace(/(?<!香)港/g, '香港');
 
@@ -366,23 +370,28 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   const allMatches: MatchResult[] = [];
 
   const addMatches = (regex: RegExp, type: string) => {
-    regex.lastIndex = 0;
-    let m;
-    while ((m = regex.exec(textForPatterns)) !== null) {
-      const matchText = m[0];
-      let offset = 0;
-      // Skip leading punctuation/separators for highlighting and parsing
-      while (offset < matchText.length && /[\s,，。；;.、/]/.test(matchText[offset])) {
-        offset++;
-      }
+    const lines = textForPatterns.split(/(\r?\n)/);
+    let currentOffset = 0;
+    for (const line of lines) {
+      regex.lastIndex = 0;
+      let m;
+      while ((m = regex.exec(line)) !== null) {
+        const matchText = m[0];
+        let offset = 0;
+        // Skip leading punctuation/separators for highlighting and parsing
+        while (offset < matchText.length && /[\s,，。；;.、/]/.test(matchText[offset])) {
+          offset++;
+        }
 
-      allMatches.push({
-        start: m.index + offset,
-        end: m.index + matchText.length,
-        type,
-        groups: Array.from(m),
-        original: matchText.substring(offset)
-      });
+        allMatches.push({
+          start: currentOffset + m.index + offset,
+          end: currentOffset + m.index + matchText.length,
+          type,
+          groups: Array.from(m),
+          original: matchText.substring(offset)
+        });
+      }
+      currentOffset += line.length;
     }
   };
 
