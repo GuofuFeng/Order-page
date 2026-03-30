@@ -110,7 +110,7 @@ export interface ParsedSegment {
 }
 
 // Regular Expressions
-const LOTTERY_ALIASES = '(?:新㏄|老㏄|旧㏄|㏄|新澳|老澳|香港|老cc|cc|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|新cc|新西西|西西|老c|老cc|老西西|旧c|旧cc|旧西西|c|旧澳|旧奥|旧澳门|旧)';
+const LOTTERY_ALIASES = '(?:新㏄|老㏄|旧㏄|㏄|新澳|老澳|香港|老cc|cc|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|新cc|新西西|西西|老c|老cc|老西西|旧c|旧cc|旧西西|c|旧澳门|旧澳|旧奥|旧|老)';
 const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
@@ -170,13 +170,13 @@ export const normalizeLotteryTypes = (text: string): string => {
   // Note: we don't map single 'c' to 'cc' unless prefixed by '新' to avoid accidental matches.
   processedText = processedText.replace(/(?:新\s*[cC㏄]{1,2}|(?:新\s*)?西西|[cC㏄]{2})/gi, 'cc');
   
-  // 3. New aliases: '新' -> '新澳', '老' -> '老澳', '香'/'港' -> '香港'
-  processedText = processedText.replace(/新(?![澳cC㏄])/gi, '新澳');
-  processedText = processedText.replace(/老(?![澳cC㏄])/gi, '老澳');
-  processedText = processedText.replace(/旧(?![澳cC㏄])/gi, '老澳');
+  // 3. New aliases: '新' -> '新澳', '老' -> '老澳', '旧' -> '老澳', etc.
+  processedText = processedText.replace(/旧澳门/g, '老澳');
   processedText = processedText.replace(/旧澳/g, '老澳');
   processedText = processedText.replace(/旧奥/g, '老澳');
-  processedText = processedText.replace(/旧澳门/g, '老澳');
+  processedText = processedText.replace(/新(?![澳cC㏄])/gi, '新澳');
+  processedText = processedText.replace(/老(?![澳cC㏄])/gi, '老澳');
+  processedText = processedText.replace(/旧/g, '老澳');
   processedText = processedText.replace(/香(?![港])/g, '香港');
   processedText = processedText.replace(/(?<!香)港/g, '香港');
 
