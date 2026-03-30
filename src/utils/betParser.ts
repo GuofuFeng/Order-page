@@ -111,12 +111,12 @@ export interface ParsedSegment {
 
 // Regular Expressions
 const LOTTERY_ALIASES = '(?:旧澳门|新西西|老西西|旧西西|新cc|老cc|旧cc|新㏄|老㏄|旧㏄|新澳|老澳|香港|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|老c|旧c|cc|西西|旧澳|旧奥|㏄|c|旧|老|新|香|港)';
-const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r*]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
-const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r*]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
-const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r*]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
+const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
+const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
+const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const LOOKAHEAD = '(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|特肖|特|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + ')|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|特肖|特|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + '))';
-const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特*]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野])';
-const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特肖|特码|包肖|平特|平肖|不中|六中|五中|四中|六肖|五肖|四肖|6中|5中|4中|二尾|三尾|四尾|五尾|两尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\*\\u4e00-\u9fa5])+?)';
+const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特*:\\uff1a]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野])';
+const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特肖|特码|包肖|平特|平肖|不中|六中|五中|四中|六肖|五肖|四肖|6中|5中|4中|二尾|三尾|四尾|五尾|两尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\*:\\uff1a\\u4e00-\u9fa5])+?)';
 
 export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*)\\d{2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
@@ -248,7 +248,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
     // 1. Base Numbers/Zodiacs
     // Split by common separators to handle mixed inputs like "兔+04.40"
-    const parts = prefix.split(/[\s\+\.\,，。；;\/&|\-\*]+/).filter(Boolean);
+    const parts = prefix.split(/[\s\+\.\,，。；;\/&|\-\*:\uff1a]+/).filter(Boolean);
     
     if (parts.length > 0) {
       parts.forEach(part => {
