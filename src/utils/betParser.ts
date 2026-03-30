@@ -110,22 +110,22 @@ export interface ParsedSegment {
 }
 
 // Regular Expressions
-const LOTTERY_ALIASES = '(?:新㏄|老㏄|旧㏄|㏄|新澳|老澳|香港|老cc|cc|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|新cc|新西西|西西|老c|老cc|老西西|旧c|旧cc|旧西西|c|旧澳门|旧澳|旧奥|旧|老)';
-const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
-const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
-const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
+const LOTTERY_ALIASES = '(?:旧澳门|新西西|老西西|旧西西|新cc|老cc|旧cc|新㏄|老㏄|旧㏄|新澳|老澳|香港|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|老c|旧c|cc|西西|旧澳|旧奥|㏄|c|旧|老|新|香|港)';
+const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r*]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
+const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r*]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
+const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r*]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const LOOKAHEAD = '(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|特肖|特|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + ')|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|特肖|特|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + '))';
-const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野])';
-const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特肖|特码|包肖|平特|平肖|不中|六中|五中|四中|六肖|五肖|四肖|6中|5中|4中|二尾|三尾|四尾|五尾|两尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\u4e00-\u9fa5])+?)';
+const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特*]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野])';
+const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特肖|特码|包肖|平特|平肖|不中|六中|五中|四中|六肖|五肖|四肖|6中|5中|4中|二尾|三尾|四尾|五尾|两尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\*\\u4e00-\u9fa5])+?)';
 
 export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*)\\d{2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{6})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?:((?:\\d{1,2}[\\s,，。；;.、/\\-]*)+)[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?|(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?[^\\d\\n\\r]*?((?:\\d{1,2}[\\s,，。；;.、/\\-]*)+))[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?:((?:\\d{1,2}[\\s,，。；;.、/\\-*]*)+)[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?|(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?[^\\d\\n\\r]*?((?:\\d{1,2}[\\s,，。；;.、/\\-*]*)+))[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|5中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{5})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|4中)([马蛇龙兔虎牛鼠猪狗鸡猴羊]{4})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:连肖|连)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五2345两])(?:连肖|连(?!尾)|连买|买)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
+export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五2345两])(?:连肖|连(?!尾)|连买|买)|([二三四五2345两])肖|(?<![二三四五2345两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+', 'g');
 export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[^\\d\\n\\r]*?(' + 
   '(?:复试|复式|复)[^\\d\\n\\r]*?(?:[二三四五六七八九十2-9]|10|两)?(?:连肖|连|连各|连每)?' + 
   '|' +
@@ -150,7 +150,7 @@ export const REGEX_HEAD_TAIL = new RegExp(BOUNDARY + '(\\d+)(头|尾)[^\\d]*?(?:
 
 export const REGEX_EACH = new RegExp(BOUNDARY_STRICT + NOISE_PREFIX + '(?:各号|每号|各|每|买|压|个|下注)[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?' + LOOKAHEAD_LOOSE, 'g');
 
-export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY_STRICT + '(?:((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-]+)(?:平码|独平)(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./+&|\\-]+)-(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-]+)(?:各|每|买|压|个)(\\d+(?:\\.\\d+)?))(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY_STRICT + '(?:((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:平码|独平)(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./+&|\\-*]+)-(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:各|每|买|压|个)(\\d+(?:\\.\\d+)?))(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_TUO_ZODIAC = new RegExp(BOUNDARY + '([二三四五2345两])拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)([二三四五六七八九十2345678910两])(?:连肖|连|连各|连每)?(?:各组|每组)?[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
@@ -163,23 +163,19 @@ export const normalizeLotteryTypes = (text: string): string => {
   processedText = processedText.replace(/奥大/g, '澳大');
   
   // 1. Normalize '老cc' aliases first to avoid partial 'cc' match.
-  // Handle '老c', '老cc', '旧c', '旧cc', '老西西', '旧西西' with optional spaces and case-insensitivity.
-  processedText = processedText.replace(/(?:[旧老]\s*[cC㏄]{1,2}|[旧老]\s*西西)/gi, '老cc');
+  // Preserve length by padding with spaces if needed.
+  processedText = processedText.replace(/(?:[旧老]\s*[cC㏄]{2}|[旧老]\s*西西)/gi, (m) => '老cc' + ' '.repeat(Math.max(0, m.length - 3)));
+  processedText = processedText.replace(/(?:[旧老]\s*[cC㏄])/gi, (m) => '老c' + ' '.repeat(Math.max(0, m.length - 2)));
   
-  // 2. Normalize 'cc' aliases: '新c', '新cc', 'cc', '西西', '新西西'.
-  // Note: we don't map single 'c' to 'cc' unless prefixed by '新' to avoid accidental matches.
-  processedText = processedText.replace(/(?:新\s*[cC㏄]{1,2}|(?:新\s*)?西西|[cC㏄]{2})/gi, 'cc');
+  // 2. Normalize 'cc' aliases.
+  processedText = processedText.replace(/(?:新\s*[cC㏄]{1,2}|(?:新\s*)?西西|[cC㏄]{2})/gi, (m) => 'cc' + ' '.repeat(Math.max(0, m.length - 2)));
   
-  // 3. New aliases: '新' -> '新澳', '老' -> '老澳', '旧' -> '老澳', etc.
-  processedText = processedText.replace(/旧澳门/g, '老澳');
+  // 3. New aliases: map to standard types but PRESERVE LENGTH to avoid highlighting offset.
+  processedText = processedText.replace(/旧澳门/g, '老澳 ');
   processedText = processedText.replace(/旧澳/g, '老澳');
   processedText = processedText.replace(/旧奥/g, '老澳');
-  processedText = processedText.replace(/新(?![澳cC㏄])/gi, '新澳');
-  processedText = processedText.replace(/老(?![澳cC㏄])/gi, '老澳');
-  processedText = processedText.replace(/旧/g, '老澳');
-  processedText = processedText.replace(/香(?![港])/g, '香港');
-  processedText = processedText.replace(/(?<!香)港/g, '香港');
-
+  processedText = processedText.replace(/旧/g, '老');
+  
   processedText = processedText.replace(/万和/g, '越南');
   processedText = processedText.replace(/万合/g, '越南');
   return processedText;
@@ -216,13 +212,30 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   textForPatterns = textForPatterns.replace(/免/g, '兔');
   textForPatterns = textForPatterns.replace(/兰/g, '蓝');
 
-  // Identify Lottery Type
-  for (const type of lotteryTypes) {
-    if (textForPatterns.includes(type)) {
-      result.recognizedLotteryType = type;
-      textForPatterns = textForPatterns.replace(type, ' ');
-      break;
+  // Identify Lottery Type using a regex that includes aliases
+  const typeRegex = new RegExp(`(${lotteryTypes.join('|')}|${LOTTERY_ALIASES})`, 'i');
+  const typeMatch = textForPatterns.match(typeRegex);
+  if (typeMatch) {
+    const matchedText = typeMatch[1];
+    // Map the matched alias to the standard type
+    let standardType = matchedText;
+    if (/^[旧老]/.test(matchedText) && /[cC㏄]/.test(matchedText)) standardType = '老cc';
+    else if (/^新/.test(matchedText) && /[cC㏄]/.test(matchedText)) standardType = 'cc';
+    else if (/^[旧老]/.test(matchedText)) standardType = '老澳';
+    else if (/^新/.test(matchedText)) standardType = '新澳';
+    else if (/^[香港]/.test(matchedText)) standardType = '香港';
+    
+    // Ensure standardType is one of the recognized types
+    if (lotteryTypes.includes(standardType)) {
+      result.recognizedLotteryType = standardType;
+    } else {
+      // Fallback: find the best match in lotteryTypes
+      const bestMatch = lotteryTypes.find(t => t.includes(standardType) || standardType.includes(t));
+      if (bestMatch) result.recognizedLotteryType = bestMatch;
     }
+    
+    // Replace with spaces to preserve length
+    textForPatterns = textForPatterns.replace(matchedText, ' '.repeat(matchedText.length));
   }
 
   const getNumbersForZodiac = (zodiac: string): number[] => {
@@ -235,7 +248,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
     // 1. Base Numbers/Zodiacs
     // Split by common separators to handle mixed inputs like "兔+04.40"
-    const parts = prefix.split(/[\s\+\.\,，。；;\/&|\-]+/).filter(Boolean);
+    const parts = prefix.split(/[\s\+\.\,，。；;\/&|\-\*]+/).filter(Boolean);
     
     if (parts.length > 0) {
       parts.forEach(part => {
@@ -975,48 +988,60 @@ export interface MultiLotteryParsedResult {
 export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedResult => {
   if (!inputText.trim()) return { segments: [], validMatches: [], invalidMatches: [] };
 
-  const normalized = normalizeLotteryTypes(inputText);
-  const sortedTypes = [...lotteryTypes].sort((a, b) => b.length - a.length);
-  const typePattern = sortedTypes.join('|');
+  const typePattern = `(?:${lotteryTypes.join('|')}|${LOTTERY_ALIASES})`;
   
   const segments: ParsedSegment[] = [];
   const allValidMatches: { start: number; end: number }[] = [];
   const allInvalidMatches: { start: number; end: number }[] = [];
 
-  const matches = [...normalized.matchAll(new RegExp(typePattern, 'g'))];
+  // Use the ORIGINAL inputText to find matches so indices are correct
+  const matches = [...inputText.matchAll(new RegExp(typePattern, 'gi'))];
   
-  const parts: string[] = [];
+  const parts: { text: string; start: number }[] = [];
   if (matches.length === 0) {
-    parts.push(normalized);
+    parts.push({ text: inputText, start: 0 });
   } else {
     matches.forEach((match, i) => {
       if (i === 0 && match.index > 0) {
-        parts.push(normalized.substring(0, match.index));
+        parts.push({ text: inputText.substring(0, match.index), start: 0 });
       }
       const nextMatch = matches[i + 1];
-      const end = nextMatch ? nextMatch.index : normalized.length;
-      parts.push(normalized.substring(match.index!, end));
+      const end = nextMatch ? nextMatch.index : inputText.length;
+      parts.push({ text: inputText.substring(match.index!, end), start: match.index! });
     });
   }
   
   let pendingTypes: string[] = [];
 
-  parts.forEach((part, index) => {
-    const match = part.match(new RegExp(`^(${typePattern})`));
-    const type = match ? match[1] : '';
-    const content = type ? part.substring(type.length) : part;
+  parts.forEach((partObj) => {
+    const part = partObj.text;
+    const offset = partObj.start;
     
-    // Calculate offset for highlighting
-    let offset = 0;
-    for (let i = 0; i < index; i++) {
-      offset += parts[i].length;
+    const match = part.match(new RegExp(`^(${typePattern})`, 'i'));
+    const rawType = match ? match[1] : '';
+    const content = rawType ? part.substring(rawType.length) : part;
+    
+    // Normalize the identified type for the segment
+    let type = rawType;
+    if (rawType) {
+      const lowerRaw = rawType.toLowerCase();
+      if (/^[旧老]/.test(lowerRaw) && /[cC㏄]/.test(lowerRaw)) type = '老cc';
+      else if (/^新/.test(lowerRaw) && /[cC㏄]/.test(lowerRaw)) type = 'cc';
+      else if (/^[旧老]/.test(lowerRaw)) type = '老澳';
+      else if (/^新/.test(lowerRaw)) type = '新澳';
+      else if (/^[香港]/.test(lowerRaw)) type = '香港';
+      
+      if (!lotteryTypes.includes(type)) {
+        const bestMatch = lotteryTypes.find(t => t.includes(type) || type.includes(t));
+        if (bestMatch) type = bestMatch;
+      }
     }
 
     const parsed = parseBetInput(content);
     
     // Adjust match ranges with offset
-    const adjustedValid = parsed.validMatches.map(m => ({ start: m.start + offset + (type ? type.length : 0), end: m.end + offset + (type ? type.length : 0) }));
-    const adjustedInvalid = parsed.invalidMatches.map(m => ({ start: m.start + offset + (type ? type.length : 0), end: m.end + offset + (type ? type.length : 0) }));
+    const adjustedValid = parsed.validMatches.map(m => ({ start: m.start + offset + (rawType ? rawType.length : 0), end: m.end + offset + (rawType ? rawType.length : 0) }));
+    const adjustedInvalid = parsed.invalidMatches.map(m => ({ start: m.start + offset + (rawType ? rawType.length : 0), end: m.end + offset + (rawType ? rawType.length : 0) }));
 
     allValidMatches.push(...adjustedValid);
     allInvalidMatches.push(...adjustedInvalid);
