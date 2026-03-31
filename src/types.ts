@@ -15,6 +15,11 @@ export interface CombinationWinBet {
   type: '三中三' | '二中二';
   numbers: number[];
   amount: number;
+  isTuo?: boolean;
+  tuoBase?: string;
+  tuoFollowers?: string;
+  tuoCount?: number;
+  tuoGroups?: number[][];
 }
 
 export interface BetOrder {

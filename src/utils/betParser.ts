@@ -121,6 +121,7 @@ const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)
 export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*)(?:\\d[\\s,，。；;.、/\\-*]*){2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){6})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?:((?:\\d{1,2}[\\s,，。；;.、/\\-*]*)+)[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?|(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二)(?:复试|复式|复)?[^\\d\\n\\r]*?((?:\\d{1,2}[\\s,，。；;.、/\\-*]*)+))[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '((?:(?:\\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])[\\s,，。；;.、/\\-*]*)+)拖((?:(?:\\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊])[\\s,，。；;.、/\\-*]*)+)(三中三二中二|二中二三中三|三中三|二中二)[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|五肖|5中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){5})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){4})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
@@ -153,8 +154,8 @@ export const REGEX_EACH = new RegExp(BOUNDARY_STRICT + NOISE_PREFIX + '(?:各号
 export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY_STRICT + '(?:((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:平码|独平)(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./+&|\\-*]+)-(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:各|每|买|压|个)(\\d+(?:\\.\\d+)?))(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_TUO_ZODIAC = new RegExp(BOUNDARY + '([二三四五2345两])拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)([二三四五六七八九十2345678910两])(?:连肖|连|连各|连每)?(?:各组|每组)?[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_TUO_ZODIAC_V4 = new RegExp(BOUNDARY + '(?<!\\d)([二三四五2345两])(?:连肖|连|连各|连每)?([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)拖([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*)+)拖((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*)+)([二三四五六七八九十2345678910两])(?:连肖|连|连各|连每)?(?:各组|每组)?[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_TUO_ZODIAC_V4 = new RegExp(BOUNDARY + '(?<!\\d)([二三四五2345两])(?:连肖|连|连各|连每)?((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*)+)拖((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*)+)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_GENERIC = new RegExp(BOUNDARY_STRICT + NOISE_PREFIX + '(?:大|小|单|双|红|绿|蓝|家|野|合单|合双)+[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|#)?' + LOOKAHEAD_LOOSE, 'g');
 
@@ -424,6 +425,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     addMatches(REGEX_TUO_ZODIAC_V3, 'TUO_ZODIAC_V3');
     addMatches(REGEX_TUO_ZODIAC_V4, 'TUO_ZODIAC_V4');
     addMatches(REGEX_SIX_ZODIAC, 'SIX_ZODIAC');
+    addMatches(REGEX_COMBINATION_TUO, 'COMBINATION_TUO');
     addMatches(REGEX_COMBINATION_WIN, 'COMBINATION_WIN');
     addMatches(REGEX_FIVE_ZODIAC, 'FIVE_ZODIAC');
     addMatches(REGEX_FOUR_ZODIAC, 'FOUR_ZODIAC');
@@ -640,8 +642,15 @@ export const parseBetInput = (inputText: string): ParsedInput => {
       }
       case 'TUO_ZODIAC_V3':
       case 'TUO_ZODIAC_V4': {
-        const baseZodiacs = (match.type === 'TUO_ZODIAC_V3' ? groups[1] : groups[2]).split('');
-        const trailingZodiacs = (match.type === 'TUO_ZODIAC_V3' ? groups[2] : groups[3]).split('');
+        const getZodiacTokens = (str: string): string[] => {
+          const tokens: string[] = [];
+          const matches = str.match(/[马蛇龙兔虎牛鼠猪狗鸡猴羊]/g);
+          if (matches) tokens.push(...matches);
+          return tokens;
+        };
+
+        const baseZodiacs = getZodiacTokens(match.type === 'TUO_ZODIAC_V3' ? groups[1] : groups[2]);
+        const trailingZodiacs = getZodiacTokens(match.type === 'TUO_ZODIAC_V3' ? groups[2] : groups[3]);
         const countStr = match.type === 'TUO_ZODIAC_V3' ? groups[3] : groups[1];
         const count = isNaN(parseInt(countStr)) ? chineseToNumber(countStr) : parseInt(countStr);
         const amt = chineseToNumber(match.type === 'TUO_ZODIAC_V3' ? groups[4] : groups[4]);
@@ -844,6 +853,87 @@ export const parseBetInput = (inputText: string): ParsedInput => {
           }
         }
         result.lastAmount = 0;
+        break;
+      }
+      case 'COMBINATION_TUO': {
+        const baseStr = groups[1];
+        const followerStr = groups[2];
+        const typeStr = groups[3];
+        const amt = chineseToNumber(groups[4]);
+
+        const types: ('三中三' | '二中二')[] = [];
+        if (typeStr.includes('三中三')) types.push('三中三');
+        if (typeStr.includes('二中二')) types.push('二中二');
+
+        const getTokens = (str: string): string[] => {
+          const tokens: string[] = [];
+          const matches = str.match(/\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]/g);
+          if (matches) tokens.push(...matches);
+          return tokens;
+        };
+
+        const baseTokens = getTokens(baseStr);
+        const followerTokens = getTokens(followerStr);
+
+        // Expand follower tokens into a single set of numbers
+        const followerNumbers: number[] = [];
+        followerTokens.forEach(t => {
+          if (/\d/.test(t)) {
+            followerNumbers.push(parseInt(t));
+          } else {
+            followerNumbers.push(...getNumbersForZodiac(t));
+          }
+        });
+        const uniqueFollowers = Array.from(new Set(followerNumbers));
+
+        types.forEach(type => {
+          const targetSize = type === '三中三' ? 3 : 2;
+          const k = baseTokens.length;
+          const needed = targetSize - k;
+
+          if (needed > 0 && uniqueFollowers.length >= needed) {
+            // Get all combinations of picking 1 number from each base token
+            const baseSets = baseTokens.map(t => {
+              if (/\d/.test(t)) return [parseInt(t)];
+              return getNumbersForZodiac(t);
+            });
+
+            // Cartesian product of baseSets
+            function cartesianProduct<T>(arrays: T[][]): T[][] {
+              return arrays.reduce((a, b) => a.flatMap(d => b.map(e => [d, e].flat() as T[])), [[]] as T[][]);
+            }
+
+            const baseCombs = cartesianProduct(baseSets);
+            const followerCombs = getCombinations<number>(uniqueFollowers, needed);
+
+            const allTuoGroups: number[][] = [];
+            baseCombs.forEach(bc => {
+              followerCombs.forEach(fc => {
+                const combined = Array.from(new Set([...bc, ...fc])).sort((a, b) => a - b);
+                if (combined.length === targetSize) {
+                  allTuoGroups.push(combined);
+                }
+              });
+            });
+
+            if (allTuoGroups.length > 0) {
+              const bet: CombinationWinBet = {
+                type,
+                numbers: allTuoGroups[0], // Just for compatibility, though we use tuoGroups
+                amount: amt,
+                isTuo: true,
+                tuoBase: baseStr.trim(),
+                tuoFollowers: followerStr.trim(),
+                tuoCount: allTuoGroups.length,
+                tuoGroups: allTuoGroups
+              };
+              item.combinationWinBets.push(bet);
+              item.total += amt * allTuoGroups.length;
+              result.parsedCombinationWinBets.push(bet);
+            }
+          }
+        });
+        result.lastAmount = amt;
         break;
       }
       case 'COMBINATION_WIN': {

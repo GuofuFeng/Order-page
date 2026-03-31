@@ -1075,8 +1075,8 @@ export default function App() {
     });
 
     function renderBetContent(text: string, context: any) {
-      // Updated regex to capture multi-digit tails like "246尾" and "x不中" prefix
-      const parts = text.split(/(特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中)/);
+      // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, and "拖" keyword
+      const parts = text.split(/(特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -1093,6 +1093,10 @@ export default function App() {
         if (part === '特肖') {
           isTeXiaoContext = true;
           return <span key={partIdx} className="text-red-600 font-bold">{part}</span>;
+        }
+
+        if (part === '拖') {
+          return <span key={partIdx} className="text-stone-400 font-medium mx-0.5">{part}</span>;
         }
 
         if (context.isLocked && drawNums.length >= 7) {
@@ -1924,8 +1928,19 @@ export default function App() {
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.combinationWinBets.map((bet, idx) => (
                           <div key={idx} className="flex justify-between items-center text-[8px]">
-                            <span className="text-stone-700 font-bold">{bet.numbers.map(n => n.toString().padStart(2, '0')).join(',')} ({bet.type})</span>
-                            <span className="text-rose-600 font-black">¥{bet.amount}</span>
+                            {bet.isTuo ? (
+                              <>
+                                <span className="text-stone-700 font-bold">
+                                  {bet.tuoBase}拖{bet.tuoFollowers}{bet.type} 共{bet.tuoCount}组
+                                </span>
+                                <span className="text-rose-600 font-black">¥{bet.amount * (bet.tuoCount || 1)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-stone-700 font-bold">{bet.numbers.map(n => n.toString().padStart(2, '0')).join(',')} ({bet.type})</span>
+                                <span className="text-rose-600 font-black">¥{bet.amount}</span>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>

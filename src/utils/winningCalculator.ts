@@ -232,7 +232,7 @@ export const calculateWinAmount = (
         if (count === 2) multiplier = 3;
         else if (count === 3) multiplier = 7;
         else if (count === 4) multiplier = 15;
-        else if (count === 5) multiplier = 100;
+        else if (count === 5) multiplier = 40;
 
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
@@ -245,15 +245,31 @@ export const calculateWinAmount = (
   // 9. Combination Win (二中二, 三中三) calculation
   if (combinationWinDeltas) {
     combinationWinDeltas.forEach(bet => {
-      const allPresent = bet.numbers.every(n => normalNums.includes(n));
-      if (allPresent) {
-        let multiplier = 0;
-        if (bet.type === '二中二') multiplier = 60;
-        else if (bet.type === '三中三') multiplier = 600;
+      if (bet.isTuo && bet.tuoGroups) {
+        bet.tuoGroups.forEach(nums => {
+          const allPresent = nums.every(n => normalNums.includes(n));
+          if (allPresent) {
+            let multiplier = 0;
+            if (bet.type === '二中二') multiplier = 60;
+            else if (bet.type === '三中三') multiplier = 600;
 
-        if (multiplier > 0) {
-          totalWin += bet.amount * multiplier;
-          hasWin = true;
+            if (multiplier > 0) {
+              totalWin += bet.amount * multiplier;
+              hasWin = true;
+            }
+          }
+        });
+      } else {
+        const allPresent = bet.numbers.every(n => normalNums.includes(n));
+        if (allPresent) {
+          let multiplier = 0;
+          if (bet.type === '二中二') multiplier = 60;
+          else if (bet.type === '三中三') multiplier = 600;
+
+          if (multiplier > 0) {
+            totalWin += bet.amount * multiplier;
+            hasWin = true;
+          }
         }
       }
     });
