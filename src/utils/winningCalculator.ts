@@ -229,10 +229,10 @@ export const calculateWinAmount = (
       if (allPresent) {
         const count = betTails.length;
         let multiplier = 0;
-        if (count === 2) multiplier = 4;
-        else if (count === 3) multiplier = 10;
-        else if (count === 4) multiplier = 30;
-        else if (count >= 5) multiplier = 100;
+        if (count === 2) multiplier = 3;
+        else if (count === 3) multiplier = 7;
+        else if (count === 4) multiplier = 15;
+        else if (count === 5) multiplier = 100;
 
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
