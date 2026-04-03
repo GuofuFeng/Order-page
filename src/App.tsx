@@ -115,7 +115,7 @@ export default function App() {
       setAmount('');
     }
 
-    const firstRecognized = parsedResult.segments.find(s => s.lotteryType)?.lotteryType;
+    const firstRecognized = parsedResult.firstRecognizedType || parsedResult.segments.find(s => s.lotteryType)?.lotteryType;
     if (firstRecognized && !isLotteryTypeLocked) {
       setSelectedLotteryType(firstRecognized);
     }

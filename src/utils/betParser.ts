@@ -110,7 +110,7 @@ export interface ParsedSegment {
 }
 
 // Regular Expressions
-const LOTTERY_ALIASES = '(?:旧澳门|新西西|老西西|旧西西|新cc|老cc|旧cc|新㏄|老㏄|旧㏄|新澳|老澳|香港|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|老c|旧c|cc|西西|旧澳|旧奥|㏄|c|旧|老|新|香|港)';
+const LOTTERY_ALIASES = '(?:旧澳门|新西西|老西西|旧西西|新cc|老cc|旧cc|新㏄|老㏄|旧㏄|新澳|老澳|香港|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|新c|老c|旧c|cc|西西|旧澳|旧奥|㏄|c|旧|老|新|香|港|万合|万和)';
 const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;.、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
@@ -136,8 +136,8 @@ export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎
   ')' + 
   '[^\\d\\n\\r]*?(?:各组|每组)?[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
-export const REGEX_NOT_IN = new RegExp(BOUNDARY_STRICT + '(\\d+|[一二三四五六七八九十]+)(?:不中|中)(\\d+(?:[\\s,，。；;.]+\\d+)*)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_NOT_IN_REVERSE = new RegExp(BOUNDARY_STRICT + '(\\d+(?:[\\s,，。；;.]+\\d+)*)[^\\d]*?(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_NOT_IN = new RegExp(BOUNDARY_STRICT + '(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d]*?(\\d+(?:[\\s,，。；;.、/\\-*]+\\d+)*)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_NOT_IN_REVERSE = new RegExp(BOUNDARY_STRICT + '(\\d+(?:[\\s,，。；;.、/\\-*]+\\d+)*)[^\\d]*?(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_BAO = new RegExp(BOUNDARY + '(?:(?:包肖|包|特码|特)[^\\d]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)[^\\d]*?(?:包肖|包|特码|特))(?:[^\\d]*?(各|每|买|压|个))?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_TE_XIAO = new RegExp(BOUNDARY + '(?:(?:特肖)[^\\d]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊]+)[^\\d]*?(?:特肖))(?:[^\\d]*?(各|每|买|压|个))?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
@@ -220,18 +220,26 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     const matchedText = typeMatch[1];
     // Map the matched alias to the standard type
     let standardType = matchedText;
+    const lowerMatched = matchedText.toLowerCase();
     if (/^[旧老]/.test(matchedText) && /[cC㏄]/.test(matchedText)) standardType = '老cc';
     else if (/^新/.test(matchedText) && /[cC㏄]/.test(matchedText)) standardType = 'cc';
     else if (/^[旧老]/.test(matchedText)) standardType = '老澳';
     else if (/^新/.test(matchedText)) standardType = '新澳';
     else if (/^[香港]/.test(matchedText)) standardType = '香港';
+    else if (lowerMatched === 'cc' || lowerMatched === 'c' || lowerMatched === '㏄') standardType = 'cc';
+    else if (matchedText === '万合' || matchedText === '万和') standardType = '越南';
     
     // Ensure standardType is one of the recognized types
-    if (lotteryTypes.includes(standardType)) {
-      result.recognizedLotteryType = standardType;
+    const lowerStandard = standardType.toLowerCase();
+    const exactMatch = lotteryTypes.find(t => t.toLowerCase() === lowerStandard);
+    if (exactMatch) {
+      result.recognizedLotteryType = exactMatch;
     } else {
       // Fallback: find the best match in lotteryTypes
-      const bestMatch = lotteryTypes.find(t => t.includes(standardType) || standardType.includes(t));
+      const bestMatch = lotteryTypes.find(t => 
+        t.toLowerCase().includes(lowerStandard) || 
+        lowerStandard.includes(t.toLowerCase())
+      );
       if (bestMatch) result.recognizedLotteryType = bestMatch;
     }
     
@@ -440,9 +448,9 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   // Light patterns always run
   addMatches(REGEX_NOT_IN, 'NOT_IN');
   addMatches(REGEX_NOT_IN_REVERSE, 'NOT_IN_REVERSE');
+  addMatches(REGEX_PING, 'PING');
   addMatches(REGEX_TE_XIAO, 'TE_XIAO');
   addMatches(REGEX_BAO, 'BAO');
-  addMatches(REGEX_PING, 'PING');
   addMatches(REGEX_TAIL, 'TAIL');
   addMatches(REGEX_HEAD_TAIL, 'HEAD_TAIL');
   addMatches(REGEX_EACH, 'EACH');
@@ -1105,6 +1113,7 @@ export interface MultiLotteryParsedResult {
   segments: ParsedSegment[];
   validMatches: { start: number; end: number }[];
   invalidMatches: { start: number; end: number }[];
+  firstRecognizedType?: string;
 }
 
 export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedResult => {
@@ -1115,6 +1124,7 @@ export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedRes
   const segments: ParsedSegment[] = [];
   const allValidMatches: { start: number; end: number }[] = [];
   const allInvalidMatches: { start: number; end: number }[] = [];
+  let firstRecognizedType = '';
 
   // Use the ORIGINAL inputText to find matches so indices are correct
   const matches = [...inputText.matchAll(new RegExp(typePattern, 'gi'))];
@@ -1152,11 +1162,15 @@ export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedRes
       else if (/^[旧老]/.test(lowerRaw)) type = '老澳';
       else if (/^新/.test(lowerRaw)) type = '新澳';
       else if (/^[香港]/.test(lowerRaw)) type = '香港';
+      else if (lowerRaw === 'cc' || lowerRaw === 'c' || lowerRaw === '㏄') type = 'cc';
+      else if (rawType === '万合' || rawType === '万和') type = '越南';
       
       if (!lotteryTypes.includes(type)) {
         const bestMatch = lotteryTypes.find(t => t.includes(type) || type.includes(t));
         if (bestMatch) type = bestMatch;
       }
+
+      if (type && !firstRecognizedType) firstRecognizedType = type;
     }
 
     const parsed = parseBetInput(content);
@@ -1207,5 +1221,5 @@ export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedRes
     }
   });
 
-  return { segments, validMatches: allValidMatches, invalidMatches: allInvalidMatches };
+  return { segments, validMatches: allValidMatches, invalidMatches: allInvalidMatches, firstRecognizedType };
 };
