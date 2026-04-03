@@ -956,57 +956,56 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         const allNumbers = numsStr.match(/\d{1,2}/g)?.map(Number).filter(n => n >= 1 && n <= 49) || [];
 
         types.forEach(type => {
+          const typeItem = createEmptyBetItem(`${numsStr}${type}${groups[5]}`);
           const count = type === '三中三' ? 3 : 2;
           
           if (allNumbers.length === count) {
             // Single bet
             const bet = { type, numbers: allNumbers, amount: amt };
-            item.combinationWinBets.push(bet);
-            item.total += amt;
+            typeItem.combinationWinBets.push(bet);
+            typeItem.total += amt;
             result.parsedCombinationWinBets.push(bet);
+            result.items.push(typeItem);
           } else if (allNumbers.length > count) {
             // Multiple or Compound
             const strongSeparators = /[,，;；/]/;
+            let allCombs: number[][] = [];
+            
             if (strongSeparators.test(numsStr)) {
               const segments = numsStr.split(strongSeparators).filter(Boolean);
-              let foundAny = false;
               segments.forEach(seg => {
                 const segNums = seg.match(/\d{1,2}/g)?.map(Number).filter(n => n >= 1 && n <= 49) || [];
                 if (segNums.length >= count) {
-                  foundAny = true;
                   const combs = getCombinations<number>(segNums, count);
-                  combs.forEach(c => {
-                    const bet = { type, numbers: c, amount: amt };
-                    item.combinationWinBets.push(bet);
-                    item.total += amt;
-                    result.parsedCombinationWinBets.push(bet);
-                  });
+                  allCombs.push(...combs);
                 }
               });
               
               // Fallback if split didn't yield any valid bets (e.g. "8, 9, 10, 11")
-              if (!foundAny) {
-                const combs = getCombinations<number>(allNumbers, count);
-                combs.forEach(c => {
-                  const bet = { type, numbers: c, amount: amt };
-                  item.combinationWinBets.push(bet);
-                  item.total += amt;
-                  result.parsedCombinationWinBets.push(bet);
-                });
+              if (allCombs.length === 0) {
+                allCombs = getCombinations<number>(allNumbers, count);
               }
             } else {
               // No strong separators, treat as one compound bet
-              const combs = getCombinations<number>(allNumbers, count);
-              combs.forEach(c => {
-                const bet = { type, numbers: c, amount: amt };
-                item.combinationWinBets.push(bet);
-                item.total += amt;
-                result.parsedCombinationWinBets.push(bet);
-              });
+              allCombs = getCombinations<number>(allNumbers, count);
+            }
+
+            if (allCombs.length > 0) {
+              const bet: CombinationWinBet = {
+                type,
+                numbers: allCombs[0],
+                amount: amt,
+                isTuo: false, // It's a compound bet but not "tuo"
+                tuoCount: allCombs.length,
+                tuoGroups: allCombs
+              };
+              typeItem.combinationWinBets.push(bet);
+              typeItem.total += amt * allCombs.length;
+              result.parsedCombinationWinBets.push(bet);
+              result.items.push(typeItem);
             }
           }
         });
-        
         result.lastAmount = amt;
         break;
       }

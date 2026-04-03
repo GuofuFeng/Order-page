@@ -33,6 +33,149 @@ const getNumberColor = (num: number | '') => {
   return { bg: 'bg-stone-800', text: 'text-stone-800', border: 'border-stone-800' };
 };
 
+const CollapsibleCombinationBet: React.FC<{ bet: any }> = ({ bet }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const totalAmount = bet.amount * (bet.tuoCount || 1);
+  
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-stone-100 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+      <div className="flex justify-between items-center text-[8px]">
+        <div className="flex items-center gap-1 flex-grow min-w-0">
+          {bet.tuoCount && bet.tuoCount > 1 && (
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-0.5 hover:bg-stone-100 rounded transition-colors shrink-0"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="8" height="8" 
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          )}
+          <span className="text-stone-700 font-bold truncate">
+            {bet.isTuo ? (
+              `${bet.tuoBase}拖${bet.tuoFollowers}${bet.type} 共${bet.tuoCount}组`
+            ) : (
+              bet.tuoCount && bet.tuoCount > 1 ? (
+                `${bet.numbers.length}个复${bet.type} 共${bet.tuoCount}组`
+              ) : (
+                `${bet.numbers.map((n: any) => n.toString().padStart(2, '0')).join(',')} (${bet.type})`
+              )
+            )}
+          </span>
+        </div>
+        <span className="text-rose-600 font-black shrink-0 ml-2">¥{totalAmount}</span>
+      </div>
+      
+      {isExpanded && bet.tuoGroups && (
+        <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1 border border-stone-100">
+          {bet.tuoGroups.map((group: any, gIdx: number) => (
+            <div key={gIdx} className="text-[7px] text-stone-500 flex items-center gap-1">
+              <span className="opacity-50">#{gIdx + 1}</span>
+              <span className="font-medium text-stone-600">{group.map((n: any) => n.toString().padStart(2, '0')).join(',')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface CollapsibleBetItemProps {
+  item: BetOrder;
+  onDelete: (id: string) => void;
+  renderHighlightedText: any;
+}
+
+const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete, renderHighlightedText }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Determine if this is a combination bet that should be folded
+  const combinationItems = [
+    ...item.combinationWinDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type, numbers: g, amount: d.amount })) : [d]),
+    ...item.multiZodiacDeltas,
+    ...item.sixZodiacDeltas,
+    ...item.fiveZodiacDeltas,
+    ...item.fourZodiacDeltas,
+    ...item.multiTailDeltas,
+    ...item.notInDeltas
+  ];
+
+  const isCollapsible = combinationItems.length > 1;
+
+  if (!isCollapsible) {
+    return (
+      <div className="group flex items-start justify-between gap-1.5 p-1.5 bg-white rounded-lg shadow-sm border border-stone-100 hover:border-stone-300 transition-all">
+        <div className="text-stone-600 font-mono text-[10px] leading-relaxed whitespace-pre-wrap flex-grow">
+          {renderHighlightedText(item.text, item.lotteryType)}
+        </div>
+        <button 
+          onClick={() => onDelete(item.id)}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all shrink-0"
+          title="删除此条"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="group flex items-start justify-between gap-1.5 p-1.5 bg-white rounded-lg shadow-sm border border-stone-100 hover:border-stone-300 transition-all cursor-pointer"
+      >
+        <div className="flex flex-col gap-0.5 flex-grow">
+          <div className="text-stone-600 font-mono text-[10px] leading-relaxed whitespace-pre-wrap">
+            {renderHighlightedText(item.text, item.lotteryType)}
+          </div>
+          <div className="flex items-center gap-2 text-[9px] text-stone-400 font-bold">
+            <span>共 {combinationItems.length} 组</span>
+            <span>{item.total} 元</span>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="8" height="8" 
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+              className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item.id);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all shrink-0"
+          title="删除此条"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      
+      {isExpanded && (
+        <div className="ml-2 pl-2 border-l-2 border-stone-100 flex flex-col gap-1 max-h-40 overflow-y-auto scrollbar-hide">
+          {combinationItems.map((sub: any, idx) => (
+            <div key={idx} className="text-[9px] text-stone-500 font-mono py-0.5 border-b border-stone-50 last:border-0">
+              { 'numbers' in sub ? (
+                <span>{sub.type || (sub.x + '不中')} {sub.numbers.map((n: number) => formatNumber(n)).join(',')} {sub.amount}元</span>
+              ) : 'zodiacs' in sub ? (
+                <span>连肖 {sub.zodiacs.join('')} {sub.amount}元</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState('order');
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
@@ -256,6 +399,8 @@ export default function App() {
 
   // Folding state for today's orders
   const [isTodayExpanded, setIsTodayExpanded] = useState(true);
+  const [isPendingExpanded, setIsPendingExpanded] = useState(false);
+  const [isCombinationExpanded, setIsCombinationExpanded] = useState(false);
   const inputScrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1714,60 +1859,91 @@ export default function App() {
                   )}
                 </section>
 
-                <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col w-80 shrink-0 min-h-0">
-                  <div className="mb-2 flex items-center justify-center gap-2">
-                    <div className="h-px bg-stone-100 flex-grow"></div>
-                    <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">待确认注单</h2>
-                    {pendingBets.length > 0 && (
-                      <button 
-                        onClick={clearAllPendingBets}
-                        className="p-1 bg-stone-100 hover:bg-red-50 text-stone-400 hover:text-red-500 rounded-lg transition-all shadow-sm"
-                        title="清空所有注单"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    )}
-                    <div className="h-px bg-stone-100 flex-grow"></div>
-                  </div>
-                  
-                  <div 
-                    id="output-container"
-                    className="flex-grow bg-stone-50 border border-stone-100 rounded-xl p-2 overflow-y-auto flex flex-col gap-1 mb-3"
+                <div className="w-80 shrink-0 flex flex-col relative">
+                  <motion.section 
+                    layout
+                    initial={false}
+                    animate={isPendingExpanded ? {
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: '25vw',
+                      height: '60vh',
+                      zIndex: 100,
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                    } : {
+                      position: 'relative',
+                      width: '100%',
+                      height: '100%',
+                      zIndex: 1,
+                      boxShadow: 'none'
+                    }}
+                    className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col min-h-0"
                   >
-                    {pendingBets.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <span className="text-stone-400 text-[10px] italic">暂无内容...</span>
-                      </div>
-                    ) : (
-                      pendingBets.map((item) => (
-                        <div key={item.id} className="group flex items-start justify-between gap-1.5 p-1.5 bg-white rounded-lg shadow-sm border border-stone-100 hover:border-stone-300 transition-all">
-                          <span className="text-stone-600 font-mono text-[10px] leading-relaxed whitespace-pre-wrap flex-grow">
-                            {renderHighlightedText(item.text, item.lotteryType)}
-                          </span>
+                    <div className="mb-2 flex items-center justify-center gap-2">
+                      <div className="h-px bg-stone-100 flex-grow"></div>
+                      <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">待确认注单</h2>
+                      <div className="flex items-center gap-1">
+                        {pendingBets.length > 0 && (
                           <button 
-                            onClick={() => deletePendingBet(item.id)}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all shrink-0"
-                            title="删除此条"
+                            onClick={clearAllPendingBets}
+                            className="p-1 bg-stone-100 hover:bg-red-50 text-stone-400 hover:text-red-500 rounded-lg transition-all shadow-sm"
+                            title="清空所有注单"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
-                      <span className="text-xs font-black text-stone-950">¥ {currentPendingTotal.toLocaleString()}</span>
+                        )}
+                        <button 
+                          onClick={() => setIsPendingExpanded(!isPendingExpanded)}
+                          className="p-1 bg-stone-100 hover:bg-stone-200 text-stone-400 hover:text-stone-600 rounded-lg transition-all shadow-sm"
+                          title={isPendingExpanded ? "收起预览" : "放大预览"}
+                        >
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="12" height="12" 
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                            className={`transition-transform duration-200 ${isPendingExpanded ? 'rotate-180' : ''}`}
+                          >
+                            <polyline points="18 15 12 9 6 15"></polyline>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="h-px bg-stone-100 flex-grow"></div>
                     </div>
-                  </div>
-                </section>
+                    
+                    <div 
+                      id="output-container"
+                      className="flex-grow bg-stone-50 border border-stone-100 rounded-xl p-2 overflow-y-auto flex flex-col gap-1 mb-3"
+                    >
+                          {pendingBets.length === 0 ? (
+                            <div className="h-full flex items-center justify-center">
+                              <span className="text-stone-400 text-[10px] italic">暂无内容...</span>
+                            </div>
+                          ) : (
+                            pendingBets.map((item) => (
+                              <CollapsibleBetItem 
+                                key={item.id} 
+                                item={item} 
+                                onDelete={deletePendingBet} 
+                                renderHighlightedText={renderHighlightedText}
+                              />
+                            ))
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">当前小计</span>
+                            <span className="text-xs font-black text-stone-950">¥ {currentPendingTotal.toLocaleString()}</span>
+                          </div>
+                        </div>
+                    </motion.section>
+                </div>
               </div>
             </div>
 
             {/* Right Section (Flat Zodiac + Multi Zodiac) */}
-            <div className="w-60 flex flex-col gap-4 shrink-0 min-h-0">
+            <div className="w-60 flex flex-col gap-4 shrink-0 min-h-0 relative">
               <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[2]">
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
@@ -1903,10 +2079,45 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[2]">
+              <motion.section 
+                layout
+                initial={false}
+                animate={isCombinationExpanded ? {
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  width: '25vw',
+                  height: '60vh',
+                  zIndex: 100,
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                } : {
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  zIndex: 1,
+                  boxShadow: 'none'
+                }}
+                className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[2]"
+              >
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
                   <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">组合下注预览</h2>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setIsCombinationExpanded(!isCombinationExpanded)}
+                      className="p-1 bg-stone-100 hover:bg-stone-200 text-stone-400 hover:text-stone-600 rounded-lg transition-all shadow-sm"
+                      title={isCombinationExpanded ? "收起预览" : "放大预览"}
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="12" height="12" 
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        className={`transition-transform duration-200 ${isCombinationExpanded ? 'rotate-180' : ''}`}
+                      >
+                        <polyline points="18 15 12 9 6 15"></polyline>
+                      </svg>
+                    </button>
+                  </div>
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
                 <div className="flex flex-col gap-2 overflow-y-auto pr-1">
@@ -1927,21 +2138,7 @@ export default function App() {
                       <div className="text-[7px] font-bold text-rose-600 uppercase mb-0.5">识别到中中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.combinationWinBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
-                            {bet.isTuo ? (
-                              <>
-                                <span className="text-stone-700 font-bold">
-                                  {bet.tuoBase}拖{bet.tuoFollowers}{bet.type} 共{bet.tuoCount}组
-                                </span>
-                                <span className="text-rose-600 font-black">¥{bet.amount * (bet.tuoCount || 1)}</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-stone-700 font-bold">{bet.numbers.map(n => n.toString().padStart(2, '0')).join(',')} ({bet.type})</span>
-                                <span className="text-rose-600 font-black">¥{bet.amount}</span>
-                              </>
-                            )}
-                          </div>
+                          <CollapsibleCombinationBet key={idx} bet={bet} />
                         ))}
                       </div>
                     </div>
@@ -2038,7 +2235,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </section>
+              </motion.section>
             </div>
           </>
         ) : currentPage === 'draw' ? (
