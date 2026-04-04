@@ -18,7 +18,7 @@ export interface NotInBet {
 }
 
 export interface CombinationWinBet {
-  type: '三中三' | '二中二';
+  type: '三中三' | '二中二' | '特碰';
   numbers: number[];
   amount: number;
   isTuo?: boolean;

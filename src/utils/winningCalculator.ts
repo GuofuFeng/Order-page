@@ -269,29 +269,57 @@ export const calculateWinAmount = (
     combinationWinDeltas.forEach(bet => {
       if (bet.tuoGroups && bet.tuoGroups.length > 0) {
         bet.tuoGroups.forEach(nums => {
-          const allPresent = nums.every(n => normalNums.includes(n));
-          if (allPresent) {
-            let multiplier = 0;
-            if (bet.type === '二中二') multiplier = 60;
-            else if (bet.type === '三中三') multiplier = 600;
+          let isWinner = false;
+          let multiplier = 0;
 
-            if (multiplier > 0) {
-              totalWin += bet.amount * multiplier;
-              hasWin = true;
+          if (bet.type === '特碰') {
+            const specialNum = drawNumbers[6] as number;
+            const hasSpecial = nums.includes(specialNum);
+            const otherNum = nums.find(n => n !== specialNum);
+            const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
+            if (hasSpecial && hasNormal) {
+              isWinner = true;
+              multiplier = 100;
+            }
+          } else {
+            const allPresent = nums.every(n => normalNums.includes(n));
+            if (allPresent) {
+              isWinner = true;
+              if (bet.type === '二中二') multiplier = 60;
+              else if (bet.type === '三中三') multiplier = 600;
             }
           }
-        });
-      } else {
-        const allPresent = bet.numbers.every(n => normalNums.includes(n));
-        if (allPresent) {
-          let multiplier = 0;
-          if (bet.type === '二中二') multiplier = 60;
-          else if (bet.type === '三中三') multiplier = 600;
 
-          if (multiplier > 0) {
+          if (isWinner && multiplier > 0) {
             totalWin += bet.amount * multiplier;
             hasWin = true;
           }
+        });
+      } else {
+        let isWinner = false;
+        let multiplier = 0;
+
+        if (bet.type === '特碰') {
+          const specialNum = drawNumbers[6] as number;
+          const hasSpecial = bet.numbers.includes(specialNum);
+          const otherNum = bet.numbers.find(n => n !== specialNum);
+          const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
+          if (hasSpecial && hasNormal) {
+            isWinner = true;
+            multiplier = 100;
+          }
+        } else {
+          const allPresent = bet.numbers.every(n => normalNums.includes(n));
+          if (allPresent) {
+            isWinner = true;
+            if (bet.type === '二中二') multiplier = 60;
+            else if (bet.type === '三中三') multiplier = 600;
+          }
+        }
+
+        if (isWinner && multiplier > 0) {
+          totalWin += bet.amount * multiplier;
+          hasWin = true;
         }
       }
     });
@@ -470,17 +498,33 @@ export const getWinningDetails = (
   // 9. Combination Win
   if (combinationWinDeltas) {
     combinationWinDeltas.forEach(bet => {
-      if (bet.tuoGroups && bet.tuoGroups.length > 0) {
-        bet.tuoGroups.forEach(nums => {
-          if (nums.every(n => normalNums.includes(n))) {
+        if (bet.tuoGroups && bet.tuoGroups.length > 0) {
+          bet.tuoGroups.forEach(nums => {
+            if (bet.type === '特碰') {
+              const specialNum = drawNumbers[6] as number;
+              const hasSpecial = nums.includes(specialNum);
+              const otherNum = nums.find(n => n !== specialNum);
+              const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
+              if (hasSpecial && hasNormal) {
+                typeSums[bet.type] = (typeSums[bet.type] || 0) + bet.amount;
+              }
+            } else if (nums.every(n => normalNums.includes(n))) {
+              typeSums[bet.type] = (typeSums[bet.type] || 0) + bet.amount;
+            }
+          });
+        } else {
+          if (bet.type === '特碰') {
+            const specialNum = drawNumbers[6] as number;
+            const hasSpecial = bet.numbers.includes(specialNum);
+            const otherNum = bet.numbers.find(n => n !== specialNum);
+            const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
+            if (hasSpecial && hasNormal) {
+              typeSums[bet.type] = (typeSums[bet.type] || 0) + bet.amount;
+            }
+          } else if (bet.numbers.every(n => normalNums.includes(n))) {
             typeSums[bet.type] = (typeSums[bet.type] || 0) + bet.amount;
           }
-        });
-      } else {
-        if (bet.numbers.every(n => normalNums.includes(n))) {
-          typeSums[bet.type] = (typeSums[bet.type] || 0) + bet.amount;
         }
-      }
     });
   }
 
