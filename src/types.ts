@@ -3,6 +3,12 @@ export type LotteryType = '新澳' | '老澳' | '香港' | 'cc' | '老cc';
 export interface MultiZodiacBet {
   zodiacs: string[];
   amount: number;
+  type?: string;
+  isTuo?: boolean;
+  tuoBase?: string;
+  tuoFollowers?: string;
+  tuoCount?: number;
+  tuoGroups?: string[][];
 }
 
 export interface NotInBet {

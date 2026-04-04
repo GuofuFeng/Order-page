@@ -39,7 +39,7 @@ const CollapsibleCombinationBet: React.FC<{ bet: any }> = ({ bet }) => {
   
   return (
     <div className="flex flex-col gap-0.5 border-b border-stone-100 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-      <div className="flex justify-between items-center text-[8px]">
+      <div className="flex justify-between items-center text-[10px]">
         <div className="flex items-center gap-1 flex-grow min-w-0">
           {bet.tuoCount && bet.tuoCount > 1 && (
             <button 
@@ -48,7 +48,7 @@ const CollapsibleCombinationBet: React.FC<{ bet: any }> = ({ bet }) => {
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
-                width="8" height="8" 
+                width="10" height="10" 
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                 className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
               >
@@ -74,9 +74,61 @@ const CollapsibleCombinationBet: React.FC<{ bet: any }> = ({ bet }) => {
       {isExpanded && bet.tuoGroups && (
         <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1 border border-stone-100">
           {bet.tuoGroups.map((group: any, gIdx: number) => (
-            <div key={gIdx} className="text-[7px] text-stone-500 flex items-center gap-1">
+            <div key={gIdx} className="text-[9px] text-stone-500 flex items-center gap-1">
               <span className="opacity-50">#{gIdx + 1}</span>
               <span className="font-medium text-stone-600">{group.map((n: any) => n.toString().padStart(2, '0')).join(',')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CollapsibleMultiZodiacBet: React.FC<{ bet: any }> = ({ bet }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const totalAmount = bet.amount * (bet.tuoCount || 1);
+  
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-stone-100 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+      <div className="flex justify-between items-center text-[10px]">
+        <div className="flex items-center gap-1 flex-grow min-w-0">
+          {bet.tuoCount && bet.tuoCount > 1 && (
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-0.5 hover:bg-stone-100 rounded transition-colors shrink-0"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="10" height="10" 
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          )}
+          <span className="text-stone-700 font-bold truncate">
+            {bet.isTuo ? (
+              `${bet.tuoBase}拖${bet.tuoFollowers}${bet.type} 共${bet.tuoCount}组`
+            ) : (
+              bet.tuoCount && bet.tuoCount > 1 ? (
+                `${bet.zodiacs.join('')}复${bet.type} 共${bet.tuoCount}组`
+              ) : (
+                `${bet.zodiacs.join('')} (${bet.type || '连肖'})`
+              )
+            )}
+          </span>
+        </div>
+        <span className="text-rose-600 font-black shrink-0 ml-2">¥{totalAmount}</span>
+      </div>
+      
+      {isExpanded && bet.tuoGroups && (
+        <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1 border border-stone-100">
+          {bet.tuoGroups.map((group: any, gIdx: number) => (
+            <div key={gIdx} className="text-[9px] text-stone-500 flex items-center gap-1">
+              <span className="opacity-50">#{gIdx + 1}</span>
+              <span className="font-medium text-stone-600">{Array.isArray(group) ? group.join('') : group}</span>
             </div>
           ))}
         </div>
@@ -97,10 +149,10 @@ const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete,
   // Determine if this is a combination bet that should be folded
   const combinationItems = [
     ...item.combinationWinDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type, numbers: g, amount: d.amount })) : [d]),
-    ...item.multiZodiacDeltas,
-    ...item.sixZodiacDeltas,
-    ...item.fiveZodiacDeltas,
-    ...item.fourZodiacDeltas,
+    ...item.multiZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '连肖', zodiacs: g, amount: d.amount })) : [d]),
+    ...item.sixZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '六肖', zodiacs: g, amount: d.amount })) : [d]),
+    ...item.fiveZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '五肖', zodiacs: g, amount: d.amount })) : [d]),
+    ...item.fourZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '四肖', zodiacs: g, amount: d.amount })) : [d]),
     ...item.multiTailDeltas,
     ...item.notInDeltas
   ];
@@ -166,7 +218,7 @@ const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete,
               { 'numbers' in sub ? (
                 <span>{sub.type || (sub.x + '不中')} {sub.numbers.map((n: number) => formatNumber(n)).join(',')} {sub.amount}元</span>
               ) : 'zodiacs' in sub ? (
-                <span>连肖 {sub.zodiacs.join('')} {sub.amount}元</span>
+                <span>{sub.type || '连肖'} {sub.zodiacs.join('')} {sub.amount}元</span>
               ) : null}
             </div>
           ))}
@@ -2101,7 +2153,7 @@ export default function App() {
               >
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
-                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">组合下注预览</h2>
+                  <h2 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">组合下注预览</h2>
                   <div className="flex items-center gap-1">
                     <button 
                       onClick={() => setIsCombinationExpanded(!isCombinationExpanded)}
@@ -2130,12 +2182,12 @@ export default function App() {
                    Object.keys(mergedParsedData.teXiaoBets || {}).length === 0 &&
                    mergedParsedData.combinationWinBets.length === 0 && (
                     <div className="h-full flex items-center justify-center py-4">
-                      <span className="text-[9px] text-stone-300 italic">暂无识别内容...</span>
+                      <span className="text-[10px] text-stone-300 italic">暂无识别内容...</span>
                     </div>
                   )}
                   {mergedParsedData.combinationWinBets.length > 0 && (
                     <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-100">
-                      <div className="text-[7px] font-bold text-rose-600 uppercase mb-0.5">识别到中中:</div>
+                      <div className="text-[9px] font-bold text-rose-600 uppercase mb-0.5">识别到中中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.combinationWinBets.map((bet, idx) => (
                           <CollapsibleCombinationBet key={idx} bet={bet} />
@@ -2145,23 +2197,20 @@ export default function App() {
                   )}
                   {mergedParsedData.multiZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100">
-                      <div className="text-[7px] font-bold text-amber-600 uppercase mb-0.5">识别到连肖:</div>
+                      <div className="text-[9px] font-bold text-amber-600 uppercase mb-0.5">识别到连肖:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.multiZodiacBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
-                            <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
-                            <span className="text-amber-600 font-black">¥{bet.amount}</span>
-                          </div>
+                          <CollapsibleMultiZodiacBet key={idx} bet={bet} />
                         ))}
                       </div>
                     </div>
                   )}
                   {mergedParsedData.multiTailBets.length > 0 && (
                     <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
-                      <div className="text-[7px] font-bold text-indigo-600 uppercase mb-0.5">识别到连尾:</div>
+                      <div className="text-[9px] font-bold text-indigo-600 uppercase mb-0.5">识别到连尾:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.multiTailBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
+                          <div key={idx} className="flex justify-between items-center text-[10px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}尾</span>
                             <span className="text-indigo-600 font-black">¥{bet.amount}</span>
                           </div>
@@ -2171,39 +2220,30 @@ export default function App() {
                   )}
                   {mergedParsedData.fiveZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-purple-50 rounded-lg border border-purple-100">
-                      <div className="text-[7px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
+                      <div className="text-[9px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.fiveZodiacBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
-                            <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
-                            <span className="text-purple-600 font-black">¥{bet.amount}</span>
-                          </div>
+                          <CollapsibleMultiZodiacBet key={idx} bet={bet} />
                         ))}
                       </div>
                     </div>
                   )}
                   {mergedParsedData.fourZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
-                      <div className="text-[7px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
+                      <div className="text-[9px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.fourZodiacBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
-                            <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
-                            <span className="text-blue-600 font-black">¥{bet.amount}</span>
-                          </div>
+                          <CollapsibleMultiZodiacBet key={idx} bet={bet} />
                         ))}
                       </div>
                     </div>
                   )}
                   {mergedParsedData.sixZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
-                      <div className="text-[7px] font-bold text-emerald-600 uppercase mb-0.5">识别到六中:</div>
+                      <div className="text-[9px] font-bold text-emerald-600 uppercase mb-0.5">识别到六中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.sixZodiacBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
-                            <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}</span>
-                            <span className="text-emerald-600 font-black">¥{bet.amount}</span>
-                          </div>
+                          <CollapsibleMultiZodiacBet key={idx} bet={bet} />
                         ))}
                       </div>
                     </div>

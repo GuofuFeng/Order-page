@@ -127,6 +127,7 @@ export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中)((
 
 export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){2,12})(?:连肖|连)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五六23456两])(?:连肖|连(?!尾)|连买|买)|([二三四五六23456两])肖|(?<![二三四五六23456两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+', 'g');
+export const REGEX_MULTI_ZODIAC_HABIT = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){2,12})(?:([二三四五六23456两])连)\\s*(?:复([二三四五六23456两])连)\\s*(?:各|每)?(\\d+(?:\\.\\d+)?)', 'g');
 export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊][\\s,，。；;.、/\\-*]*){2,12})[^\\d\\n\\r]*?(' + 
   '(?:复试|复式|复)[^\\d\\n\\r]*?(?:[二三四五六七八九十2-9]|10|两)?(?:连肖|连|连各|连每)?' + 
   '|' +
@@ -136,6 +137,7 @@ export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎
   ')' + 
   '[^\\d\\n\\r]*?(?:各组|每组)?[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
+export const REGEX_MULTI_ZODIAC_MULTI_GROUP = new RegExp(BOUNDARY + '([二三四五六23456两])连肖((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12}[，,、\\s]+)+[马蛇龙兔虎牛鼠猪狗鸡猴羊]{2,12})(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_NOT_IN = new RegExp(BOUNDARY_STRICT + '(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d]*?(\\d+(?:[\\s,，。；;.、/\\-*]+\\d+)*)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_NOT_IN_REVERSE = new RegExp(BOUNDARY_STRICT + '(\\d+(?:[\\s,，。；;.、/\\-*]+\\d+)*)[^\\d]*?(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
@@ -437,6 +439,8 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     addMatches(REGEX_COMBINATION_WIN, 'COMBINATION_WIN');
     addMatches(REGEX_FIVE_ZODIAC, 'FIVE_ZODIAC');
     addMatches(REGEX_FOUR_ZODIAC, 'FOUR_ZODIAC');
+    addMatches(REGEX_MULTI_ZODIAC_HABIT, 'MULTI_ZODIAC_HABIT');
+    addMatches(REGEX_MULTI_ZODIAC_MULTI_GROUP, 'MULTI_ZODIAC_MULTI_GROUP');
     addMatches(REGEX_MULTI_ZODIAC_V2, 'MULTI_ZODIAC_V2');
     addMatches(REGEX_MULTI_TAIL_ADVANCED, 'MULTI_TAIL_ADVANCED');
     addMatches(REGEX_MULTI_ZODIAC_ADVANCED, 'MULTI_ZODIAC_ADVANCED');
@@ -536,6 +540,103 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         result.lastAmount = amt;
         break;
       }
+      case 'MULTI_ZODIAC_HABIT': {
+        const zodiacStr = groups[1];
+        const count1Str = groups[2];
+        const count2Str = groups[3];
+        const amt = chineseToNumber(groups[4]);
+        
+        const count1 = count1Str === '二' || count1Str === '2' || count1Str === '两' ? 2 :
+                       count1Str === '三' || count1Str === '3' ? 3 :
+                       count1Str === '四' || count1Str === '4' ? 4 :
+                       count1Str === '五' || count1Str === '5' ? 5 :
+                       count1Str === '六' || count1Str === '6' ? 6 : 2;
+        
+        const count2 = count2Str === '二' || count2Str === '2' || count2Str === '两' ? 2 :
+                       count2Str === '三' || count2Str === '3' ? 3 :
+                       count2Str === '四' || count2Str === '4' ? 4 :
+                       count2Str === '五' || count2Str === '5' ? 5 :
+                       count2Str === '六' || count2Str === '6' ? 6 : 2;
+        
+        const selectedZodiacs = zodiacStr.split('').filter(c => zodiacs.includes(c));
+        
+        // First part: count1-zodiac bet (single if selectedZodiacs.length == count1)
+        if (selectedZodiacs.length >= count1) {
+          const combs = getCombinations<string>(selectedZodiacs, count1);
+          const bet: MultiZodiacBet = { 
+            zodiacs: selectedZodiacs, 
+            amount: amt,
+            type: `${count1}连`,
+            tuoCount: combs.length,
+            tuoGroups: combs
+          };
+          item.multiZodiacBets.push(bet);
+          item.total += amt * combs.length;
+          result.parsedMultiZodiacBets.push(bet);
+        }
+        
+        // Second part: count2-zodiac bet (compound)
+        if (selectedZodiacs.length >= count2) {
+          const combs = getCombinations<string>(selectedZodiacs, count2);
+          const bet: MultiZodiacBet = { 
+            zodiacs: selectedZodiacs, 
+            amount: amt,
+            type: `${count2}连`,
+            tuoCount: combs.length,
+            tuoGroups: combs
+          };
+          item.multiZodiacBets.push(bet);
+          item.total += amt * combs.length;
+          result.parsedMultiZodiacBets.push(bet);
+        }
+        
+        result.lastAmount = amt;
+        break;
+      }
+      case 'MULTI_ZODIAC_MULTI_GROUP': {
+        const countStr = groups[1];
+        const allZodiacsStr = groups[2];
+        const amt = chineseToNumber(groups[3]);
+        
+        const count = countStr === '二' || countStr === '2' || countStr === '两' ? 2 :
+                      countStr === '三' || countStr === '3' ? 3 :
+                      countStr === '四' || countStr === '4' ? 4 :
+                      countStr === '五' || countStr === '5' ? 5 :
+                      countStr === '六' || countStr === '6' ? 6 : 2;
+        
+        const zodiacGroups = allZodiacsStr.split(/[，,、\s]+/).filter(s => s.length > 0);
+        
+        zodiacGroups.forEach(zStr => {
+          const selectedZodiacs = zStr.split('').filter(c => zodiacs.includes(c));
+          if (selectedZodiacs.length >= count) {
+            const combs = getCombinations<string>(selectedZodiacs, count);
+            const isCompound = selectedZodiacs.length > count;
+            
+            if (isCompound) {
+              const bet: MultiZodiacBet = {
+                zodiacs: selectedZodiacs,
+                amount: amt,
+                type: `${count}连`,
+                tuoCount: combs.length,
+                tuoGroups: combs
+              };
+              item.multiZodiacBets.push(bet);
+              result.parsedMultiZodiacBets.push(bet);
+              item.total += amt * combs.length;
+            } else {
+              combs.forEach(c => {
+                const bet = { zodiacs: c, amount: amt };
+                item.multiZodiacBets.push(bet);
+                result.parsedMultiZodiacBets.push(bet);
+                item.total += amt;
+              });
+            }
+          }
+        });
+        
+        result.lastAmount = amt;
+        break;
+      }
       case 'MULTI_ZODIAC_V2': {
         const zodiacStr = groups[1];
         const featurePart = groups[2];
@@ -555,8 +656,16 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         
         if (selectedZodiacs.length >= count) {
           const combs = getCombinations<string>(selectedZodiacs, count);
-          combs.forEach(c => {
-            const bet = { zodiacs: c, amount: amt };
+          const isCompound = selectedZodiacs.length > count;
+          
+          if (isCompound) {
+            const bet: MultiZodiacBet = {
+              zodiacs: selectedZodiacs,
+              amount: amt,
+              type: `${count}${isXiaoOnly ? '肖' : '连'}`,
+              tuoCount: combs.length,
+              tuoGroups: combs
+            };
             if (isXiaoOnly && count === 4) {
               item.fourZodiacBets.push(bet);
               result.parsedFourZodiacBets.push(bet);
@@ -570,8 +679,26 @@ export const parseBetInput = (inputText: string): ParsedInput => {
               item.multiZodiacBets.push(bet);
               result.parsedMultiZodiacBets.push(bet);
             }
-            item.total += amt;
-          });
+            item.total += amt * combs.length;
+          } else {
+            combs.forEach(c => {
+              const bet = { zodiacs: c, amount: amt };
+              if (isXiaoOnly && count === 4) {
+                item.fourZodiacBets.push(bet);
+                result.parsedFourZodiacBets.push(bet);
+              } else if (isXiaoOnly && count === 5) {
+                item.fiveZodiacBets.push(bet);
+                result.parsedFiveZodiacBets.push(bet);
+              } else if (isXiaoOnly && count === 6) {
+                item.sixZodiacBets.push(bet);
+                result.parsedSixZodiacBets.push(bet);
+              } else {
+                item.multiZodiacBets.push(bet);
+                result.parsedMultiZodiacBets.push(bet);
+              }
+              item.total += amt;
+            });
+          }
           result.lastAmount = amt;
         }
         break;
@@ -594,8 +721,16 @@ export const parseBetInput = (inputText: string): ParsedInput => {
           const zodiacsInEntry = zodiacStr.split('').filter(c => zodiacs.includes(c));
           if (zodiacsInEntry.length >= count) {
             const combs = getCombinations<string>(zodiacsInEntry, count);
-            combs.forEach(c => {
-              const bet = { zodiacs: c, amount: amt };
+            const isCompound = zodiacsInEntry.length > count;
+            
+            if (isCompound) {
+              const bet: MultiZodiacBet = {
+                zodiacs: zodiacsInEntry,
+                amount: amt,
+                type: `${count}${isXiaoOnly ? '肖' : '连'}`,
+                tuoCount: combs.length,
+                tuoGroups: combs
+              };
               if (isXiaoOnly && count === 4) {
                 item.fourZodiacBets.push(bet);
                 result.parsedFourZodiacBets.push(bet);
@@ -609,8 +744,26 @@ export const parseBetInput = (inputText: string): ParsedInput => {
                 item.multiZodiacBets.push(bet);
                 result.parsedMultiZodiacBets.push(bet);
               }
-              item.total += amt;
-            });
+              item.total += amt * combs.length;
+            } else {
+              combs.forEach(c => {
+                const bet = { zodiacs: c, amount: amt };
+                if (isXiaoOnly && count === 4) {
+                  item.fourZodiacBets.push(bet);
+                  result.parsedFourZodiacBets.push(bet);
+                } else if (isXiaoOnly && count === 5) {
+                  item.fiveZodiacBets.push(bet);
+                  result.parsedFiveZodiacBets.push(bet);
+                } else if (isXiaoOnly && count === 6) {
+                  item.sixZodiacBets.push(bet);
+                  result.parsedSixZodiacBets.push(bet);
+                } else {
+                  item.multiZodiacBets.push(bet);
+                  result.parsedMultiZodiacBets.push(bet);
+                }
+                item.total += amt;
+              });
+            }
           }
         }
         result.lastAmount = 0;
@@ -638,12 +791,27 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         const selectedZodiacs = zodiacStr.split('');
         if (selectedZodiacs.length >= count) {
           const combs = getCombinations<string>(selectedZodiacs, count);
-          combs.forEach(c => {
-            const bet = { zodiacs: c, amount: amt };
+          const isCompound = selectedZodiacs.length > count;
+          
+          if (isCompound) {
+            const bet: MultiZodiacBet = {
+              zodiacs: selectedZodiacs,
+              amount: amt,
+              type: `${count}连`,
+              tuoCount: combs.length,
+              tuoGroups: combs
+            };
             item.multiZodiacBets.push(bet);
-            item.total += amt;
+            item.total += amt * combs.length;
             result.parsedMultiZodiacBets.push(bet);
-          });
+          } else {
+            combs.forEach(c => {
+              const bet = { zodiacs: c, amount: amt };
+              item.multiZodiacBets.push(bet);
+              item.total += amt;
+              result.parsedMultiZodiacBets.push(bet);
+            });
+          }
           result.lastAmount = amt;
         }
         break;
@@ -666,13 +834,19 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         const needed = count - baseZodiacs.length;
         if (needed > 0 && trailingZodiacs.length >= needed) {
           const combs = getCombinations<string>(trailingZodiacs, needed);
-          combs.forEach(c => {
-            const combined = [...baseZodiacs, ...c];
-            const bet = { zodiacs: combined, amount: amt };
-            item.multiZodiacBets.push(bet);
-            item.total += amt;
-            result.parsedMultiZodiacBets.push(bet);
-          });
+          const bet: MultiZodiacBet = {
+            zodiacs: [...baseZodiacs, ...trailingZodiacs],
+            amount: amt,
+            type: `${count}连`,
+            isTuo: true,
+            tuoBase: baseZodiacs.join(''),
+            tuoFollowers: trailingZodiacs.join(''),
+            tuoCount: combs.length,
+            tuoGroups: combs.map(c => [...baseZodiacs, ...c])
+          };
+          item.multiZodiacBets.push(bet);
+          item.total += amt * combs.length;
+          result.parsedMultiZodiacBets.push(bet);
           result.lastAmount = amt;
         }
         break;
