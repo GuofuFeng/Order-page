@@ -1518,48 +1518,48 @@ export default function App() {
       <main className="flex-grow flex p-4 gap-4 overflow-hidden">
         {currentPage === 'order' ? (
           <>
-            {/* Left Section (Flat Tail) */}
-            <div className="w-44 flex flex-col gap-4 shrink-0 min-h-0">
-              <section className="bg-white p-3 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 h-full">
+            {/* Left Section (Flat Zodiac) */}
+            <div className="w-44 flex flex-col gap-4 shrink-0 min-h-0 relative">
+              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 h-full">
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
-                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">平尾下单区</h2>
+                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">平肖下单区</h2>
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
                 <div className="grid grid-cols-1 gap-y-2 overflow-y-auto pr-1 flex-grow">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(t => (
-                    <div key={t} className="group flex flex-col gap-0.5">
+                  {zodiacs.map(z => (
+                    <div key={z} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-[10px] border transition-colors shrink-0 ${
-                          (tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || mergedParsedData.tailBets[t] !== undefined
+                          (zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || mergedParsedData.zodiacBets[z] !== undefined
                             ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
                             : 'bg-stone-50 text-stone-600 border-stone-100 group-hover:border-stone-300'
                         }`}>
-                          {t}尾
+                          {z}
                         </span>
                         <div className="relative flex-grow">
                           <input
                             type="number"
                             min="0"
                             placeholder="金额"
-                            value={tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '' ? tailBetAmounts[t] : (mergedParsedData.tailBets[t] || '')}
+                            value={zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '' ? zodiacBetAmounts[z] : (mergedParsedData.zodiacBets[z] || '')}
                             onKeyDown={handleKeyDown}
                             onChange={(e) => {
                               const val = e.target.value === '' ? '' : Number(e.target.value);
                               if (val === '' || val >= 0) {
-                                setTailBetAmounts(prev => ({ ...prev, [t]: val }));
+                                setZodiacBetAmounts(prev => ({ ...prev, [z]: val }));
                               }
                             }}
                             className={`w-full p-1.5 pr-6 border rounded-lg text-[10px] outline-none transition-all ${
-                              mergedParsedData.tailBets[t] 
+                              mergedParsedData.zodiacBets[z] 
                                 ? 'bg-amber-50 border-amber-200 focus:ring-amber-200 focus:bg-white' 
                                 : 'bg-stone-50 border-stone-100 focus:ring-stone-200 focus:bg-white'
                             }`}
                           />
-                          {(tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || mergedParsedData.tailBets[t] ? (
+                          {(zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || mergedParsedData.zodiacBets[z] ? (
                             <button 
                               onClick={() => {
-                                setTailBetAmounts(prev => ({ ...prev, [t]: '' }));
+                                setZodiacBetAmounts(prev => ({ ...prev, [z]: '' }));
                               }}
                               className="absolute right-1 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500 transition-colors"
                             >
@@ -1571,7 +1571,7 @@ export default function App() {
                       <div className="flex justify-between items-center px-1">
                         <span className="text-[8px] text-stone-400">累计:</span>
                         <span className="text-[8px] font-bold text-stone-600">
-                          {tailCumulativeAmounts[t] || 0}
+                          {zodiacCumulativeAmounts[z] || 0}
                         </span>
                       </div>
                     </div>
@@ -2001,48 +2001,48 @@ export default function App() {
               </div>
             </div>
 
-            {/* Right Section (Flat Zodiac + Multi Zodiac) */}
+            {/* Right Section (Flat Tail + Multi Zodiac + Preview) */}
             <div className="w-60 flex flex-col gap-4 shrink-0 min-h-0 relative">
-              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[2]">
+              <section className="bg-white p-3 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[2.5]">
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
-                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">平肖下单区</h2>
+                  <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">平尾下单区</h2>
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-2 overflow-y-auto pr-1 flex-grow">
-                  {zodiacs.map(z => (
-                    <div key={z} className="group flex flex-col gap-0.5">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 pr-1 flex-grow">
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(t => (
+                    <div key={t} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-[10px] border transition-colors shrink-0 ${
-                          (zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || mergedParsedData.zodiacBets[z] !== undefined
+                          (tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || mergedParsedData.tailBets[t] !== undefined
                             ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
                             : 'bg-stone-50 text-stone-600 border-stone-100 group-hover:border-stone-300'
                         }`}>
-                          {z}
+                          {t}尾
                         </span>
                         <div className="relative flex-grow">
                           <input
                             type="number"
                             min="0"
                             placeholder="金额"
-                            value={zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '' ? zodiacBetAmounts[z] : (mergedParsedData.zodiacBets[z] || '')}
+                            value={tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '' ? tailBetAmounts[t] : (mergedParsedData.tailBets[t] || '')}
                             onKeyDown={handleKeyDown}
                             onChange={(e) => {
                               const val = e.target.value === '' ? '' : Number(e.target.value);
                               if (val === '' || val >= 0) {
-                                setZodiacBetAmounts(prev => ({ ...prev, [z]: val }));
+                                setTailBetAmounts(prev => ({ ...prev, [t]: val }));
                               }
                             }}
                             className={`w-full p-1.5 pr-6 border rounded-lg text-[10px] outline-none transition-all ${
-                              mergedParsedData.zodiacBets[z] 
+                              mergedParsedData.tailBets[t] 
                                 ? 'bg-amber-50 border-amber-200 focus:ring-amber-200 focus:bg-white' 
                                 : 'bg-stone-50 border-stone-100 focus:ring-stone-200 focus:bg-white'
                             }`}
                           />
-                          {(zodiacBetAmounts[z] !== undefined && zodiacBetAmounts[z] !== '') || mergedParsedData.zodiacBets[z] ? (
+                          {(tailBetAmounts[t] !== undefined && tailBetAmounts[t] !== '') || mergedParsedData.tailBets[t] ? (
                             <button 
                               onClick={() => {
-                                setZodiacBetAmounts(prev => ({ ...prev, [z]: '' }));
+                                setTailBetAmounts(prev => ({ ...prev, [t]: '' }));
                               }}
                               className="absolute right-1 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500 transition-colors"
                             >
@@ -2054,7 +2054,7 @@ export default function App() {
                       <div className="flex justify-between items-center px-1">
                         <span className="text-[8px] text-stone-400">累计:</span>
                         <span className="text-[8px] font-bold text-stone-600">
-                          {zodiacCumulativeAmounts[z] || 0}
+                          {tailCumulativeAmounts[t] || 0}
                         </span>
                       </div>
                     </div>
@@ -2062,13 +2062,13 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-[1.5]">
+              <section className="bg-white p-3 rounded-2xl shadow-sm border border-stone-200 flex flex-col min-h-0 flex-none">
                 <div className="mb-2 flex items-center justify-center gap-2">
                   <div className="h-px bg-stone-100 flex-grow"></div>
                   <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">连肖下单区</h2>
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
-                <div className="flex flex-col gap-2 overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 pr-1">
                   <div className="flex flex-wrap gap-1">
                     {zodiacs.map(z => (
                       <button
