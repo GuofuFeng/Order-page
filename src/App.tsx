@@ -476,6 +476,32 @@ export default function App() {
     const savedDraws = loadFromStorage(STORAGE_KEYS.DRAW_NUMBERS, defaultDraws);
     return { ...defaultDraws, ...savedDraws };
   });
+
+  const todayTotalWin = useMemo(() => {
+    return todayBets.reduce((sum, order) => {
+      const orderWin = (order.items || []).reduce((itemSum, item) => {
+        const win = calculateWinAmount(
+          item.numberDeltas,
+          item.flatNumberDeltas || {},
+          item.zodiacDeltas,
+          item.teXiaoDeltas || {},
+          item.tailDeltas,
+          item.multiZodiacDeltas,
+          item.sixZodiacDeltas,
+          item.fiveZodiacDeltas,
+          item.fourZodiacDeltas,
+          item.multiTailDeltas,
+          item.notInDeltas,
+          item.combinationWinDeltas || [],
+          item.specialAttributeDeltas || {},
+          drawNumbers[item.lotteryType],
+          item.lotteryType
+        );
+        return itemSum + (win || 0);
+      }, 0);
+      return sum + orderWin;
+    }, 0);
+  }, [todayBets, drawNumbers]);
   const [isDrawLocked, setIsDrawLocked] = useState<Record<string, boolean>>(() => {
     const defaultLocked = lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: false }), {});
     const savedLocked = loadFromStorage(STORAGE_KEYS.IS_DRAW_LOCKED, defaultLocked);
@@ -2499,10 +2525,16 @@ export default function App() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end mr-4">
+                <div className="flex flex-col items-end">
                   <span className="text-[10px] text-stone-400 uppercase tracking-widest">篮子 {selectedBasketId} 总金额</span>
                   <span className="text-xl font-bold text-emerald-600">
                     ¥ {todayBets.reduce((sum, o) => sum + o.total, 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end mr-4">
+                  <span className="text-[10px] text-stone-400 uppercase tracking-widest">当日中奖总金额</span>
+                  <span className={`text-xl font-bold ${todayTotalWin > 0 ? 'text-rose-600' : 'text-stone-400'}`}>
+                    ¥ {todayTotalWin.toLocaleString()}
                   </span>
                 </div>
                 <button
