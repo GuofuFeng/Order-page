@@ -28,6 +28,12 @@ export interface CombinationWinBet {
   tuoGroups?: number[][];
 }
 
+export interface SpecialAttributeBet {
+  type: string; // '波色' | '大小' | '单双'
+  value: string; // '红' | '蓝' | '绿' | '大' | '小' | '单' | '双'
+  amount: number;
+}
+
 export interface BetOrder {
   id: string;
   text: string;
@@ -36,6 +42,7 @@ export interface BetOrder {
   zodiacDeltas: Record<string, number>;
   teXiaoDeltas: Record<string, number>;
   tailDeltas: Record<number, number>;
+  specialAttributeDeltas: Record<string, number>;
   multiZodiacDeltas: MultiZodiacBet[];
   sixZodiacDeltas: MultiZodiacBet[];
   fiveZodiacDeltas: MultiZodiacBet[];
@@ -76,6 +83,7 @@ export interface TextParsedData {
   zodiacBets: Record<string, number>;
   tailBets: Record<number, number>;
   teXiaoBets: Record<string, number>;
+  specialAttributeBets: Record<string, number>;
   multiZodiacBets: MultiZodiacBet[];
   sixZodiacBets: MultiZodiacBet[];
   fiveZodiacBets: MultiZodiacBet[];

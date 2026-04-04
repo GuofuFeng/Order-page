@@ -39,16 +39,16 @@ const CollapsibleCombinationBet: React.FC<{ bet: any }> = ({ bet }) => {
   
   return (
     <div className="flex flex-col gap-0.5 border-b border-stone-100 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-      <div className="flex justify-between items-center text-[10px]">
+      <div className="flex justify-between items-center text-[12px]">
         <div className="flex items-center gap-1 flex-grow min-w-0">
           {bet.tuoCount && bet.tuoCount > 1 && (
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-0.5 hover:bg-stone-100 rounded transition-colors shrink-0"
+              className="p-1 hover:bg-stone-100 rounded transition-colors shrink-0"
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
-                width="10" height="10" 
+                width="12" height="12" 
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                 className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
               >
@@ -72,9 +72,9 @@ const CollapsibleCombinationBet: React.FC<{ bet: any }> = ({ bet }) => {
       </div>
       
       {isExpanded && bet.tuoGroups && (
-        <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1 border border-stone-100">
+        <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1.5 border border-stone-100">
           {bet.tuoGroups.map((group: any, gIdx: number) => (
-            <div key={gIdx} className="text-[9px] text-stone-500 flex items-center gap-1">
+            <div key={gIdx} className="text-[11px] text-stone-500 flex items-center gap-1">
               <span className="opacity-50">#{gIdx + 1}</span>
               <span className="font-medium text-stone-600">{group.map((n: any) => n.toString().padStart(2, '0')).join(',')}</span>
             </div>
@@ -91,16 +91,16 @@ const CollapsibleMultiZodiacBet: React.FC<{ bet: any }> = ({ bet }) => {
   
   return (
     <div className="flex flex-col gap-0.5 border-b border-stone-100 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-      <div className="flex justify-between items-center text-[10px]">
+      <div className="flex justify-between items-center text-[12px]">
         <div className="flex items-center gap-1 flex-grow min-w-0">
           {bet.tuoCount && bet.tuoCount > 1 && (
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-0.5 hover:bg-stone-100 rounded transition-colors shrink-0"
+              className="p-1 hover:bg-stone-100 rounded transition-colors shrink-0"
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
-                width="10" height="10" 
+                width="12" height="12" 
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                 className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
               >
@@ -124,9 +124,9 @@ const CollapsibleMultiZodiacBet: React.FC<{ bet: any }> = ({ bet }) => {
       </div>
       
       {isExpanded && bet.tuoGroups && (
-        <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1 border border-stone-100">
+        <div className="mt-1 pl-3 flex flex-wrap gap-x-2 gap-y-0.5 bg-stone-50 rounded p-1.5 border border-stone-100">
           {bet.tuoGroups.map((group: any, gIdx: number) => (
-            <div key={gIdx} className="text-[9px] text-stone-500 flex items-center gap-1">
+            <div key={gIdx} className="text-[11px] text-stone-500 flex items-center gap-1">
               <span className="opacity-50">#{gIdx + 1}</span>
               <span className="font-medium text-stone-600">{Array.isArray(group) ? group.join('') : group}</span>
             </div>
@@ -264,6 +264,7 @@ export default function App() {
       zodiacBets: {},
       tailBets: {},
       teXiaoBets: {},
+      specialAttributeBets: {},
       multiZodiacBets: [],
       sixZodiacBets: [],
       fiveZodiacBets: [],
@@ -286,6 +287,7 @@ export default function App() {
       Object.entries(p.parsedZodiacBets).forEach(([z, a]) => merged.zodiacBets[z] = (merged.zodiacBets[z] || 0) + (a as number));
       Object.entries(p.parsedTailBets).forEach(([t, a]) => merged.tailBets[Number(t)] = (merged.tailBets[Number(t)] || 0) + (a as number));
       Object.entries(p.parsedTeXiaoBets).forEach(([z, a]) => merged.teXiaoBets[z] = (merged.teXiaoBets[z] || 0) + (a as number));
+      Object.entries(p.parsedSpecialAttributeBets).forEach(([attr, a]) => merged.specialAttributeBets[attr] = (merged.specialAttributeBets[attr] || 0) + (a as number));
       merged.multiZodiacBets.push(...p.parsedMultiZodiacBets);
       merged.sixZodiacBets.push(...p.parsedSixZodiacBets);
       merged.fiveZodiacBets.push(...p.parsedFiveZodiacBets);
@@ -652,6 +654,7 @@ export default function App() {
             zodiacDeltas: item.zodiacDeltas,
             teXiaoDeltas: item.teXiaoDeltas,
             tailDeltas: item.tailDeltas,
+            specialAttributeDeltas: item.specialAttributeDeltas,
             multiZodiacDeltas: [...item.multiZodiacBets],
             sixZodiacDeltas: [...item.sixZodiacBets], 
             fiveZodiacDeltas: [...item.fiveZodiacBets], 
@@ -702,6 +705,7 @@ export default function App() {
           zodiacDeltas: {},
           teXiaoDeltas: {},
           tailDeltas: {},
+          specialAttributeDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
@@ -742,6 +746,7 @@ export default function App() {
           zodiacDeltas,
           teXiaoDeltas: {},
           tailDeltas: {},
+          specialAttributeDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
@@ -788,6 +793,7 @@ export default function App() {
           zodiacDeltas: {},
           teXiaoDeltas: {},
           tailDeltas,
+          specialAttributeDeltas: {},
           multiZodiacDeltas: [],
           sixZodiacDeltas: [],
           fiveZodiacDeltas: [],
@@ -832,6 +838,7 @@ export default function App() {
         zodiacDeltas: {},
         teXiaoDeltas: {},
         tailDeltas: {},
+        specialAttributeDeltas: {},
         multiZodiacDeltas,
         sixZodiacDeltas: [],
         fiveZodiacDeltas: [],
@@ -960,12 +967,12 @@ export default function App() {
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
       const totalWin = (order.items || []).reduce((sum, item) => {
-        const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], drawNumbers[item.lotteryType], item.lotteryType);
+        const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
         return sum + (win || 0);
       }, 0);
 
       const winDetailsMap = (order.items || []).reduce((acc, item) => {
-        const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], drawNumbers[item.lotteryType]);
+        const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
         Object.entries(details).forEach(([type, amt]) => {
           acc[type] = (acc[type] || 0) + amt;
         });
@@ -1273,7 +1280,7 @@ export default function App() {
 
     function renderBetContent(text: string, context: any) {
       // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, and "拖" keyword
-      const parts = text.split(/(特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖)/);
+      const parts = text.split(/(特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -1339,7 +1346,7 @@ export default function App() {
             } else if (!isTeXiaoContext && winningZodiacsNormal.includes(part)) {
               return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
             }
-          } else if (['单', '双', '大', '小', '红', '绿', '蓝', '家', '野', '合单', '合双'].includes(part)) {
+          } else if (['单', '双', '大', '小', '红', '绿', '蓝', '家', '野', '合单', '合双', '红波', '蓝波', '绿波', '大数', '小数', '单数', '双数'].includes(part)) {
             if (checkIsWinner(part, context)) {
               return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
             }
@@ -2180,6 +2187,7 @@ export default function App() {
                    mergedParsedData.sixZodiacBets.length === 0 && 
                    mergedParsedData.notInBets.length === 0 && 
                    Object.keys(mergedParsedData.teXiaoBets || {}).length === 0 &&
+                   Object.keys(mergedParsedData.specialAttributeBets || {}).length === 0 &&
                    mergedParsedData.combinationWinBets.length === 0 && (
                     <div className="h-full flex items-center justify-center py-4">
                       <span className="text-[10px] text-stone-300 italic">暂无识别内容...</span>
@@ -2187,7 +2195,7 @@ export default function App() {
                   )}
                   {mergedParsedData.combinationWinBets.length > 0 && (
                     <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-100">
-                      <div className="text-[9px] font-bold text-rose-600 uppercase mb-0.5">识别到中中:</div>
+                      <div className="text-[11px] font-bold text-rose-600 uppercase mb-0.5">识别到中中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.combinationWinBets.map((bet, idx) => (
                           <CollapsibleCombinationBet key={idx} bet={bet} />
@@ -2197,7 +2205,7 @@ export default function App() {
                   )}
                   {mergedParsedData.multiZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100">
-                      <div className="text-[9px] font-bold text-amber-600 uppercase mb-0.5">识别到连肖:</div>
+                      <div className="text-[11px] font-bold text-amber-600 uppercase mb-0.5">识别到连肖:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.multiZodiacBets.map((bet, idx) => (
                           <CollapsibleMultiZodiacBet key={idx} bet={bet} />
@@ -2207,10 +2215,10 @@ export default function App() {
                   )}
                   {mergedParsedData.multiTailBets.length > 0 && (
                     <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
-                      <div className="text-[9px] font-bold text-indigo-600 uppercase mb-0.5">识别到连尾:</div>
+                      <div className="text-[11px] font-bold text-indigo-600 uppercase mb-0.5">识别到连尾:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.multiTailBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[10px]">
+                          <div key={idx} className="flex justify-between items-center text-[12px]">
                             <span className="text-stone-700 font-bold">{bet.zodiacs.join('')}尾</span>
                             <span className="text-indigo-600 font-black">¥{bet.amount}</span>
                           </div>
@@ -2220,7 +2228,7 @@ export default function App() {
                   )}
                   {mergedParsedData.fiveZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-purple-50 rounded-lg border border-purple-100">
-                      <div className="text-[9px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
+                      <div className="text-[11px] font-bold text-purple-600 uppercase mb-0.5">识别到五中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.fiveZodiacBets.map((bet, idx) => (
                           <CollapsibleMultiZodiacBet key={idx} bet={bet} />
@@ -2230,7 +2238,7 @@ export default function App() {
                   )}
                   {mergedParsedData.fourZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
-                      <div className="text-[9px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
+                      <div className="text-[11px] font-bold text-blue-600 uppercase mb-0.5">识别到四中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.fourZodiacBets.map((bet, idx) => (
                           <CollapsibleMultiZodiacBet key={idx} bet={bet} />
@@ -2240,7 +2248,7 @@ export default function App() {
                   )}
                   {mergedParsedData.sixZodiacBets.length > 0 && (
                     <div className="p-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
-                      <div className="text-[9px] font-bold text-emerald-600 uppercase mb-0.5">识别到六中:</div>
+                      <div className="text-[11px] font-bold text-emerald-600 uppercase mb-0.5">识别到六中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.sixZodiacBets.map((bet, idx) => (
                           <CollapsibleMultiZodiacBet key={idx} bet={bet} />
@@ -2250,10 +2258,10 @@ export default function App() {
                   )}
                   {mergedParsedData.notInBets.length > 0 && (
                     <div className="p-1.5 bg-rose-50 rounded-lg border border-rose-100">
-                      <div className="text-[7px] font-bold text-rose-600 uppercase mb-0.5">识别到不中:</div>
+                      <div className="text-[9px] font-bold text-rose-600 uppercase mb-0.5">识别到不中:</div>
                       <div className="flex flex-col gap-0.5">
                         {mergedParsedData.notInBets.map((bet, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
+                          <div key={idx} className="flex justify-between items-center text-[10px]">
                             <span className="text-stone-700 font-bold">{bet.x}不中 {bet.numbers.map(n => formatNumber(n)).join('-')}</span>
                             <span className="text-rose-600 font-black">¥{bet.amount}</span>
                           </div>
@@ -2261,12 +2269,25 @@ export default function App() {
                       </div>
                     </div>
                   )}
+                  {mergedParsedData.specialAttributeBets && Object.keys(mergedParsedData.specialAttributeBets).length > 0 && (
+                    <div className="p-1.5 bg-cyan-50 rounded-lg border border-cyan-100">
+                      <div className="text-[11px] font-bold text-cyan-600 uppercase mb-0.5">识别到特码属性:</div>
+                      <div className="flex flex-col gap-0.5">
+                        {Object.entries(mergedParsedData.specialAttributeBets).map(([attr, amt], idx) => (
+                          <div key={idx} className="flex justify-between items-center text-[12px]">
+                            <span className="text-stone-700 font-bold">{attr}</span>
+                            <span className="text-cyan-600 font-black">¥{amt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {mergedParsedData.teXiaoBets && Object.keys(mergedParsedData.teXiaoBets).length > 0 && (
                     <div className="p-1.5 bg-orange-50 rounded-lg border border-orange-100">
-                      <div className="text-[7px] font-bold text-orange-600 uppercase mb-0.5">识别到特肖:</div>
+                      <div className="text-[9px] font-bold text-orange-600 uppercase mb-0.5">识别到特肖:</div>
                       <div className="flex flex-col gap-0.5">
                         {Object.entries(mergedParsedData.teXiaoBets).map(([z, amt], idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[8px]">
+                          <div key={idx} className="flex justify-between items-center text-[10px]">
                             <span className="text-stone-700 font-bold">{z}</span>
                             <span className="text-orange-600 font-black">¥{amt}</span>
                           </div>
@@ -2640,7 +2661,7 @@ export default function App() {
                           <td className="px-6 py-4 text-xs font-bold text-stone-500">
                             {(() => {
                               const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], drawNumbers[item.lotteryType]);
+                                const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
                                 Object.entries(details).forEach(([type, amt]) => {
                                   acc[type] = (acc[type] || 0) + amt;
                                 });
@@ -2652,7 +2673,7 @@ export default function App() {
                           <td className="px-6 py-4 text-sm font-black text-red-600">
                             {(() => {
                               const totalWin = (order.items || []).reduce((sum, item) => {
-                                const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], drawNumbers[item.lotteryType], item.lotteryType);
+                                const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
                                 return sum + (win || 0);
                               }, 0);
                               return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -2819,7 +2840,7 @@ export default function App() {
                               <td className="px-6 py-4 text-xs font-bold text-stone-300 italic">
                                 {(() => {
                                   const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                    const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], drawNumbers[item.lotteryType]);
+                                    const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
                                     Object.entries(details).forEach(([type, amt]) => {
                                       acc[type] = (acc[type] || 0) + amt;
                                     });
@@ -2831,7 +2852,7 @@ export default function App() {
                               <td className="px-6 py-4 text-sm font-black text-red-400">
                                 {(() => {
                                   const totalWin = (order.items || []).reduce((sum, item) => {
-                                    const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], drawNumbers[item.lotteryType], item.lotteryType);
+                                    const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
                                     return sum + (win || 0);
                                   }, 0);
                                   return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
