@@ -127,15 +127,15 @@ export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '((?:(?:\\d{1,2
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|五肖|5中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){5})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){4})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
-export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){2,12})(?:连肖|连)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){2,12})(?<![二三四五六七八九十2-9]|10|两)(?:连肖|连)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五六23456两])(?:连肖|连(?!尾)|连买|买)|([二三四五六23456两])肖|(?<![二三四五六23456两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+', 'g');
-export const REGEX_MULTI_ZODIAC_HABIT = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){2,12})(?:([二三四五六23456两])连)\\s*(?:复([二三四五六23456两])连)\\s*(?:各|每)?(\\d+(?:\\.\\d+)?)', 'g');
+export const REGEX_MULTI_ZODIAC_HABIT = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){2,12})(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){2,12})[^\\d\\n\\r]*?(' + 
   '(?:复试|复式|复)[^\\d\\n\\r]*?(?:[二三四五六七八九十2-9]|10|两)?(?:连肖|连|连各|连每)?' + 
   '|' +
   '(?:[二三四五六七八九十2-9]|10|两)(?:连肖|连|连各|连每|肖)' + 
   '|' +
-  '(?:连肖|连|连各|连每)' + 
+  '(?<![二三四五六七八九十2-9]|10|两)(?:连肖|连|连各|连每)' + 
   ')' + 
   '[^\\d\\n\\r]*?(?:各组|每组)?[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
@@ -545,8 +545,10 @@ export const parseBetInput = (inputText: string): ParsedInput => {
       case 'MULTI_ZODIAC_HABIT': {
         const zodiacStr = groups[1];
         const count1Str = groups[2];
-        const count2Str = groups[3];
-        const amt = chineseToNumber(groups[4]);
+        const type1Str = groups[3];
+        const count2Str = groups[4];
+        const type2Str = groups[5];
+        const amt = chineseToNumber(groups[6]);
         
         const count1 = count1Str === '二' || count1Str === '2' || count1Str === '两' ? 2 :
                        count1Str === '三' || count1Str === '3' ? 3 :
@@ -562,34 +564,58 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         
         const selectedZodiacs = expandZodiacs(zodiacStr);
         
-        // First part: count1-zodiac bet (single if selectedZodiacs.length == count1)
+        // First part: count1-zodiac bet
         if (selectedZodiacs.length >= count1) {
           const combs = getCombinations<string>(selectedZodiacs, count1);
+          const isXiaoOnly = type1Str === '肖';
           const bet: MultiZodiacBet = { 
             zodiacs: selectedZodiacs, 
             amount: amt,
-            type: `${count1}连`,
+            type: `${count1}${isXiaoOnly ? '肖' : '连'}`,
             tuoCount: combs.length,
             tuoGroups: combs
           };
-          item.multiZodiacBets.push(bet);
+          if (isXiaoOnly && count1 === 4) {
+            item.fourZodiacBets.push(bet);
+            result.parsedFourZodiacBets.push(bet);
+          } else if (isXiaoOnly && count1 === 5) {
+            item.fiveZodiacBets.push(bet);
+            result.parsedFiveZodiacBets.push(bet);
+          } else if (isXiaoOnly && count1 === 6) {
+            item.sixZodiacBets.push(bet);
+            result.parsedSixZodiacBets.push(bet);
+          } else {
+            item.multiZodiacBets.push(bet);
+            result.parsedMultiZodiacBets.push(bet);
+          }
           item.total += amt * combs.length;
-          result.parsedMultiZodiacBets.push(bet);
         }
         
-        // Second part: count2-zodiac bet (compound)
+        // Second part: count2-zodiac bet
         if (selectedZodiacs.length >= count2) {
           const combs = getCombinations<string>(selectedZodiacs, count2);
+          const isXiaoOnly = type2Str === '肖';
           const bet: MultiZodiacBet = { 
             zodiacs: selectedZodiacs, 
             amount: amt,
-            type: `${count2}连`,
+            type: `${count2}${isXiaoOnly ? '肖' : '连'}`,
             tuoCount: combs.length,
             tuoGroups: combs
           };
-          item.multiZodiacBets.push(bet);
+          if (isXiaoOnly && count2 === 4) {
+            item.fourZodiacBets.push(bet);
+            result.parsedFourZodiacBets.push(bet);
+          } else if (isXiaoOnly && count2 === 5) {
+            item.fiveZodiacBets.push(bet);
+            result.parsedFiveZodiacBets.push(bet);
+          } else if (isXiaoOnly && count2 === 6) {
+            item.sixZodiacBets.push(bet);
+            result.parsedSixZodiacBets.push(bet);
+          } else {
+            item.multiZodiacBets.push(bet);
+            result.parsedMultiZodiacBets.push(bet);
+          }
           item.total += amt * combs.length;
-          result.parsedMultiZodiacBets.push(bet);
         }
         
         result.lastAmount = amt;
