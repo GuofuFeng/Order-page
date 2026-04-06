@@ -122,8 +122,8 @@ const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)
 
 export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*)(?:\\d[\\s,，。；;.、/\\-*]*){2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){6})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?:((?:(?:\\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野])[\\s,，。；;.、/\\-*]*)+)[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二|特碰)(?:复试|复式|复)?|(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二|特碰)(?:复试|复式|复)?[^\\d\\n\\r]*?((?:(?:\\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野])[\\s,，。；;.、/\\-*]*)+))[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '((?:(?:\\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野])[\\s,，。；;.、/\\-*]*)+)拖((?:(?:\\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野])[\\s,，。；;.、/\\-*]*)+)(三中三二中二|二中二三中三|三中三|二中二|特碰)[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?:(三中三二中二|二中二三中三|三中三|二中二|特碰)[^\\d\\n\\r]*?(?:复试|复式|复)?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]|\\d{1,2})[\\s,，。；;.、/\\-*]*)+)(?:[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二|特碰)(?:复试|复式|复)?)?[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '(?:(三中三二中二|二中二三中三|三中三|二中二|特碰)[^\\d\\n\\r]*?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]|\\d{1,2})[\\s,，。；;.、/\\-*]*)+)拖((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]|\\d{1,2})[\\s,，。；;.、/\\-*]*)+)(?:[^\\d\\n\\r]*?(三中三二中二|二中二三中三|三中三|二中二|特碰))?[^\\d\\n\\r]*?(?:每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|五肖|5中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){5})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野][\\s,，。；;.、/\\-*]*){4})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
@@ -1100,11 +1100,13 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         break;
       }
       case 'COMBINATION_TUO': {
-        const baseStr = groups[1];
-        const followerStr = groups[2];
-        const typeStr = groups[3];
-        const amt = chineseToNumber(groups[4]);
+        const typeStart = groups[1];
+        const baseStr = groups[2];
+        const followerStr = groups[3];
+        const typeEnd = groups[4];
+        const amt = chineseToNumber(groups[5]);
 
+        const typeStr = typeStart || typeEnd || '';
         const types: ('三中三' | '二中二' | '特碰')[] = [];
         if (typeStr.includes('三中三')) types.push('三中三');
         if (typeStr.includes('二中二')) types.push('二中二');
@@ -1112,7 +1114,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
         const getTokens = (str: string): string[] => {
           const tokens: string[] = [];
-          const matches = str.match(/\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]/g);
+          const matches = str.match(/\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]|\d{1,2}/g);
           if (matches) {
             matches.forEach(m => {
               if (m === '家') tokens.push(...domesticZodiacs);
@@ -1126,14 +1128,21 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         const baseTokens = getTokens(baseStr);
         const followerTokens = getTokens(followerStr);
 
+        const getNumbersForToken = (t: string): number[] => {
+          if (t.endsWith('尾')) {
+            const tail = parseInt(t);
+            return numbers.filter(n => n % 10 === tail);
+          }
+          if (/\d/.test(t)) {
+            return [parseInt(t)];
+          }
+          return getNumbersForZodiac(t);
+        };
+
         // Expand follower tokens into a single set of numbers
         const followerNumbers: number[] = [];
         followerTokens.forEach(t => {
-          if (/\d/.test(t)) {
-            followerNumbers.push(parseInt(t));
-          } else {
-            followerNumbers.push(...getNumbersForZodiac(t));
-          }
+          followerNumbers.push(...getNumbersForToken(t));
         });
         const uniqueFollowers = Array.from(new Set(followerNumbers));
 
@@ -1144,10 +1153,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
           if (needed > 0 && uniqueFollowers.length >= needed) {
             // Get all combinations of picking 1 number from each base token
-            const baseSets = baseTokens.map(t => {
-              if (/\d/.test(t)) return [parseInt(t)];
-              return getNumbersForZodiac(t);
-            });
+            const baseSets = baseTokens.map(t => getNumbersForToken(t));
 
             // Cartesian product of baseSets
             function cartesianProduct<T>(arrays: T[][]): T[][] {
@@ -1157,12 +1163,17 @@ export const parseBetInput = (inputText: string): ParsedInput => {
             const baseCombs = cartesianProduct(baseSets);
             const followerCombs = getCombinations<number>(uniqueFollowers, needed);
 
+            const seenGroups = new Set<string>();
             const allTuoGroups: number[][] = [];
             baseCombs.forEach(bc => {
               followerCombs.forEach(fc => {
                 const combined = Array.from(new Set([...bc, ...fc])).sort((a, b) => a - b);
                 if (combined.length === targetSize) {
-                  allTuoGroups.push(combined);
+                  const key = combined.join(',');
+                  if (!seenGroups.has(key)) {
+                    seenGroups.add(key);
+                    allTuoGroups.push(combined);
+                  }
                 }
               });
             });
@@ -1170,7 +1181,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
             if (allTuoGroups.length > 0) {
               const bet: CombinationWinBet = {
                 type,
-                numbers: allTuoGroups[0], // Just for compatibility, though we use tuoGroups
+                numbers: allTuoGroups[0],
                 amount: amt,
                 isTuo: true,
                 tuoBase: baseStr.trim(),
@@ -1188,29 +1199,60 @@ export const parseBetInput = (inputText: string): ParsedInput => {
         break;
       }
       case 'COMBINATION_WIN': {
-        const numsStr = groups[1] || groups[4];
-        const typeStr = (groups[2] || groups[3]);
-        const amt = chineseToNumber(groups[5]);
+        const typeStart = groups[1];
+        const numsStr = groups[2];
+        const typeEnd = groups[3];
+        const amt = chineseToNumber(groups[4]);
         
+        const typeStr = typeStart || typeEnd || '';
         const types: ('三中三' | '二中二' | '特碰')[] = [];
         if (typeStr.includes('三中三')) types.push('三中三');
         if (typeStr.includes('二中二')) types.push('二中二');
         if (typeStr.includes('特碰')) types.push('特碰');
 
-        const allNumbers = numsStr.match(/\d{1,2}/g)?.map(Number).filter(n => n >= 1 && n <= 49) || [];
+        const getTokens = (str: string): string[] => {
+          const tokens: string[] = [];
+          const matches = str.match(/\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]|\d{1,2}/g);
+          if (matches) {
+            matches.forEach(m => {
+              if (m === '家') tokens.push(...domesticZodiacs);
+              else if (m === '野') tokens.push(...wildZodiacs);
+              else tokens.push(m);
+            });
+          }
+          return tokens;
+        };
+
+        const getNumbersForToken = (t: string): number[] => {
+          if (t.endsWith('尾')) {
+            const tail = parseInt(t);
+            return numbers.filter(n => n % 10 === tail);
+          }
+          if (/\d/.test(t)) {
+            return [parseInt(t)];
+          }
+          return getNumbersForZodiac(t);
+        };
+
+        const tokens = getTokens(numsStr);
+        const allNumbers: number[] = [];
+        tokens.forEach(t => {
+          allNumbers.push(...getNumbersForToken(t));
+        });
+        const uniqueNumbers = Array.from(new Set(allNumbers)).sort((a, b) => a - b);
 
         types.forEach(type => {
-          const typeItem = createEmptyBetItem(`${numsStr}${type}${groups[5]}`);
+          const typeItem = createEmptyBetItem(`${typeStart || ''}${numsStr}${typeEnd || ''}${groups[4]}`);
           const count = type === '三中三' ? 3 : 2;
           
-          if (allNumbers.length === count) {
+          if (uniqueNumbers.length === count) {
             // Single bet
-            const bet = { type, numbers: allNumbers, amount: amt };
+            const bet = { type, numbers: uniqueNumbers, amount: amt };
             typeItem.combinationWinBets.push(bet);
             typeItem.total += amt;
             result.parsedCombinationWinBets.push(bet);
             result.items.push(typeItem);
-          } else if (allNumbers.length > count) {
+          } else if (uniqueNumbers.length > count) {
             // Multiple or Compound
             const strongSeparators = /[,，;；/]/;
             let allCombs: number[][] = [];
@@ -1218,20 +1260,24 @@ export const parseBetInput = (inputText: string): ParsedInput => {
             if (strongSeparators.test(numsStr)) {
               const segments = numsStr.split(strongSeparators).filter(Boolean);
               segments.forEach(seg => {
-                const segNums = seg.match(/\d{1,2}/g)?.map(Number).filter(n => n >= 1 && n <= 49) || [];
-                if (segNums.length >= count) {
-                  const combs = getCombinations<number>(segNums, count);
+                const segTokens = getTokens(seg);
+                const segNums: number[] = [];
+                segTokens.forEach(st => segNums.push(...getNumbersForToken(st)));
+                const uniqueSegNums = Array.from(new Set(segNums)).sort((a, b) => a - b);
+                
+                if (uniqueSegNums.length >= count) {
+                  const combs = getCombinations<number>(uniqueSegNums, count);
                   allCombs.push(...combs);
                 }
               });
               
-              // Fallback if split didn't yield any valid bets (e.g. "8, 9, 10, 11")
+              // Fallback if split didn't yield any valid bets
               if (allCombs.length === 0) {
-                allCombs = getCombinations<number>(allNumbers, count);
+                allCombs = getCombinations<number>(uniqueNumbers, count);
               }
             } else {
               // No strong separators, treat as one compound bet
-              allCombs = getCombinations<number>(allNumbers, count);
+              allCombs = getCombinations<number>(uniqueNumbers, count);
             }
 
             if (allCombs.length > 0) {
@@ -1239,7 +1285,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
                 type,
                 numbers: allCombs[0],
                 amount: amt,
-                isTuo: false, // It's a compound bet but not "tuo"
+                isTuo: false,
                 tuoCount: allCombs.length,
                 tuoGroups: allCombs
               };
