@@ -1305,8 +1305,8 @@ export default function App() {
     });
 
     function renderBetContent(text: string, context: any) {
-      // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, and "拖" keyword
-      const parts = text.split(/(特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数)/);
+      // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, "拖" keyword, and combination types
+      const parts = text.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -1316,10 +1316,16 @@ export default function App() {
       const specialTail = specialNum !== '' ? (specialNum as number) % 10 : -1;
 
       let isTeXiaoContext = false;
+      let isCombinationContext = false;
 
       return parts.map((part, partIdx) => {
         if (!part) return null;
         
+        if (['三中三二中二', '二中二三中三', '三中三', '二中二', '特碰'].includes(part)) {
+          isCombinationContext = true;
+          return <span key={partIdx} className="text-emerald-600 font-bold">{part}</span>;
+        }
+
         if (part === '特肖') {
           isTeXiaoContext = true;
           return <span key={partIdx} className="text-red-600 font-bold">{part}</span>;
@@ -1348,17 +1354,21 @@ export default function App() {
                   {isFlat && <span>平</span>}
                   {tailDigits.map((digit, dIdx) => {
                     const d = parseInt(digit);
-                    const isWinning = isFlat ? winningTails.includes(d) : d === specialTail;
+                    // For combination context or flat tail, check against all winning tails (or normal tails)
+                    // User asked for 5 tail or 9 tail in lottery numbers, so we check all winning tails if in combination context
+                    const isWinning = (isCombinationContext || isFlat) ? winningTails.includes(d) : d === specialTail;
+                    const colorClass = (isCombinationContext || isFlat) ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
+                    
                     return (
                       <span 
                         key={dIdx} 
-                        className={isWinning ? (isFlat ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded") : ""}
+                        className={isWinning ? colorClass : ""}
                       >
                         {digit}
                       </span>
                     );
                   })}
-                  <span className={(isFlat ? winningTails.some(d => tailDigits.includes(d.toString())) : tailDigits.includes(specialTail.toString())) ? (isFlat ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded") : ""}>
+                  <span className={(isCombinationContext || isFlat) ? winningTails.some(d => tailDigits.includes(d.toString())) : tailDigits.includes(specialTail.toString()) ? (isCombinationContext || isFlat ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded") : ""}>
                     尾
                   </span>
                 </span>
