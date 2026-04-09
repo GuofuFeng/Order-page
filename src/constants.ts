@@ -15,6 +15,15 @@ export const greenNumbers = [5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 4
 export const domesticZodiacs = ['牛', '马', '羊', '鸡', '狗', '猪'];
 export const wildZodiacs = ['鼠', '虎', '兔', '龙', '蛇', '猴'];
 
+export const maleZodiacs = ['鼠', '牛', '虎', '龙', '马', '猴', '狗'];
+export const femaleZodiacs = ['兔', '蛇', '羊', '鸡', '猪'];
+
+export const heavenZodiacs = ['猪', '牛', '猴', '马', '兔', '龙'];
+export const earthZodiacs = ['蛇', '羊', '鸡', '狗', '鼠', '虎'];
+
+export const luckyZodiacs = ['兔', '龙', '蛇', '马', '羊', '鸡'];
+export const unluckyZodiacs = ['鼠', '牛', '虎', '猴', '狗', '猪'];
+
 export const isSumOdd = (n: number) => {
   const tens = Math.floor(n / 10);
   const units = n % 10;
@@ -25,4 +34,19 @@ export const isSumEven = (n: number) => {
   const tens = Math.floor(n / 10);
   const units = n % 10;
   return (tens + units) % 2 === 0;
+};
+
+export const fiveElements: Record<string, number[]> = {
+  '金': [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
+  '木': [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
+  '水': [1, 14, 15, 22, 23, 30, 31, 44, 45],
+  '火': [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
+  '土': [6, 7, 20, 21, 28, 29, 36, 37]
+};
+
+export const getFiveElement = (num: number): string => {
+  for (const [element, numbers] of Object.entries(fiveElements)) {
+    if (numbers.includes(num)) return element;
+  }
+  return '';
 };

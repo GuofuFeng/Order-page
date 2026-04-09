@@ -6,9 +6,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
-import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, isSumOdd, isSumEven } from './constants';
+import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN } from './utils/betParser';
+import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData } from './types';
 
@@ -323,6 +323,11 @@ export default function App() {
   const [colorFilter, setColorFilter] = useState<'red' | 'green' | 'blue' | null>(null);
   const [sizeFilter, setSizeFilter] = useState<'big' | 'small' | null>(null);
   const [domesticWildFilter, setDomesticWildFilter] = useState<'domestic' | 'wild' | null>(null);
+  const [maleFemaleFilter, setMaleFemaleFilter] = useState<'male' | 'female' | null>(null);
+  const [heavenEarthFilter, setHeavenEarthFilter] = useState<'heaven' | 'earth' | null>(null);
+  const [luckyUnluckyFilter, setLuckyUnluckyFilter] = useState<'lucky' | 'unlucky' | null>(null);
+  const [fiveElementFilter, setFiveElementFilter] = useState<string | null>(null);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   
@@ -555,7 +560,7 @@ export default function App() {
 
   // Effect to handle simultaneous filters
   useEffect(() => {
-    if (oddEvenFilter === null && colorFilter === null && sizeFilter === null && domesticWildFilter === null && sumOddEvenFilter === null) {
+    if (oddEvenFilter === null && colorFilter === null && sizeFilter === null && domesticWildFilter === null && maleFemaleFilter === null && heavenEarthFilter === null && luckyUnluckyFilter === null && sumOddEvenFilter === null && fiveElementFilter === null) {
       // If no filters, don't clear manual selections unless they were set by filters
       // Actually, it's better to just clear if all filters are off to match user expectation of "reset"
       return;
@@ -589,14 +594,36 @@ export default function App() {
       filtered = filtered.filter(n => wildZodiacs.includes(getZodiacFromNumber(n)));
     }
 
+    if (maleFemaleFilter === 'male') {
+      filtered = filtered.filter(n => maleZodiacs.includes(getZodiacFromNumber(n)));
+    } else if (maleFemaleFilter === 'female') {
+      filtered = filtered.filter(n => femaleZodiacs.includes(getZodiacFromNumber(n)));
+    }
+
+    if (heavenEarthFilter === 'heaven') {
+      filtered = filtered.filter(n => heavenZodiacs.includes(getZodiacFromNumber(n)));
+    } else if (heavenEarthFilter === 'earth') {
+      filtered = filtered.filter(n => earthZodiacs.includes(getZodiacFromNumber(n)));
+    }
+
+    if (luckyUnluckyFilter === 'lucky') {
+      filtered = filtered.filter(n => luckyZodiacs.includes(getZodiacFromNumber(n)));
+    } else if (luckyUnluckyFilter === 'unlucky') {
+      filtered = filtered.filter(n => unluckyZodiacs.includes(getZodiacFromNumber(n)));
+    }
+
     if (sumOddEvenFilter === 'odd') {
       filtered = filtered.filter(n => isSumOdd(n));
     } else if (sumOddEvenFilter === 'even') {
       filtered = filtered.filter(n => isSumEven(n));
     }
 
+    if (fiveElementFilter) {
+      filtered = filtered.filter(n => fiveElements[fiveElementFilter].includes(n));
+    }
+
     setSelectedNumbers(new Set(filtered));
-  }, [oddEvenFilter, colorFilter, sizeFilter, domesticWildFilter, sumOddEvenFilter]);
+  }, [oddEvenFilter, colorFilter, sizeFilter, domesticWildFilter, maleFemaleFilter, heavenEarthFilter, luckyUnluckyFilter, sumOddEvenFilter, fiveElementFilter]);
 
   const toggleNumber = (num: number) => {
     const newSelected = new Set(selectedNumbers);
@@ -907,6 +934,11 @@ export default function App() {
       setOddEvenFilter(null);
       setColorFilter(null);
       setSizeFilter(null);
+      setDomesticWildFilter(null);
+      setMaleFemaleFilter(null);
+      setHeavenEarthFilter(null);
+      setLuckyUnluckyFilter(null);
+      setSumOddEvenFilter(null);
     } else {
       alert('请先选择数字、生肖或尾数并输入金额');
     }
@@ -1305,8 +1337,8 @@ export default function App() {
     });
 
     function renderBetContent(text: string, context: any) {
-      // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, "拖" keyword, and combination types
-      const parts = text.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊]|单|双|大|小|红|绿|蓝|家|野|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数)/);
+      // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, "拖" keyword, combination types, and Five Elements
+      const parts = text.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|单|双|大|小|红|绿|蓝|家|野|男|女|天|地|吉|凶|美|丑|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数|金|木|水|火|土)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -1354,21 +1386,23 @@ export default function App() {
                   {isFlat && <span>平</span>}
                   {tailDigits.map((digit, dIdx) => {
                     const d = parseInt(digit);
-                    // For combination context or flat tail, check against all winning tails (or normal tails)
-                    // User asked for 5 tail or 9 tail in lottery numbers, so we check all winning tails if in combination context
-                    const isWinning = (isCombinationContext || isFlat) ? winningTails.includes(d) : d === specialTail;
-                    const colorClass = (isCombinationContext || isFlat) ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
+                    const isSpecialWin = d === specialTail;
+                    const isNormalWin = winningTails.includes(d) && d !== specialTail;
+                    
+                    let colorClass = "";
+                    if (isSpecialWin) {
+                      colorClass = "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded";
+                    } else if (isNormalWin || (isCombinationContext || isFlat) && winningTails.includes(d)) {
+                      colorClass = "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded";
+                    }
                     
                     return (
-                      <span 
-                        key={dIdx} 
-                        className={isWinning ? colorClass : ""}
-                      >
+                      <span key={dIdx} className={colorClass}>
                         {digit}
                       </span>
                     );
                   })}
-                  <span className={(isCombinationContext || isFlat) ? winningTails.some(d => tailDigits.includes(d.toString())) : tailDigits.includes(specialTail.toString()) ? (isCombinationContext || isFlat ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded") : ""}>
+                  <span className={tailDigits.some(d => parseInt(d) === specialTail) ? "text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded" : tailDigits.some(d => winningTails.includes(parseInt(d))) ? "text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded" : ""}>
                     尾
                   </span>
                 </span>
@@ -1382,9 +1416,19 @@ export default function App() {
             } else if (!isTeXiaoContext && winningZodiacsNormal.includes(part)) {
               return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
             }
-          } else if (['单', '双', '大', '小', '红', '绿', '蓝', '家', '野', '合单', '合双', '红波', '蓝波', '绿波', '大数', '小数', '单数', '双数'].includes(part)) {
+          } else if (['单', '双', '大', '小', '红', '绿', '蓝', '家', '野', '男', '女', '天', '地', '吉', '凶', '美', '丑', '合单', '合双', '红波', '蓝波', '绿波', '大数', '小数', '单数', '双数'].includes(part)) {
             if (checkIsWinner(part, context)) {
               return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
+            }
+          } else if (['金', '木', '水', '火', '土'].includes(part)) {
+            const numbersInElement = fiveElements[part];
+            const hasSpecial = numbersInElement.includes(specialNum as number);
+            const hasNormal = numbersInElement.some(n => normalNums.includes(n));
+            
+            if (hasSpecial) {
+              return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
+            } else if (hasNormal) {
+              return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
             }
           }
         }
@@ -1688,164 +1732,298 @@ export default function App() {
                 </div>
 
                 <div className="mt-2 flex items-center justify-between gap-4 border-t border-stone-100 pt-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
-                      <button
-                        onClick={() => {
-                          setOddEvenFilter(prev => prev === 'odd' ? null : 'odd');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          oddEvenFilter === 'odd'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                      className={`w-7 h-7 flex items-center justify-center rounded-full border transition-all ${
+                        isFilterMenuOpen 
+                        ? 'bg-stone-800 border-stone-800 text-white shadow-md' 
+                        : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
+                      }`}
+                      title={isFilterMenuOpen ? "收起筛选" : "展开筛选"}
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="14" height="14" 
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                        className={`transition-transform duration-200 ${isFilterMenuOpen ? 'rotate-45' : ''}`}
                       >
-                        单
-                      </button>
-                      <button
-                        onClick={() => {
-                          setOddEvenFilter(prev => prev === 'even' ? null : 'even');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          oddEvenFilter === 'even'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
-                      >
-                        双
-                      </button>
-                    </div>
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </button>
 
-                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
-                      <button
-                        onClick={() => {
-                          setSizeFilter(prev => prev === 'small' ? null : 'small');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          sizeFilter === 'small'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
+                    {isFilterMenuOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-2 flex-wrap"
                       >
-                        小
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSizeFilter(prev => prev === 'big' ? null : 'big');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          sizeFilter === 'big'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
-                      >
-                        大
-                      </button>
-                    </div>
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setOddEvenFilter(prev => prev === 'odd' ? null : 'odd');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              oddEvenFilter === 'odd'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            单
+                          </button>
+                          <button
+                            onClick={() => {
+                              setOddEvenFilter(prev => prev === 'even' ? null : 'even');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              oddEvenFilter === 'even'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            双
+                          </button>
+                        </div>
 
-                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
-                      <button
-                        onClick={() => {
-                          setColorFilter(prev => prev === 'red' ? null : 'red');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          colorFilter === 'red'
-                          ? 'bg-red-500 text-white shadow-md'
-                          : 'text-red-400 hover:text-red-600'
-                        }`}
-                      >
-                        红
-                      </button>
-                      <button
-                        onClick={() => {
-                          setColorFilter(prev => prev === 'green' ? null : 'green');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          colorFilter === 'green'
-                          ? 'bg-emerald-500 text-white shadow-md'
-                          : 'text-emerald-400 hover:text-emerald-600'
-                        }`}
-                      >
-                        绿
-                      </button>
-                      <button
-                        onClick={() => {
-                          setColorFilter(prev => prev === 'blue' ? null : 'blue');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          colorFilter === 'blue'
-                          ? 'bg-blue-500 text-white shadow-md'
-                          : 'text-blue-400 hover:text-blue-600'
-                        }`}
-                      >
-                        蓝
-                      </button>
-                    </div>
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setSizeFilter(prev => prev === 'small' ? null : 'small');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              sizeFilter === 'small'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            小
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSizeFilter(prev => prev === 'big' ? null : 'big');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              sizeFilter === 'big'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            大
+                          </button>
+                        </div>
 
-                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
-                      <button
-                        onClick={() => {
-                          setDomesticWildFilter(prev => prev === 'domestic' ? null : 'domestic');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          domesticWildFilter === 'domestic'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
-                      >
-                        家
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDomesticWildFilter(prev => prev === 'wild' ? null : 'wild');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          domesticWildFilter === 'wild'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
-                      >
-                        野
-                      </button>
-                    </div>
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setColorFilter(prev => prev === 'red' ? null : 'red');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              colorFilter === 'red'
+                              ? 'bg-red-500 text-white shadow-md'
+                              : 'text-red-400 hover:text-red-600'
+                            }`}
+                          >
+                            红
+                          </button>
+                          <button
+                            onClick={() => {
+                              setColorFilter(prev => prev === 'green' ? null : 'green');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              colorFilter === 'green'
+                              ? 'bg-emerald-500 text-white shadow-md'
+                              : 'text-emerald-400 hover:text-emerald-600'
+                            }`}
+                          >
+                            绿
+                          </button>
+                          <button
+                            onClick={() => {
+                              setColorFilter(prev => prev === 'blue' ? null : 'blue');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              colorFilter === 'blue'
+                              ? 'bg-blue-500 text-white shadow-md'
+                              : 'text-blue-400 hover:text-blue-600'
+                            }`}
+                          >
+                            蓝
+                          </button>
+                        </div>
 
-                    <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
-                      <button
-                        onClick={() => {
-                          setSumOddEvenFilter(prev => prev === 'odd' ? null : 'odd');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          sumOddEvenFilter === 'odd'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
-                      >
-                        合单
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSumOddEvenFilter(prev => prev === 'even' ? null : 'even');
-                          amountInputRef.current?.focus();
-                        }}
-                        className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
-                          sumOddEvenFilter === 'even'
-                          ? 'bg-stone-800 text-white shadow-md'
-                          : 'text-stone-400 hover:text-stone-600'
-                        }`}
-                      >
-                        合双
-                      </button>
-                    </div>
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setDomesticWildFilter(prev => prev === 'domestic' ? null : 'domestic');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              domesticWildFilter === 'domestic'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            家
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDomesticWildFilter(prev => prev === 'wild' ? null : 'wild');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              domesticWildFilter === 'wild'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            野
+                          </button>
+                        </div>
+
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setMaleFemaleFilter(prev => prev === 'male' ? null : 'male');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              maleFemaleFilter === 'male'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            男
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMaleFemaleFilter(prev => prev === 'female' ? null : 'female');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              maleFemaleFilter === 'female'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            女
+                          </button>
+                        </div>
+
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setHeavenEarthFilter(prev => prev === 'heaven' ? null : 'heaven');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              heavenEarthFilter === 'heaven'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            天
+                          </button>
+                          <button
+                            onClick={() => {
+                              setHeavenEarthFilter(prev => prev === 'earth' ? null : 'earth');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              heavenEarthFilter === 'earth'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            地
+                          </button>
+                        </div>
+
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setLuckyUnluckyFilter(prev => prev === 'lucky' ? null : 'lucky');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              luckyUnluckyFilter === 'lucky'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            吉
+                          </button>
+                          <button
+                            onClick={() => {
+                              setLuckyUnluckyFilter(prev => prev === 'unlucky' ? null : 'unlucky');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              luckyUnluckyFilter === 'unlucky'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            凶
+                          </button>
+                        </div>
+
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          <button
+                            onClick={() => {
+                              setSumOddEvenFilter(prev => prev === 'odd' ? null : 'odd');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              sumOddEvenFilter === 'odd'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            合单
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSumOddEvenFilter(prev => prev === 'even' ? null : 'even');
+                              amountInputRef.current?.focus();
+                            }}
+                            className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
+                              sumOddEvenFilter === 'even'
+                              ? 'bg-stone-800 text-white shadow-md'
+                              : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                          >
+                            合双
+                          </button>
+                        </div>
+
+                        <div className="flex bg-stone-100 p-0.5 rounded-full border border-stone-200 shadow-inner">
+                          {Object.keys(fiveElements).map(element => (
+                            <button
+                              key={element}
+                              onClick={() => {
+                                setFiveElementFilter(prev => prev === element ? null : element);
+                                amountInputRef.current?.focus();
+                              }}
+                              className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all ${
+                                fiveElementFilter === element
+                                ? 'bg-stone-800 text-white shadow-md'
+                                : 'text-stone-400 hover:text-stone-600'
+                              }`}
+                            >
+                              {element}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
                     
                     <button
                       onClick={() => {
@@ -1854,7 +2032,11 @@ export default function App() {
                         setColorFilter(null);
                         setSizeFilter(null);
                         setDomesticWildFilter(null);
+                        setMaleFemaleFilter(null);
+                        setHeavenEarthFilter(null);
+                        setLuckyUnluckyFilter(null);
                         setSumOddEvenFilter(null);
+                        setFiveElementFilter(null);
                       }}
                       className="px-2 py-1.5 text-[9px] font-bold text-red-500 hover:bg-red-50 rounded-full transition-colors flex items-center gap-1 border border-transparent hover:border-red-100"
                     >

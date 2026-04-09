@@ -1,4 +1,4 @@
-import { zodiacs, redNumbers, blueNumbers, greenNumbers } from '../constants';
+import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements } from '../constants';
 import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 
 export const getZodiacFromNumber = (num: number | '') => {
@@ -50,6 +50,23 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   if (part === '红' || part === '红波') return redNumbers.includes(specialNum);
   if (part === '蓝' || part === '蓝波') return blueNumbers.includes(specialNum);
   if (part === '绿' || part === '绿波') return greenNumbers.includes(specialNum);
+
+  // Check for Zodiac Groups (Special Number only)
+  const specialZodiac = getZodiacFromNumber(specialNum);
+  if (part === '家') return domesticZodiacs.includes(specialZodiac);
+  if (part === '野') return wildZodiacs.includes(specialZodiac);
+  if (part === '男') return maleZodiacs.includes(specialZodiac);
+  if (part === '女') return femaleZodiacs.includes(specialZodiac);
+  if (part === '天') return heavenZodiacs.includes(specialZodiac);
+  if (part === '地') return earthZodiacs.includes(specialZodiac);
+  if (part === '吉' || part === '美') return luckyZodiacs.includes(specialZodiac);
+  if (part === '凶' || part === '丑') return unluckyZodiacs.includes(specialZodiac);
+
+  // Check for Five Elements
+  if (['金', '木', '水', '火', '土'].includes(part)) {
+    const nums = fiveElements[part] || [];
+    return nums.includes(specialNum);
+  }
 
   // Check for Head (头) - Special Number only
   const headMatch = part.match(/([0-4])头/);
