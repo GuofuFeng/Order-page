@@ -1204,6 +1204,30 @@ export default function App() {
 
     // Add summary
     const totalSum = betsToExport.reduce((sum, order) => sum + order.total, 0);
+    const totalWinSum = betsToExport.reduce((sum, order) => {
+      const orderWin = (order.items || []).reduce((itemSum, item) => {
+        const win = calculateWinAmount(
+          item.numberDeltas, 
+          item.flatNumberDeltas || {}, 
+          item.zodiacDeltas, 
+          item.teXiaoDeltas || {}, 
+          item.tailDeltas, 
+          item.multiZodiacDeltas, 
+          item.sixZodiacDeltas, 
+          item.fiveZodiacDeltas, 
+          item.fourZodiacDeltas, 
+          item.multiTailDeltas, 
+          item.notInDeltas, 
+          item.combinationWinDeltas || [], 
+          item.specialAttributeDeltas || {}, 
+          drawNumbers[item.lotteryType], 
+          item.lotteryType
+        );
+        return itemSum + (win || 0);
+      }, 0);
+      return sum + orderWin;
+    }, 0);
+
     worksheet.addRow([]);
     worksheet.addRow([]);
     worksheet.addRow(['总下注', '', '', totalSum]);
@@ -1211,6 +1235,13 @@ export default function App() {
     if (summaryRow) {
       summaryRow.getCell(1).font = { bold: true };
       summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF1C1917' } };
+    }
+
+    worksheet.addRow(['总中奖', '', '', totalWinSum]);
+    const winSummaryRow = worksheet.lastRow;
+    if (winSummaryRow) {
+      winSummaryRow.getCell(1).font = { bold: true };
+      winSummaryRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } };
     }
 
     // Generate and download
