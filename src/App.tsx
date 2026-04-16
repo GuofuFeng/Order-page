@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
 import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS } from './utils/betParser';
-import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails } from './utils/winningCalculator';
+import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails, getWinningBreakdown } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData } from './types';
 
 // Helper to get Beijing Date String (YYYY-MM-DD) with 04:00 AM cutoff
@@ -1204,8 +1204,37 @@ export default function App() {
 
     // Add summary
     const totalSum = betsToExport.reduce((sum, order) => sum + order.total, 0);
+    const breakdownAggregation: Record<string, { amount: number; multiplier: number; win: number }> = {};
+    
     const totalWinSum = betsToExport.reduce((sum, order) => {
       const orderWin = (order.items || []).reduce((itemSum, item) => {
+        const breakdown = getWinningBreakdown(
+          item.numberDeltas, 
+          item.flatNumberDeltas || {}, 
+          item.zodiacDeltas, 
+          item.teXiaoDeltas || {}, 
+          item.tailDeltas, 
+          item.multiZodiacDeltas, 
+          item.sixZodiacDeltas, 
+          item.fiveZodiacDeltas, 
+          item.fourZodiacDeltas, 
+          item.multiTailDeltas, 
+          item.notInDeltas, 
+          item.combinationWinDeltas || [], 
+          item.specialAttributeDeltas || {}, 
+          drawNumbers[item.lotteryType], 
+          item.lotteryType
+        );
+
+        breakdown.forEach(b => {
+          const key = `${b.type}_${b.multiplier}`;
+          if (!breakdownAggregation[key]) {
+            breakdownAggregation[key] = { amount: 0, multiplier: b.multiplier, win: 0 };
+          }
+          breakdownAggregation[key].amount += b.amount;
+          breakdownAggregation[key].win += b.win;
+        });
+
         const win = calculateWinAmount(
           item.numberDeltas, 
           item.flatNumberDeltas || {}, 
@@ -1228,14 +1257,29 @@ export default function App() {
       return sum + orderWin;
     }, 0);
 
+    const breakdownLines = Object.entries(breakdownAggregation).map(([key, data]) => {
+      const type = key.split('_')[0];
+      return `${type} ${data.amount}*${data.multiplier}=${data.win}`;
+    });
+
     worksheet.addRow([]);
     worksheet.addRow([]);
-    worksheet.addRow(['总下注', '', '', totalSum]);
+    worksheet.addRow(['总下注', '', '', totalSum, '当日中奖分析:']);
     const summaryRow = worksheet.lastRow;
     if (summaryRow) {
       summaryRow.getCell(1).font = { bold: true };
       summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF1C1917' } };
+      summaryRow.getCell(5).font = { bold: true };
     }
+
+    // Add winning breakdowns starting from the total summary row, in the 5th column
+    breakdownLines.forEach((line, idx) => {
+      const row = idx === 0 ? summaryRow : worksheet.addRow(['', '', '', '', '']);
+      if (row) {
+        row.getCell(5).value = idx === 0 ? `当日中奖分析: ${line}` : line;
+        row.getCell(5).font = { color: { argb: 'FFFF0000' } };
+      }
+    });
 
     worksheet.addRow(['总中奖', '', '', totalWinSum]);
     const winSummaryRow = worksheet.lastRow;
