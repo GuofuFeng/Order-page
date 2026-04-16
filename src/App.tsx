@@ -1264,22 +1264,12 @@ export default function App() {
 
     worksheet.addRow([]);
     worksheet.addRow([]);
-    worksheet.addRow(['总下注', '', '', totalSum, '当日中奖分析:']);
+    worksheet.addRow(['总下注', '', '', totalSum]);
     const summaryRow = worksheet.lastRow;
     if (summaryRow) {
       summaryRow.getCell(1).font = { bold: true };
       summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF1C1917' } };
-      summaryRow.getCell(5).font = { bold: true };
     }
-
-    // Add winning breakdowns starting from the total summary row, in the 5th column
-    breakdownLines.forEach((line, idx) => {
-      const row = idx === 0 ? summaryRow : worksheet.addRow(['', '', '', '', '']);
-      if (row) {
-        row.getCell(5).value = idx === 0 ? `当日中奖分析: ${line}` : line;
-        row.getCell(5).font = { color: { argb: 'FFFF0000' } };
-      }
-    });
 
     worksheet.addRow(['总中奖', '', '', totalWinSum]);
     const winSummaryRow = worksheet.lastRow;
@@ -1287,6 +1277,23 @@ export default function App() {
       winSummaryRow.getCell(1).font = { bold: true };
       winSummaryRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } };
     }
+
+    // Add winning breakdowns in the 5th column, starting from summaryRow
+    breakdownLines.forEach((line, idx) => {
+      let targetRow: any;
+      if (idx === 0) {
+        targetRow = summaryRow;
+      } else if (idx === 1) {
+        targetRow = winSummaryRow;
+      } else {
+        targetRow = worksheet.addRow(['', '', '', '', '']);
+      }
+      
+      if (targetRow) {
+        targetRow.getCell(5).value = line;
+        targetRow.getCell(5).font = { color: { argb: 'FFFF0000' } };
+      }
+    });
 
     // Generate and download
     const buffer = await workbook.xlsx.writeBuffer();
