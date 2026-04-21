@@ -1,4 +1,4 @@
-export type LotteryType = '新澳' | '老澳' | '香港' | 'cc' | '老cc';
+export type LotteryType = '新澳' | '老澳' | '香港' | '新cc' | '老cc';
 
 export interface MultiZodiacBet {
   zodiacs: string[];
@@ -63,6 +63,11 @@ export interface ConfirmedBet {
   lotteryType: string;
   items: BetOrder[];
   basketId: string;
+}
+
+export interface BatchImportEntry {
+  id: string;
+  content: string;
 }
 
 export interface AppState {

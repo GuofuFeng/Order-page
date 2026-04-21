@@ -6,11 +6,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
 import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails, getWinningBreakdown } from './utils/winningCalculator';
-import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData } from './types';
+import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData, BatchImportEntry } from './types';
 
 // Helper to get Beijing Date String (YYYY-MM-DD) with 04:00 AM cutoff
 const getBeijingDateString = (timestamp: number) => {
@@ -212,7 +213,7 @@ const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete,
       </div>
       
       {isExpanded && (
-        <div className="ml-2 pl-2 border-l-2 border-stone-100 flex flex-col gap-1 max-h-40 overflow-y-auto scrollbar-hide">
+        <div className="ml-2 pl-2 border-l-2 border-stone-100 flex flex-col gap-1 max-h-none overflow-visible">
           {combinationItems.map((sub: any, idx) => (
             <div key={idx} className="text-[9px] text-stone-500 font-mono py-0.5 border-b border-stone-50 last:border-0">
               { 'numbers' in sub ? (
@@ -228,8 +229,314 @@ const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete,
   );
 };
 
+const BatchBetItemPreview: React.FC<{ 
+  item: any; 
+  renderBetText: (text: string, lType: string) => React.ReactNode; 
+  lotteryType: string;
+}> = ({ item, renderBetText, lotteryType }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const complexBets = [
+    ...(item.multiZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
+    ...(item.combinationWinBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
+    ...(item.sixZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
+    ...(item.fiveZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
+    ...(item.fourZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
+  ];
+
+  const hasComplex = complexBets.length > 0;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-100 shadow-sm transition-transform hover:scale-[1.01]">
+        {hasComplex && (
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="12" height="12" 
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+              className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+        )}
+        <div className="text-[14px] font-mono font-bold leading-relaxed whitespace-pre">
+          {renderBetText(item.text, item.lotteryType || lotteryType)}
+        </div>
+        <div className="w-px h-3 bg-stone-200"></div>
+        <span className="text-[14px] font-black text-emerald-600">¥{item.total}</span>
+      </div>
+
+      {isExpanded && hasComplex && (
+        <div className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-stone-100 shadow-inner ml-4">
+          {complexBets.map((bet: any, bIdx: number) => (
+            <div key={bIdx} className="flex flex-col gap-1 border-b border-stone-50 last:border-0 pb-1.5 mb-1.5 last:pb-0 last:mb-0">
+              <div className="flex justify-between items-center text-[11px] font-black text-stone-400 italic">
+                <span>组合详情 (#{bIdx + 1})</span>
+                <span className="text-emerald-500">共 {bet.tuoCount} 组</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {bet.tuoGroups.map((group: any, gIdx: number) => (
+                  <div key={gIdx} className="px-2 py-0.5 bg-stone-50 rounded text-[10px] font-bold text-stone-600 border border-stone-100">
+                    {Array.isArray(group) ? group.join(', ') : group}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface BatchImportRowProps {
+  row: BatchImportEntry;
+  idx: number;
+  onUpdate: (content: string) => void;
+  onInsert: () => void;
+  onDelete: () => void;
+  renderHighlight: (text: string, valid: any[], invalid: any[]) => React.ReactNode;
+  renderBetText: (text: string, lType: string) => React.ReactNode;
+  defaultLottery: string;
+  drawNumbers: Record<string, (number | '')[]>;
+}
+
+const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onInsert, onDelete, renderHighlight, renderBetText, defaultLottery, drawNumbers }) => {
+  const result = useMemo(() => parseMultiLotteryInput(row.content), [row.content]);
+  const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
+  const hasBets = result.segments.some(s => s.parsed.items.length > 0);
+  const hasLottery = result.segments.some(s => !!s.lotteryType);
+  
+  let signalColor = "bg-stone-200";
+  if (hasErrors || (!hasBets && row.content.trim().length > 0)) {
+    signalColor = "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]";
+  } else if (!hasLottery && hasBets) {
+    signalColor = "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]";
+  } else if (hasBets) {
+    signalColor = "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]";
+  }
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '0px';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = Math.max(50, scrollHeight) + 'px';
+    }
+  }, [row.content]);
+
+  // Logic for totals and winning status
+  const totalBetAmount = useMemo(() => {
+    return result.segments.reduce((acc, seg) => 
+      acc + seg.parsed.items.reduce((ia, item) => ia + item.total, 0)
+    , 0);
+  }, [result]);
+
+  const winningBreakdowns = useMemo(() => {
+    const breakdowns: { lType: string; items: { type: string; amount: number; multiplier: number; win: number }[] }[] = [];
+    result.segments.forEach(seg => {
+      const lType = seg.lotteryType || defaultLottery;
+      const draws = drawNumbers[lType];
+      if (draws && draws.length === 7 && draws.every(n => n !== '')) {
+        const segBreakdown: { type: string; amount: number; multiplier: number; win: number }[] = [];
+        seg.parsed.items.forEach(item => {
+          const itemBreakdown = getWinningBreakdown(
+            item.numberDeltas,
+            item.flatNumberDeltas || {},
+            item.zodiacDeltas,
+            item.teXiaoDeltas || {},
+            item.tailDeltas,
+            item.multiZodiacBets,
+            item.sixZodiacBets,
+            item.fiveZodiacBets,
+            item.fourZodiacBets,
+            item.multiTailBets,
+            item.notInBets,
+            item.combinationWinBets || [],
+            item.specialAttributeDeltas || {},
+            draws,
+            lType
+          );
+          segBreakdown.push(...itemBreakdown);
+        });
+        if (segBreakdown.length > 0) {
+           breakdowns.push({ lType, items: segBreakdown });
+        }
+      }
+    });
+    return breakdowns;
+  }, [result, drawNumbers, defaultLottery]);
+
+  const totalWinAmount = useMemo(() => {
+    return winningBreakdowns.reduce((acc, br) => 
+      acc + br.items.reduce((ia, item) => ia + item.win, 0)
+    , 0);
+  }, [winningBreakdowns]);
+
+  const winningBadges = useMemo(() => {
+    const badges: { type: string; win: number; amount: number }[] = [];
+    winningBreakdowns.forEach(br => {
+      br.items.forEach(i => {
+        badges.push({ type: i.type, win: i.win, amount: i.amount });
+      });
+    });
+    return badges;
+  }, [winningBreakdowns]);
+
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-start gap-4 p-4 bg-white rounded-2xl border border-stone-200 hover:border-stone-400 transition-all group"
+    >
+      {/* 1. Status Light & Serial Number */}
+      <div className="flex flex-col items-center gap-3 shrink-0 pt-3">
+        <div className={`w-3 h-3 rounded-full transition-all duration-300 ${signalColor}`}></div>
+        <div className="w-8 text-[12px] font-black text-stone-300 text-center">{idx + 1}</div>
+      </div>
+      
+      {/* 2. Enhanced Input (Fixed Width & Perfect Caret Sync) */}
+      <div className="w-[450px] shrink-0">
+        <div className="relative bg-stone-50 rounded-xl border border-stone-100 focus-within:border-stone-300 focus-within:bg-white transition-all overflow-hidden">
+          {/* Highlight layer - PERFECT SYNC */}
+          <div 
+            className="absolute inset-0 pointer-events-none p-3 whitespace-pre-wrap break-words text-[14px] font-mono font-bold leading-[1.6] opacity-100 z-0 select-none overflow-hidden"
+            style={{ 
+              boxSizing: 'border-box', 
+              border: '1px solid transparent',
+              fontFamily: 'font-mono'
+            }}
+          >
+            {renderHighlight(row.content, result.validMatches, result.invalidMatches)}
+          </div>
+          {/* Real input */}
+          <textarea
+            ref={textareaRef}
+            value={row.content}
+            onChange={(e) => onUpdate(e.target.value)}
+            className="w-full p-3 bg-transparent border-none outline-none relative z-10 text-[14px] font-mono font-bold leading-[1.6] resize-none block overflow-hidden caret-stone-800"
+            style={{ 
+              boxSizing: 'border-box',
+              border: '1px solid transparent',
+              fontFamily: 'font-mono',
+              color: 'transparent',
+              WebkitTextFillColor: 'transparent'
+            }}
+            placeholder="请输入注单内容..."
+          />
+        </div>
+      </div>
+
+      {/* 3. Parsing Results Grouped by Lottery Type */}
+      <div className="flex-grow flex flex-col gap-3 min-w-[300px]">
+        {result.segments.length > 0 ? (
+          result.segments.map((seg, sIdx) => (
+            <div key={sIdx} className="flex gap-4 items-start pb-2 border-b border-stone-50 last:border-0 last:pb-0">
+              {/* Lottery Badge Linked To These Bets */}
+              <div className="shrink-0 pt-1">
+                {seg.lotteryType ? (
+                  <div className="px-2.5 py-1 bg-emerald-500 text-white rounded-lg shadow-sm flex items-center justify-center min-w-[55px]">
+                    <span className="text-[11px] font-black">{seg.lotteryType}</span>
+                  </div>
+                ) : (
+                  <div className="px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg border border-rose-100 items-center justify-center min-w-[55px]">
+                    <span className="text-[11px] font-black italic">未识别</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Bets for this segment */}
+              <div className="flex-grow flex flex-wrap gap-2">
+                {seg.parsed.items.length > 0 ? (
+                  seg.parsed.items.map((item, iIdx) => (
+                    <BatchBetItemPreview 
+                      key={iIdx} 
+                      item={item} 
+                      renderBetText={renderBetText} 
+                      lotteryType={seg.lotteryType || defaultLottery} 
+                    />
+                  ))
+                ) : (
+                   <span className="text-[12px] text-stone-300 italic pt-2">无识别项</span>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          row.content.trim().length > 0 ? (
+            <div className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-[12px] font-bold text-rose-500 italic flex items-center gap-2">
+               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+               未识别到彩种或有效的下注内容
+            </div>
+          ) : (
+            <span className="text-[12px] text-stone-300 italic pt-2">待输入...</span>
+          )
+        )}
+      </div>
+
+      {/* 4. Winning Stats (New) */}
+      <div className="flex flex-col gap-2 shrink-0 min-w-[160px] bg-stone-50/50 p-3 rounded-2xl border border-stone-100/50 self-stretch justify-center">
+        <div className="flex justify-between items-center text-[12px]">
+          <span className="text-stone-400 font-bold uppercase tracking-tighter">总注额</span>
+          <span className="text-stone-700 font-extrabold font-mono">¥{totalBetAmount}</span>
+        </div>
+        
+        {totalWinAmount > 0 ? (
+          <>
+            <div className="w-full h-px bg-stone-200/50"></div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">中奖类型</span>
+              <div className="flex flex-wrap gap-1">
+                {winningBadges.map((badge, bIdx) => (
+                  <span key={bIdx} className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-md">
+                    {badge.type} {badge.amount}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-[12px]">
+              <span className="text-emerald-500 font-bold uppercase tracking-tighter">中奖总计</span>
+              <span className="text-emerald-600 font-extrabold font-mono text-sm">¥{totalWinAmount.toFixed(1)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-full h-px bg-stone-200/50"></div>
+            <span className="text-[10px] font-black text-stone-300 uppercase italic text-center">暂未中奖</span>
+          </>
+        )}
+      </div>
+
+      {/* 5. Row Actions */}
+      <div className="flex flex-col gap-1 shrink-0 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onInsert}
+          className="p-2.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+          title="在下方插入一行"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-2.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+          title="删除此行"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('order');
+  const [currentPage, setCurrentPage] = useState<'order' | 'draw' | 'batch' | 'confirm'>('order');
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
   const [inputText, setInputText] = useState('');
   const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
@@ -340,6 +647,10 @@ export default function App() {
   // Final confirmed bets for the table
   const [confirmedBets, setConfirmedBets] = useState<ConfirmedBet[]>(() => loadFromStorage(STORAGE_KEYS.CONFIRMED_BETS, []));
 
+  // Batch Import state
+  const [batchRows, setBatchRows] = useState<BatchImportEntry[]>([]);
+  const [batchDefaultLotteryType, setBatchDefaultLotteryType] = useState<string>('');
+
   // Filter confirmed bets by selected basket
   const filteredConfirmedBets = useMemo(() => {
     return confirmedBets.filter(bet => bet.basketId === selectedBasketId);
@@ -361,10 +672,23 @@ export default function App() {
   const todayBets = useMemo(() => {
     return filteredConfirmedBets
       .filter(o => getBeijingDateString(o.timestamp) === todayBeijing)
-      .sort((a, b) => b.timestamp - a.timestamp); // Reverse chronological (newest first)
+      .sort((a, b) => a.timestamp - b.timestamp); // Chronological (oldest first)
   }, [filteredConfirmedBets, todayBeijing]);
 
   const pastBets = useMemo(() => filteredConfirmedBets.filter(o => getBeijingDateString(o.timestamp) !== todayBeijing), [filteredConfirmedBets, todayBeijing]);
+
+  const confirmScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (currentPage === 'confirm' && confirmScrollRef.current) {
+      // Small timeout to ensure DOM is updated
+      setTimeout(() => {
+        if (confirmScrollRef.current) {
+          confirmScrollRef.current.scrollTop = confirmScrollRef.current.scrollHeight;
+        }
+      }, 50);
+    }
+  }, [currentPage]);
 
   // Group past bets by date
   const groupedPastBets = useMemo(() => {
@@ -374,9 +698,9 @@ export default function App() {
       if (!groups[date]) groups[date] = [];
       groups[date].push(bet);
     });
-    // Sort items within each date by reverse chronological
+    // Sort items within each date by chronological
     Object.keys(groups).forEach(date => {
-      groups[date].sort((a, b) => b.timestamp - a.timestamp);
+      groups[date].sort((a, b) => a.timestamp - b.timestamp);
     });
     return groups;
   }, [pastBets]);
@@ -474,6 +798,26 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingTotal, setEditingTotal] = useState<number | ''>('');
+  const scrollPositions = useRef<Record<string, number>>({});
+  const handleScrollSave = (id: string) => (e: React.UIEvent<HTMLDivElement>) => {
+    scrollPositions.current[`${currentPage}-${id}`] = e.currentTarget.scrollTop;
+  };
+
+  useEffect(() => {
+    // Small delay to ensure DOM is rendered before restoring scroll
+    const timer = setTimeout(() => {
+      const savedKeys = Object.keys(scrollPositions.current).filter(k => k.startsWith(`${currentPage}-`));
+      savedKeys.forEach(key => {
+        const id = key.replace(`${currentPage}-`, '');
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollTop = scrollPositions.current[key];
+        }
+      });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [currentPage]);
+
   const [editingLotteryType, setEditingLotteryType] = useState('');
 
   const [drawNumbers, setDrawNumbers] = useState<Record<string, (number | '')[]>>(() => {
@@ -1206,7 +1550,10 @@ export default function App() {
     const totalSum = betsToExport.reduce((sum, order) => sum + order.total, 0);
     const breakdownAggregation: Record<string, { amount: number; multiplier: number; win: number }> = {};
     
-    const totalWinSum = betsToExport.reduce((sum, order) => {
+    // Sort chronological for Excel
+    const chronologicalBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
+    
+    const totalWinSum = chronologicalBets.reduce((sum, order) => {
       const orderWin = (order.items || []).reduce((itemSum, item) => {
         const breakdown = getWinningBreakdown(
           item.numberDeltas, 
@@ -1565,7 +1912,7 @@ export default function App() {
       if (p.pos > currentPos) {
         const slice = text.substring(currentPos, p.pos);
         if (currentInvalidId !== null) {
-          result.push(<span key={`inv-${currentPos}`} className="bg-red-400/20 border-b-2 border-red-400/30">{slice}</span>);
+          result.push(<span key={`inv-${currentPos}`} className="bg-amber-400/30 border-b-2 border-amber-500/50">{slice}</span>);
         } else if (currentValidId !== null) {
           result.push(<span key={`val-${currentPos}`} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">{slice}</span>);
         } else {
@@ -1628,6 +1975,13 @@ export default function App() {
                 开奖页
               </button>
               <button 
+                onClick={() => setCurrentPage('batch')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentPage === 'batch' ? 'bg-stone-800 text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                批量导入
+              </button>
+              <button 
                 onClick={() => setCurrentPage('confirm')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentPage === 'confirm' ? 'bg-stone-800 text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}
               >
@@ -1688,7 +2042,7 @@ export default function App() {
                   <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest whitespace-nowrap">平肖下单区</h2>
                   <div className="h-px bg-stone-100 flex-grow"></div>
                 </div>
-                <div className="grid grid-cols-1 gap-y-2 overflow-y-auto pr-1 flex-grow">
+                <div id="zodiac-list" onScroll={handleScrollSave('zodiac-list')} className="grid grid-cols-1 gap-y-2 overflow-y-auto pr-1 flex-grow">
                   {zodiacs.map(z => (
                     <div key={z} className="group flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
@@ -1769,7 +2123,7 @@ export default function App() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-12 gap-1 overflow-y-auto pr-1">
+                <div id="number-grid" onScroll={handleScrollSave('number-grid')} className="grid grid-cols-12 gap-1 overflow-y-auto pr-1">
                   {numbers.map((num) => {
                     const pendingAmt = mergedParsedData.bets[num] || (selectedNumbers.has(num) ? amount : null);
                     const colorClasses = getNumberColor(num);
@@ -2271,7 +2625,8 @@ export default function App() {
                     </div>
                     
                     <div 
-                      id="output-container"
+                      id="order-output-container"
+                      onScroll={handleScrollSave('order-output-container')}
                       className="flex-grow bg-stone-50 border border-stone-100 rounded-xl p-2 overflow-y-auto flex flex-col gap-1 mb-3"
                     >
                           {pendingBets.length === 0 ? (
@@ -2636,7 +2991,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex-grow overflow-y-auto pr-2">
+            <div id="draw-scroller" onScroll={handleScrollSave('draw-scroller')} className="flex-grow overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-4">
                 {lotteryTypes.map(type => (
                   <div key={type} className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 flex flex-col gap-4 relative overflow-hidden">
@@ -2780,12 +3135,221 @@ export default function App() {
               </div>
             </div>
           </div>
+        ) : currentPage === 'batch' ? (
+          /* Batch Import Page */
+          <div className="flex-grow flex flex-col gap-6 overflow-hidden p-6 max-w-[1400px] mx-auto w-full">
+            <header className="flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-6">
+                <h1 className="text-2xl font-black text-stone-950 tracking-tighter uppercase">批量导入中心</h1>
+                <div className="h-8 w-px bg-stone-200"></div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200">
+                    自动彩种识别已启用
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  id="excel-upload"
+                  className="hidden"
+                  accept=".xlsx, .xls"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                      const bstr = evt.target?.result;
+                      const wb = XLSX.read(bstr, { type: 'binary' });
+                      const wsname = wb.SheetNames[0];
+                      const ws = wb.Sheets[wsname];
+                      const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+                      
+                      const newRows: BatchImportEntry[] = data
+                        .filter(row => row[0]) // Only rows with content in first column
+                        .map(row => ({
+                          id: Math.random().toString(36).substr(2, 9),
+                          content: String(row[0])
+                        }));
+                      
+                      setBatchRows(newRows);
+                    };
+                    reader.readAsBinaryString(file);
+                    // Reset input
+                    e.target.value = '';
+                  }}
+                />
+                <label 
+                  htmlFor="excel-upload"
+                  className="px-6 py-2.5 bg-stone-800 text-white rounded-xl shadow-lg hover:bg-stone-950 hover:-translate-y-0.5 active:translate-y-0 transition-all font-black text-xs cursor-pointer flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  上传 EXCEL
+                </label>
+
+                <button
+                  disabled={batchRows.length === 0}
+                  onClick={() => {
+                    if (window.confirm('确定要清空当前所有待导入行吗？')) {
+                      setBatchRows([]);
+                    }
+                  }}
+                  className={`px-4 py-2.5 rounded-xl transition-all font-black text-xs border-2 ${batchRows.length === 0 ? 'border-stone-100 text-stone-300 cursor-not-allowed' : 'border-stone-200 text-stone-400 hover:border-red-200 hover:text-red-500 active:scale-95'}`}
+                >
+                  清空列表
+                </button>
+
+                <div className="h-8 w-px bg-stone-200 mx-2"></div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] text-stone-400 uppercase tracking-widest">目标篮子</span>
+                    <select 
+                      value={selectedBasketId} 
+                      onChange={(e) => setSelectedBasketId(e.target.value)}
+                      className="bg-stone-100 border-none text-xs font-black p-1 rounded rounded-lg focus:ring-0 cursor-pointer"
+                    >
+                      {baskets.map(b => <option key={b} value={b}>篮子 {b}</option>)}
+                    </select>
+                  </div>
+                  <button
+                    disabled={batchRows.length === 0}
+                    onClick={() => {
+                      const validRows: { row: BatchImportEntry; result: any }[] = [];
+                      const invalidIndices: number[] = [];
+
+                      batchRows.forEach((row, idx) => {
+                        const result = parseMultiLotteryInput(row.content);
+                        const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
+                        const hasBets = result.segments.some(s => s.parsed.items.length > 0);
+                        const hasLottery = result.segments.some(s => !!s.lotteryType);
+                        
+                        if (hasBets && !hasErrors && hasLottery) {
+                          validRows.push({ row, result });
+                        } else {
+                          invalidIndices.push(idx);
+                        }
+                      });
+
+                      if (invalidIndices.length > 0) {
+                        const firstIdx = invalidIndices[0];
+                        const el = document.getElementById(`batch-row-${firstIdx}`);
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          el.classList.add('ring-4', 'ring-rose-500/50');
+                          setTimeout(() => el.classList.remove('ring-4', 'ring-rose-500/50'), 3000);
+                        }
+                        alert(`检测到 ${invalidIndices.length} 行存在问题（未正确识别彩种或存在解析错误），系统已自动为您定位到第 ${firstIdx + 1} 行。请修正后再试。`);
+                        return;
+                      }
+
+                      if (validRows.length === 0) {
+                        alert('没有可录入的有效注单');
+                        return;
+                      }
+
+                      const newConfirmedBets: ConfirmedBet[] = [];
+                      validRows.forEach(({ row, result }) => {
+                        // In multi-lottery mode, one row might produce multiple ConfirmedBet entries
+                        // if they have different lottery types, or we can group them as one.
+                        // The existing structure of ConfirmedBet has one lotteryType field.
+                        // So if a row has multiple lottery types, we should split it.
+                        
+                        const typeGroups: Record<string, any[]> = {};
+                        result.segments.forEach((seg: any) => {
+                          if (seg.lotteryType && seg.parsed.items.length > 0) {
+                            if (!typeGroups[seg.lotteryType]) typeGroups[seg.lotteryType] = [];
+                            typeGroups[seg.lotteryType].push(...seg.parsed.items);
+                          }
+                        });
+
+                        Object.entries(typeGroups).forEach(([lType, items]) => {
+                          newConfirmedBets.push({
+                            id: Math.random().toString(36).substr(2, 9),
+                            content: items.map(i => i.text).join('\n'),
+                            total: items.reduce((s, i) => s + i.total, 0),
+                            timestamp: Date.now(),
+                            lotteryType: lType,
+                            basketId: selectedBasketId,
+                            items: items.map(item => ({
+                              ...item,
+                              id: Math.random().toString(36).substr(2, 9),
+                              lotteryType: lType,
+                              timestamp: Date.now()
+                            }))
+                          });
+                        });
+                      });
+
+                      setConfirmedBets(prev => [...prev, ...newConfirmedBets]);
+                      setBatchRows(prev => prev.filter(row => !validRows.find(vr => vr.row.id === row.id)));
+                      alert(`已成功下单 ${newConfirmedBets.length} 笔注单`);
+                    }}
+                    className={`px-8 py-2.5 rounded-xl transition-all font-black text-xs shadow-lg flex items-center gap-2 ${batchRows.length === 0 ? 'bg-stone-200 text-stone-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    一键确认下单 ({batchRows.filter(row => {
+                        const result = parseMultiLotteryInput(row.content);
+                        const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
+                        const hasBets = result.segments.some(s => s.parsed.items.length > 0);
+                        const hasLottery = result.segments.some(s => !!s.lotteryType);
+                        return hasBets && !hasErrors && hasLottery;
+                      }).length})
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            <main id="batch-scroller" onScroll={handleScrollSave('batch-scroller')} className="flex-grow flex flex-col gap-3 overflow-y-auto pr-2">
+              {batchRows.length === 0 ? (
+                <div className="flex-grow flex flex-col items-center justify-center gap-4 text-stone-300">
+                  <div className="w-20 h-20 rounded-full bg-stone-100 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </div>
+                  <p className="text-sm font-bold uppercase tracking-widest">请上传 Excel 文件开始批量导入</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 p-2">
+                  {batchRows.map((row, idx) => (
+                    <div key={row.id} id={`batch-row-${idx}`}>
+                      <BatchImportRow
+                        row={row}
+                        idx={idx}
+                        defaultLottery={batchDefaultLotteryType}
+                        drawNumbers={drawNumbers}
+                        renderHighlight={renderHighlightedInput}
+                        renderBetText={renderHighlightedText}
+                        onUpdate={(content) => {
+                          const newRows = [...batchRows];
+                          newRows[idx].content = content;
+                          setBatchRows(newRows);
+                        }}
+                        onInsert={() => {
+                          const newRows = [...batchRows];
+                          newRows.splice(idx + 1, 0, {
+                            id: Math.random().toString(36).substr(2, 9),
+                            content: ''
+                          });
+                          setBatchRows(newRows);
+                        }}
+                        onDelete={() => {
+                          setBatchRows(prev => prev.filter(r => r.id !== row.id));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </main>
+          </div>
         ) : (
           /* Betting Confirmation Page (注单页) */
-          <div className="flex-grow flex flex-col gap-6 overflow-hidden">
+          <div className="flex-grow flex flex-col gap-6 overflow-hidden max-w-[1400px] mx-auto w-full p-6">
             <div className="flex justify-between items-center shrink-0">
               <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-stone-950">注单页</h1>
+                <h1 className="text-2xl font-black text-stone-950 tracking-tighter uppercase">注单管理中心</h1>
                 <div className="flex bg-stone-100 p-1 rounded-xl">
                   {baskets.map(b => (
                     <button
@@ -2828,7 +3392,12 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-y-auto flex-grow">
+            <div 
+              id="confirm-scroller"
+              onScroll={handleScrollSave('confirm-scroller')}
+              ref={confirmScrollRef}
+              className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-y-auto flex-grow"
+            >
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="bg-stone-50 border-b border-stone-200">
@@ -2914,6 +3483,16 @@ export default function App() {
                             </svg>
                             今日订单 ({todayBets.length})
                           </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteOrdersByDate(todayBeijing);
+                            }}
+                            className="text-stone-300 hover:text-red-500 transition-colors p-1"
+                            title="删除今日所有订单"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -2925,7 +3504,7 @@ export default function App() {
 
                     return (
                       <tr key={originalIdx} className="hover:bg-stone-50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-mono text-stone-400">{todayBets.length - idx}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-stone-400">{idx + 1}</td>
                           <td className="px-6 py-4">
                             {isEditing ? (
                               <select

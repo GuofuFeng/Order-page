@@ -78,6 +78,7 @@ export interface BetItem {
   notInBets: NotInBet[];
   combinationWinBets: CombinationWinBet[];
   total: number;
+  lotteryType?: string;
 }
 
 export interface ParsedInput {
@@ -112,7 +113,7 @@ export interface ParsedSegment {
 }
 
 // Regular Expressions
-const LOTTERY_ALIASES = '(?:旧澳门|新西西|老西西|旧西西|新cc|老cc|旧cc|新㏄|老㏄|旧㏄|新澳|老澳|香港|越南|泰国|海天|巴黎|迪拜|七星|印度|金沙|澳大|奥大|新c|老c|旧c|cc|西西|旧澳|旧奥|㏄|c|旧|老|新|香|港|万合|万和)';
+const LOTTERY_ALIASES = '(?:新cc|新Cc|新c|老cc|老㏄|老c|旧cc|旧㏄|旧c|旧澳门|新澳门|澳门|新澳|老澳|旧澳|老奥|旧奥|新奥|澳大|奥大|cc|㏄|c|旧|老|新|香港|香|港|万合|万和)';
 const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
@@ -130,6 +131,7 @@ export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中)((
 export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})(?<![二三四五六七八九十2-9]|10|两)(?:连肖|连)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五六23456两])(?:连肖|连(?!尾)|连买|买)|([二三四五六23456两])肖|(?<![二三四五六23456两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+', 'g');
 export const REGEX_MULTI_ZODIAC_HABIT = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC_HABIT_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:([二三四五六23456两])(连肖|连|肖))[\\s]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})[^\\d\\n\\r]*?(' + 
   '(?:复试|复式|复)[^\\d\\n\\r]*?(?:[二三四五六七八九十2-9]|10|两)?(?:连肖|连|连各|连每)?' + 
   '|' +
@@ -242,6 +244,9 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   if (!inputText.trim()) return result;
 
   let textForPatterns = normalizeLotteryTypes(inputText);
+  
+  // Pre-processing for user habits
+  textForPatterns = textForPatterns.replace(/[\(\)（）′']/g, ' '); // Rule 3: ignore () and '
   
   // Pre-processing
   textForPatterns = textForPatterns.replace(/免/g, '兔');
@@ -459,6 +464,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     addMatches(REGEX_FIVE_ZODIAC, 'FIVE_ZODIAC');
     addMatches(REGEX_FOUR_ZODIAC, 'FOUR_ZODIAC');
     addMatches(REGEX_MULTI_ZODIAC_HABIT, 'MULTI_ZODIAC_HABIT');
+    addMatches(REGEX_MULTI_ZODIAC_HABIT_V2, 'MULTI_ZODIAC_HABIT');
     addMatches(REGEX_MULTI_ZODIAC_V2, 'MULTI_ZODIAC_V2');
     addMatches(REGEX_MULTI_ZODIAC, 'MULTI_ZODIAC');
     addMatches(REGEX_MULTI_TAIL_V2, 'MULTI_TAIL_V2');
@@ -1444,7 +1450,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     }
   });
 
-  // Identify invalid numbers (> 49) that are not part of an amount
+  // Identify invalid numbers that are not part of a valid match or an amount
   const numRegex = /\d+/g;
   let numMatch;
   while ((numMatch = numRegex.exec(textForPatterns)) !== null) {
@@ -1452,10 +1458,12 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     const start = numMatch.index;
     const end = start + numMatch[0].length;
     
+    // Check if this number is within any valid match range
+    const isPartOfValidSelection = result.validMatches.some(range => start >= range.start && end <= range.end);
     // Check if this number is within any amount range
     const isAmount = amountRanges.some(range => start >= range.start && end <= range.end);
     
-    if (!isAmount && val > 49) {
+    if (!isPartOfValidSelection && !isAmount) {
       result.invalidMatches.push({ start, end });
     }
   }
@@ -1511,17 +1519,27 @@ export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedRes
     let type = rawType;
     if (rawType) {
       const lowerRaw = rawType.toLowerCase();
-      if (/^[旧老]/.test(lowerRaw) && /[cC㏄]/.test(lowerRaw)) type = '老cc';
-      else if (/^新/.test(lowerRaw) && /[cC㏄]/.test(lowerRaw)) type = 'cc';
-      else if (/^[旧老]/.test(lowerRaw)) type = '老澳';
-      else if (/^新/.test(lowerRaw)) type = '新澳';
-      else if (/^[香港]/.test(lowerRaw)) type = '香港';
-      else if (lowerRaw === 'cc' || lowerRaw === 'c' || lowerRaw === '㏄') type = 'cc';
-      else if (rawType === '万合' || rawType === '万和') type = '越南';
-      else if (rawType === '奥大') type = '澳大';
+      // Rules:
+      // 新澳: 新澳, 新, 新奥, 澳门
+      // 老澳: 老澳, 老, 旧澳, 旧, 老奥, 旧奥
+      // 香港: 香港, 港, 香
+      // 澳大: 澳大, 奥大
+      // 新cc: 新cc, 新c, 新Cc
+      // 老cc: cc, c, ㏄, 老cc, 老c, 老㏄, 旧cc, 旧c, 旧㏄
+      // 越南: 万合, 万和
+      
+      if (/^新Cc|新cc|新c/i.test(lowerRaw)) type = '新cc';
+      else if (/^香港|港|香/.test(lowerRaw)) type = '香港';
+      else if (/^新澳|新奥|澳门/.test(lowerRaw)) type = '新澳';
+      else if (/^新/.test(lowerRaw)) type = '新澳'; // Only if not "新cc..." which is handled above
+      else if (/^老澳|老奥|旧澳|旧奥/.test(lowerRaw)) type = '老澳';
+      else if (/^[老旧]/.test(lowerRaw)) type = '老澳'; // Catch single chars "老", "旧"
+      else if (/^cc|c|㏄|老cc|老c|老㏄|旧cc|旧c|旧㏄/i.test(lowerRaw)) type = '老cc';
+      else if (rawType === '万合' || rawType === '万和' || rawType === '越南') type = '越南';
+      else if (rawType === '奥大' || rawType === '澳大') type = '澳大';
       
       if (!lotteryTypes.includes(type)) {
-        const bestMatch = lotteryTypes.find(t => t.includes(type) || type.includes(t));
+        const bestMatch = lotteryTypes.find(t => t === type || t.includes(type) || type.includes(t));
         if (bestMatch) type = bestMatch;
       }
 
