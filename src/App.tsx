@@ -826,6 +826,46 @@ export default function App() {
     return { ...defaultDraws, ...savedDraws };
   });
 
+  const batchTotals = useMemo(() => {
+    let totalBet = 0;
+    let totalWin = 0;
+    
+    batchRows.forEach(row => {
+      const result = parseMultiLotteryInput(row.content);
+      result.segments.forEach(seg => {
+        const segBet = seg.parsed.items.reduce((sum, item) => sum + item.total, 0);
+        totalBet += segBet;
+        
+        const lType = seg.lotteryType || batchDefaultLotteryType;
+        const draws = drawNumbers[lType];
+        if (draws && draws.length === 7 && draws.every(n => n !== '')) {
+          seg.parsed.items.forEach(item => {
+            const win = calculateWinAmount(
+              item.numberDeltas || {},
+              item.flatNumberDeltas || {},
+              item.zodiacDeltas || {},
+              item.teXiaoDeltas || {},
+              item.tailDeltas || {},
+              item.multiZodiacBets || [],
+              item.sixZodiacBets || [],
+              item.fiveZodiacBets || [],
+              item.fourZodiacBets || [],
+              item.multiTailBets || [],
+              item.notInBets || [],
+              item.combinationWinBets || [],
+              item.specialAttributeDeltas || {},
+              draws,
+              lType
+            );
+            totalWin += win;
+          });
+        }
+      });
+    });
+    
+    return { totalBet, totalWin };
+  }, [batchRows, batchDefaultLotteryType, drawNumbers]);
+
   const todayTotalWin = useMemo(() => {
     return todayBets.reduce((sum, order) => {
       const orderWin = (order.items || []).reduce((itemSum, item) => {
@@ -3142,10 +3182,23 @@ export default function App() {
               <div className="flex items-center gap-6">
                 <h1 className="text-2xl font-black text-stone-950 tracking-tighter uppercase">批量导入中心</h1>
                 <div className="h-8 w-px bg-stone-200"></div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200">
                     自动彩种识别已启用
                   </span>
+                  <div className="flex items-center gap-4 px-4 py-2 bg-stone-50 rounded-xl border border-stone-200">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-stone-400 tracking-widest uppercase">导入总注额</span>
+                      <span className="text-sm font-black text-stone-900 font-mono">¥{batchTotals.totalBet.toLocaleString()}</span>
+                    </div>
+                    <div className="w-px h-6 bg-stone-200"></div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-emerald-600 tracking-widest uppercase">测算总中奖</span>
+                      <span className={`text-sm font-black font-mono ${batchTotals.totalWin > 0 ? 'text-rose-600' : 'text-stone-400'}`}>
+                        ¥{batchTotals.totalWin.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -3252,39 +3305,46 @@ export default function App() {
 
                       const newConfirmedBets: ConfirmedBet[] = [];
                       validRows.forEach(({ row, result }) => {
-                        // In multi-lottery mode, one row might produce multiple ConfirmedBet entries
-                        // if they have different lottery types, or we can group them as one.
-                        // The existing structure of ConfirmedBet has one lotteryType field.
-                        // So if a row has multiple lottery types, we should split it.
-                        
-                        const typeGroups: Record<string, any[]> = {};
-                        result.segments.forEach((seg: any) => {
-                          if (seg.lotteryType && seg.parsed.items.length > 0) {
-                            if (!typeGroups[seg.lotteryType]) typeGroups[seg.lotteryType] = [];
-                            typeGroups[seg.lotteryType].push(...seg.parsed.items);
-                          }
-                        });
-
-                        Object.entries(typeGroups).forEach(([lType, items]) => {
-                          newConfirmedBets.push({
-                            id: Math.random().toString(36).substr(2, 9),
-                            content: items.map(i => i.text).join('\n'),
-                            total: items.reduce((s, i) => s + i.total, 0),
-                            timestamp: Date.now(),
-                            lotteryType: lType,
-                            basketId: selectedBasketId,
-                            items: items.map(item => ({
+                        // Keep all segments from one row together as a single ConfirmedBet
+                        const allItems = result.segments.flatMap((seg: any) => {
+                          const lType = seg.lotteryType || '';
+                          return (seg.parsed.items || []).map((item: any) => {
+                            // Map parser field names (...Bets) to storage field names (...Deltas) used by calculators
+                            return {
                               ...item,
                               id: Math.random().toString(36).substr(2, 9),
                               lotteryType: lType,
-                              timestamp: Date.now()
-                            }))
+                              timestamp: Date.now(),
+                              // Correct the field mapping mismatch
+                              multiZodiacDeltas: [...(item.multiZodiacBets || [])],
+                              sixZodiacDeltas: [...(item.sixZodiacBets || [])],
+                              fiveZodiacDeltas: [...(item.fiveZodiacBets || [])],
+                              fourZodiacDeltas: [...(item.fourZodiacBets || [])],
+                              multiTailDeltas: [...(item.multiTailBets || [])],
+                              notInDeltas: [...(item.notInBets || [])],
+                              combinationWinDeltas: [...(item.combinationWinBets || [])]
+                            };
                           });
                         });
+
+                        if (allItems.length > 0) {
+                          const uniqueLotteryTypes = Array.from(new Set(allItems.map(i => i.lotteryType))).filter(Boolean);
+                          const combinedLotteryType = uniqueLotteryTypes.join(' ');
+                          
+                          newConfirmedBets.push({
+                            id: Math.random().toString(36).substr(2, 9),
+                            // Prefix each line with its lottery type to ensure renderHighlightedText works correctly in the table
+                            content: allItems.map(i => `【${i.lotteryType}】${i.text}`).join('\n'),
+                            total: allItems.reduce((s, i) => s + i.total, 0),
+                            timestamp: Date.now(),
+                            lotteryType: combinedLotteryType,
+                            basketId: selectedBasketId,
+                            items: allItems
+                          });
+                        }
                       });
 
                       setConfirmedBets(prev => [...prev, ...newConfirmedBets]);
-                      setBatchRows(prev => prev.filter(row => !validRows.find(vr => vr.row.id === row.id)));
                       alert(`已成功下单 ${newConfirmedBets.length} 笔注单`);
                     }}
                     className={`px-8 py-2.5 rounded-xl transition-all font-black text-xs shadow-lg flex items-center gap-2 ${batchRows.length === 0 ? 'bg-stone-200 text-stone-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0'}`}

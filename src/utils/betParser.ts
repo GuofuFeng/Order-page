@@ -495,41 +495,30 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     return processedRanges.some(r => (start < r.end && end > r.start));
   };
 
+  const createEmptyBetItem = (originalMatch: string): BetItem => ({
+    text: originalMatch.trim(),
+    numberDeltas: {},
+    flatNumberDeltas: {},
+    zodiacDeltas: {},
+    teXiaoDeltas: {},
+    tailDeltas: {},
+    specialAttributeDeltas: {},
+    multiZodiacBets: [],
+    sixZodiacBets: [],
+    fiveZodiacBets: [],
+    fourZodiacBets: [],
+    multiTailBets: [],
+    notInBets: [],
+    combinationWinBets: [],
+    total: 0
+  });
+
   allMatches.forEach(match => {
     if (isOverlapping(match.start, match.end)) return;
 
-    processedRanges.push({ start: match.start, end: match.end });
-    result.validMatches.push({ start: match.start, end: match.end });
-    result.anyPatternFound = true;
-
     const groups = match.groups;
-    
-    // Identify amount part to exclude from invalid number checks
-    const lastGroup = groups[groups.length - 1];
-    if (lastGroup && !isNaN(Number(lastGroup.replace('+', '')))) {
-      const amountStart = match.start + match.original.lastIndexOf(lastGroup);
-      amountRanges.push({ start: amountStart, end: amountStart + lastGroup.length });
-    }
-    
-    const createEmptyBetItem = (originalMatch: string): BetItem => ({
-      text: originalMatch.trim(),
-      numberDeltas: {},
-      flatNumberDeltas: {},
-      zodiacDeltas: {},
-      teXiaoDeltas: {},
-      tailDeltas: {},
-      specialAttributeDeltas: {},
-      multiZodiacBets: [],
-      sixZodiacBets: [],
-      fiveZodiacBets: [],
-      fourZodiacBets: [],
-      multiTailBets: [],
-      notInBets: [],
-      combinationWinBets: [],
-      total: 0
-    });
-
     const item = createEmptyBetItem(match.original);
+    const initialItemsCount = result.items.length;
 
     switch (match.type) {
       case 'SPECIAL_ATTR': {
@@ -1447,6 +1436,19 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 
     if (item.total > 0) {
       result.items.push(item);
+    }
+
+    if (result.items.length > initialItemsCount) {
+      processedRanges.push({ start: match.start, end: match.end });
+      result.validMatches.push({ start: match.start, end: match.end });
+      result.anyPatternFound = true;
+
+      // Identify amount part to exclude from invalid number checks
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && !isNaN(Number(lastGroup.replace('+', '')))) {
+        const amountStart = match.start + match.original.lastIndexOf(lastGroup);
+        amountRanges.push({ start: amountStart, end: amountStart + lastGroup.length });
+      }
     }
   });
 
