@@ -798,6 +798,8 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingTotal, setEditingTotal] = useState<number | ''>('');
+  const [editingWinType, setEditingWinType] = useState('');
+  const [editingWinAmount, setEditingWinAmount] = useState<number | ''>('');
   const scrollPositions = useRef<Record<string, number>>({});
   const handleScrollSave = (id: string) => (e: React.UIEvent<HTMLDivElement>) => {
     scrollPositions.current[`${currentPage}-${id}`] = e.currentTarget.scrollTop;
@@ -868,6 +870,10 @@ export default function App() {
 
   const todayTotalWin = useMemo(() => {
     return todayBets.reduce((sum, order) => {
+      // If manualWinAmount is set, use it
+      if (order.manualWinAmount !== undefined) {
+        return sum + order.manualWinAmount;
+      }
       const orderWin = (order.items || []).reduce((itemSum, item) => {
         const win = calculateWinAmount(
           item.numberDeltas,
@@ -1408,26 +1414,28 @@ export default function App() {
     // Add data - sort by timestamp ascending (oldest first) to match UI serial numbers 1, 2, 3...
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
-      const totalWin = (order.items || []).reduce((sum, item) => {
+      const totalWin = order.manualWinAmount !== undefined ? order.manualWinAmount : (order.items || []).reduce((sum, item) => {
         const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
         return sum + (win || 0);
       }, 0);
 
-      const winDetailsMap = (order.items || []).reduce((acc, item) => {
-        const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
-        Object.entries(details).forEach(([type, amt]) => {
-          acc[type] = (acc[type] || 0) + amt;
-        });
-        return acc;
-      }, {} as Record<string, number>);
-      const winDetails = Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`);
+      const winTypeStr = order.manualWinType !== undefined ? order.manualWinType : (() => {
+        const winDetailsMap = (order.items || []).reduce((acc, item) => {
+          const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
+          Object.entries(details).forEach(([type, amt]) => {
+            acc[type] = (acc[type] || 0) + amt;
+          });
+          return acc;
+        }, {} as Record<string, number>);
+        return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join(' ');
+      })();
 
       const row = worksheet.addRow({
         index: index + 1,
         type: order.lotteryType,
         content: '', // Will be set as rich text
         total: order.total,
-        winType: winDetails.join(' '),
+        winType: winTypeStr,
         win: totalWin > 0 ? totalWin : '',
         time: new Date(order.timestamp).toLocaleString()
       });
@@ -1594,6 +1602,18 @@ export default function App() {
     const chronologicalBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     
     const totalWinSum = chronologicalBets.reduce((sum, order) => {
+      // Use manualWinAmount if available
+      if (order.manualWinAmount !== undefined) {
+        if (order.manualWinAmount > 0) {
+          const type = order.manualWinType || '手动修改';
+          const key = `MANUAL_${type}`;
+          if (!breakdownAggregation[key]) {
+            breakdownAggregation[key] = { amount: 1, multiplier: 1, win: 0 };
+          }
+          breakdownAggregation[key].win += order.manualWinAmount;
+        }
+        return sum + order.manualWinAmount;
+      }
       const orderWin = (order.items || []).reduce((itemSum, item) => {
         const breakdown = getWinningBreakdown(
           item.numberDeltas, 
@@ -1645,6 +1665,9 @@ export default function App() {
     }, 0);
 
     const breakdownLines = Object.entries(breakdownAggregation).map(([key, data]) => {
+      if (key.startsWith('MANUAL_')) {
+        return `${key.replace('MANUAL_', '')} = ${data.win}`;
+      }
       const type = key.split('_')[0];
       return `${type} ${data.amount}*${data.multiplier}=${data.win}`;
     });
@@ -3603,26 +3626,45 @@ export default function App() {
                               `¥ ${order.total.toLocaleString()}`
                             )}
                           </td>
-                          <td className="px-6 py-4 text-xs font-bold text-stone-500">
-                            {(() => {
-                              const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
-                                Object.entries(details).forEach(([type, amt]) => {
-                                  acc[type] = (acc[type] || 0) + amt;
-                                });
-                                return acc;
-                              }, {} as Record<string, number>);
-                              return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join(' ');
-                            })()}
+                          <td className="px-6 py-4 text-xs font-bold text-stone-500 whitespace-pre-wrap">
+                            {isEditing ? (
+                              <textarea
+                                placeholder="中奖类型"
+                                value={editingWinType}
+                                onChange={(e) => setEditingWinType(e.target.value)}
+                                className="w-full p-2 bg-white border border-stone-200 rounded-lg text-xs focus:ring-2 focus:ring-stone-200 outline-none resize-none h-16"
+                              />
+                            ) : (
+                              order.manualWinType !== undefined ? order.manualWinType : (() => {
+                                const winDetailsMap = (order.items || []).reduce((acc, item) => {
+                                  const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
+                                  Object.entries(details).forEach(([type, amt]) => {
+                                    acc[type] = (acc[type] || 0) + amt;
+                                  });
+                                  return acc;
+                                }, {} as Record<string, number>);
+                                return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join('\n');
+                              })()
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm font-black text-red-600">
-                            {(() => {
-                              const totalWin = (order.items || []).reduce((sum, item) => {
-                                const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
-                                return sum + (win || 0);
-                              }, 0);
-                              return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
-                            })()}
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                placeholder="中奖金额"
+                                value={editingWinAmount}
+                                onChange={(e) => setEditingWinAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                                className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none"
+                              />
+                            ) : (
+                              order.manualWinAmount !== undefined ? (order.manualWinAmount > 0 ? `¥ ${order.manualWinAmount.toLocaleString()}` : '') : (() => {
+                                const totalWin = (order.items || []).reduce((sum, item) => {
+                                  const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                  return sum + (win || 0);
+                                }, 0);
+                                return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
+                              })()
+                            )}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex flex-col gap-2 items-center">
@@ -3631,17 +3673,51 @@ export default function App() {
                                   <button 
                                     onClick={() => {
                                       const newBets = [...confirmedBets];
-                                      const updatedItems = (newBets[originalIdx].items || []).map(item => ({
+                                      // 重新解析内容以确保数据一致性
+                                      const { segments } = parseMultiLotteryInput(editingContent);
+                                      const updatedItems: BetOrder[] = [];
+                                      
+                                      segments.forEach(seg => {
+                                        const p = seg.parsed;
+                                        const lType = seg.lotteryType || editingLotteryType;
+                                        p.items.forEach(item => {
+                                          updatedItems.push({
+                                            id: Math.random().toString(36).substr(2, 9),
+                                            text: item.text,
+                                            numberDeltas: item.numberDeltas,
+                                            flatNumberDeltas: item.flatNumberDeltas,
+                                            zodiacDeltas: item.zodiacDeltas,
+                                            teXiaoDeltas: item.teXiaoDeltas,
+                                            tailDeltas: item.tailDeltas,
+                                            specialAttributeDeltas: item.specialAttributeDeltas,
+                                            multiZodiacDeltas: [...item.multiZodiacBets],
+                                            sixZodiacDeltas: [...item.sixZodiacBets], 
+                                            fiveZodiacDeltas: [...item.fiveZodiacBets], 
+                                            fourZodiacDeltas: [...item.fourZodiacBets],
+                                            multiTailDeltas: [...item.multiTailBets],
+                                            notInDeltas: [...item.notInBets], 
+                                            combinationWinDeltas: [...item.combinationWinBets],
+                                            total: item.total,
+                                            lotteryType: lType,
+                                            timestamp: newBets[originalIdx].timestamp
+                                          });
+                                        });
+                                      });
+
+                                      // 如果没有解析出任何内容，保留原有 items 但更新 lotteryType
+                                      const finalItems = updatedItems.length > 0 ? updatedItems : (newBets[originalIdx].items || []).map(item => ({
                                         ...item,
                                         lotteryType: editingLotteryType
                                       }));
-                                      
+
                                       newBets[originalIdx] = {
                                         ...newBets[originalIdx],
                                         content: editingContent,
-                                        total: Number(editingTotal) || 0,
+                                        total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
                                         lotteryType: editingLotteryType,
-                                        items: updatedItems
+                                        items: finalItems,
+                                        manualWinType: editingWinType || undefined,
+                                        manualWinAmount: editingWinAmount === '' ? undefined : Number(editingWinAmount)
                                       };
                                       setConfirmedBets(newBets);
                                       setEditingIndex(null);
@@ -3665,6 +3741,31 @@ export default function App() {
                                       setEditingContent(order.content);
                                       setEditingTotal(order.total);
                                       setEditingLotteryType(order.lotteryType);
+                                      
+                                      // Pre-fill Win Type
+                                      if (order.manualWinType !== undefined) {
+                                        setEditingWinType(order.manualWinType);
+                                      } else {
+                                        const winDetailsMap = (order.items || []).reduce((acc, item) => {
+                                          const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
+                                          Object.entries(details).forEach(([type, amt]) => {
+                                            acc[type] = (acc[type] || 0) + amt;
+                                          });
+                                          return acc;
+                                        }, {} as Record<string, number>);
+                                        setEditingWinType(Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join('\n'));
+                                      }
+
+                                      // Pre-fill Win Amount
+                                      if (order.manualWinAmount !== undefined) {
+                                        setEditingWinAmount(order.manualWinAmount);
+                                      } else {
+                                        const winAmt = (order.items || []).reduce((sum, item) => {
+                                          const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                          return sum + (win || 0);
+                                        }, 0);
+                                        setEditingWinAmount(winAmt || '');
+                                      }
                                     }}
                                     className="text-stone-400 hover:text-stone-600 transition-colors p-1"
                                     title="编辑注单"
@@ -3782,26 +3883,45 @@ export default function App() {
                                   `¥ ${order.total.toLocaleString()}`
                                 )}
                               </td>
-                              <td className="px-6 py-4 text-xs font-bold text-stone-300 italic">
-                                {(() => {
-                                  const winDetailsMap = (order.items || []).reduce((acc, item) => {
-                                    const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
-                                    Object.entries(details).forEach(([type, amt]) => {
-                                      acc[type] = (acc[type] || 0) + amt;
-                                    });
-                                    return acc;
-                                  }, {} as Record<string, number>);
-                                  return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join(' ');
-                                })()}
+                              <td className="px-6 py-4 text-xs font-bold text-stone-300 italic whitespace-pre-wrap">
+                                {isEditing ? (
+                                  <textarea
+                                    placeholder="中奖类型"
+                                    value={editingWinType}
+                                    onChange={(e) => setEditingWinType(e.target.value)}
+                                    className="w-full p-2 bg-white border border-stone-200 rounded-lg text-xs focus:ring-2 focus:ring-stone-200 outline-none resize-none h-16"
+                                  />
+                                ) : (
+                                  order.manualWinType !== undefined ? order.manualWinType : (() => {
+                                    const winDetailsMap = (order.items || []).reduce((acc, item) => {
+                                      const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
+                                      Object.entries(details).forEach(([type, amt]) => {
+                                        acc[type] = (acc[type] || 0) + amt;
+                                      });
+                                      return acc;
+                                    }, {} as Record<string, number>);
+                                    return Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join('\n');
+                                  })()
+                                )}
                               </td>
                               <td className="px-6 py-4 text-sm font-black text-red-400">
-                                {(() => {
-                                  const totalWin = (order.items || []).reduce((sum, item) => {
-                                    const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
-                                    return sum + (win || 0);
-                                  }, 0);
-                                  return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
-                                })()}
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    placeholder="中奖金额"
+                                    value={editingWinAmount}
+                                    onChange={(e) => setEditingWinAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                                    className="w-full p-2 bg-white border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-stone-200 outline-none"
+                                  />
+                                ) : (
+                                  order.manualWinAmount !== undefined ? (order.manualWinAmount > 0 ? `¥ ${order.manualWinAmount.toLocaleString()}` : '') : (() => {
+                                    const totalWin = (order.items || []).reduce((sum, item) => {
+                                      const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                      return sum + (win || 0);
+                                    }, 0);
+                                    return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
+                                  })()
+                                )}
                               </td>
                               <td className="px-6 py-4 text-center">
                                 <div className="flex flex-col gap-2 items-center">
@@ -3810,17 +3930,51 @@ export default function App() {
                                       <button 
                                         onClick={() => {
                                           const newBets = [...confirmedBets];
-                                          const updatedItems = (newBets[originalIdx].items || []).map(item => ({
+                                          // 重新解析内容以确保数据一致性
+                                          const { segments } = parseMultiLotteryInput(editingContent);
+                                          const updatedItems: BetOrder[] = [];
+                                          
+                                          segments.forEach(seg => {
+                                            const p = seg.parsed;
+                                            const lType = seg.lotteryType || editingLotteryType;
+                                            p.items.forEach(item => {
+                                              updatedItems.push({
+                                                id: Math.random().toString(36).substr(2, 9),
+                                                text: item.text,
+                                                numberDeltas: item.numberDeltas,
+                                                flatNumberDeltas: item.flatNumberDeltas,
+                                                zodiacDeltas: item.zodiacDeltas,
+                                                teXiaoDeltas: item.teXiaoDeltas,
+                                                tailDeltas: item.tailDeltas,
+                                                specialAttributeDeltas: item.specialAttributeDeltas,
+                                                multiZodiacDeltas: [...item.multiZodiacBets],
+                                                sixZodiacDeltas: [...item.sixZodiacBets], 
+                                                fiveZodiacDeltas: [...item.fiveZodiacBets], 
+                                                fourZodiacDeltas: [...item.fourZodiacBets],
+                                                multiTailDeltas: [...item.multiTailBets],
+                                                notInDeltas: [...item.notInBets], 
+                                                combinationWinDeltas: [...item.combinationWinBets],
+                                                total: item.total,
+                                                lotteryType: lType,
+                                                timestamp: newBets[originalIdx].timestamp
+                                              });
+                                            });
+                                          });
+
+                                          // 如果没有解析出任何内容，保留原有 items 但更新 lotteryType
+                                          const finalItems = updatedItems.length > 0 ? updatedItems : (newBets[originalIdx].items || []).map(item => ({
                                             ...item,
                                             lotteryType: editingLotteryType
                                           }));
-                                          
+
                                           newBets[originalIdx] = {
                                             ...newBets[originalIdx],
                                             content: editingContent,
-                                            total: Number(editingTotal) || 0,
+                                            total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
                                             lotteryType: editingLotteryType,
-                                            items: updatedItems
+                                            items: finalItems,
+                                            manualWinType: editingWinType || undefined,
+                                            manualWinAmount: editingWinAmount === '' ? undefined : Number(editingWinAmount)
                                           };
                                           setConfirmedBets(newBets);
                                           setEditingIndex(null);
@@ -3844,6 +3998,31 @@ export default function App() {
                                           setEditingContent(order.content);
                                           setEditingTotal(order.total);
                                           setEditingLotteryType(order.lotteryType);
+                                          
+                                          // Pre-fill Win Type
+                                          if (order.manualWinType !== undefined) {
+                                            setEditingWinType(order.manualWinType);
+                                          } else {
+                                            const winDetailsMap = (order.items || []).reduce((acc, item) => {
+                                              const details = getWinningDetails(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType]);
+                                              Object.entries(details).forEach(([type, amt]) => {
+                                                acc[type] = (acc[type] || 0) + amt;
+                                              });
+                                              return acc;
+                                            }, {} as Record<string, number>);
+                                            setEditingWinType(Object.entries(winDetailsMap).map(([type, sum]) => `${type}${sum}`).join('\n'));
+                                          }
+
+                                          // Pre-fill Win Amount
+                                          if (order.manualWinAmount !== undefined) {
+                                            setEditingWinAmount(order.manualWinAmount);
+                                          } else {
+                                            const winAmt = (order.items || []).reduce((sum, item) => {
+                                              const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                              return sum + (win || 0);
+                                            }, 0);
+                                            setEditingWinAmount(winAmt || '');
+                                          }
                                         }}
                                         className="text-stone-300 hover:text-stone-500 transition-colors p-1"
                                         title="编辑注单"
@@ -3852,7 +4031,7 @@ export default function App() {
                                       </button>
                                       <button 
                                         onClick={() => deleteConfirmedBet(originalIdx)}
-                                        className="text-stone-300 hover:text-red-400 transition-colors p-1"
+                                        className="text-red-300 hover:text-red-500 transition-colors p-1"
                                         title="删除注单"
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

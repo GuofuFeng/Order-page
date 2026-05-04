@@ -53,6 +53,8 @@ export interface BetOrder {
   total: number;
   lotteryType: string;
   timestamp: number;
+  manualWinType?: string;
+  manualWinAmount?: number;
 }
 
 export interface ConfirmedBet {
@@ -63,6 +65,8 @@ export interface ConfirmedBet {
   lotteryType: string;
   items: BetOrder[];
   basketId: string;
+  manualWinType?: string;
+  manualWinAmount?: number;
 }
 
 export interface BatchImportEntry {
