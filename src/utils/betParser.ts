@@ -175,15 +175,17 @@ export const normalizeLotteryTypes = (text: string): string => {
   // 1. Normalize '老cc' aliases first to avoid partial 'cc' match.
   // Preserve length by padding with spaces if needed.
   processedText = processedText.replace(/(?:[旧老]\s*[cC㏄]{2}|[旧老]\s*西西)/gi, (m) => '老cc' + ' '.repeat(Math.max(0, m.length - 3)));
-  processedText = processedText.replace(/(?:[旧老]\s*[cC㏄])/gi, (m) => '老c' + ' '.repeat(Math.max(0, m.length - 2)));
+  processedText = processedText.replace(/(?:[旧老]\s*[cC㏄])/gi, (m) => '老cc' + ' '.repeat(Math.max(0, m.length - 2)));
   
   // 2. Normalize 'cc' aliases.
-  processedText = processedText.replace(/(?:新\s*[cC㏄]{1,2}|(?:新\s*)?西西|[cC㏄]{2})/gi, (m) => 'cc' + ' '.repeat(Math.max(0, m.length - 2)));
+  processedText = processedText.replace(/(?:新\s*[cC㏄]{1,2}|(?:新\s*)?西西|[cC㏄]{1,2})/gi, (m) => 'cc' + ' '.repeat(Math.max(0, m.length - 2)));
   
   // 3. New aliases: map to standard types but PRESERVE LENGTH to avoid highlighting offset.
   processedText = processedText.replace(/旧澳门/g, '老澳 ');
   processedText = processedText.replace(/旧澳/g, '老澳');
   processedText = processedText.replace(/旧奥/g, '老澳');
+  processedText = processedText.replace(/老澳门/g, '老澳  ');
+  processedText = processedText.replace(/新澳门/g, '新澳  ');
   processedText = processedText.replace(/旧/g, '老');
   
   processedText = processedText.replace(/万和/g, '越南');
@@ -261,12 +263,12 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     // Map the matched alias to the standard type
     let standardType = matchedText;
     const lowerMatched = matchedText.toLowerCase();
-    if (/^[旧老]/.test(matchedText) && /[cC㏄]/.test(matchedText)) standardType = '老cc';
-    else if (/^新/.test(matchedText) && /[cC㏄]/.test(matchedText)) standardType = 'cc';
+    if (/[旧老]\s*[cC㏄]{1,2}/i.test(matchedText)) standardType = '老cc';
+    else if (/新\s*[cC㏄]{1,2}/i.test(matchedText)) standardType = '新cc';
+    else if (/cc|c|㏄/i.test(matchedText)) standardType = '老cc';
     else if (/^[旧老]/.test(matchedText)) standardType = '老澳';
     else if (/^新/.test(matchedText)) standardType = '新澳';
     else if (/^[香港]/.test(matchedText)) standardType = '香港';
-    else if (lowerMatched === 'cc' || lowerMatched === 'c' || lowerMatched === '㏄') standardType = 'cc';
     else if (matchedText === '万合' || matchedText === '万和') standardType = '越南';
     else if (matchedText === '奥大') standardType = '澳大';
     
@@ -1530,13 +1532,12 @@ export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedRes
       // 老cc: cc, c, ㏄, 老cc, 老c, 老㏄, 旧cc, 旧c, 旧㏄
       // 越南: 万合, 万和
       
-      if (/^新Cc|新cc|新c/i.test(lowerRaw)) type = '新cc';
+      if (/新[cC㏄]{1,2}/i.test(lowerRaw)) type = '新cc';
+      else if (/[老旧][cC㏄]{1,2}/i.test(lowerRaw)) type = '老cc';
+      else if (/^cc|c|㏄/i.test(lowerRaw)) type = '老cc';
       else if (/^香港|港|香/.test(lowerRaw)) type = '香港';
-      else if (/^新澳|新奥|澳门/.test(lowerRaw)) type = '新澳';
-      else if (/^新/.test(lowerRaw)) type = '新澳'; // Only if not "新cc..." which is handled above
-      else if (/^老澳|老奥|旧澳|旧奥/.test(lowerRaw)) type = '老澳';
-      else if (/^[老旧]/.test(lowerRaw)) type = '老澳'; // Catch single chars "老", "旧"
-      else if (/^cc|c|㏄|老cc|老c|老㏄|旧cc|旧c|旧㏄/i.test(lowerRaw)) type = '老cc';
+      else if (/^新澳|新奥|澳门|新/.test(lowerRaw)) type = '新澳';
+      else if (/^老澳|老奥|旧澳|旧奥|老|旧/.test(lowerRaw)) type = '老澳';
       else if (rawType === '万合' || rawType === '万和' || rawType === '越南') type = '越南';
       else if (rawType === '奥大' || rawType === '澳大') type = '澳大';
       

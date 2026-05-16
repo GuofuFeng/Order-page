@@ -304,9 +304,10 @@ interface BatchImportRowProps {
   renderBetText: (text: string, lType: string) => React.ReactNode;
   defaultLottery: string;
   drawNumbers: Record<string, (number | '')[]>;
+  specialMultipliers: Record<string, number>;
 }
 
-const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onInsert, onDelete, renderHighlight, renderBetText, defaultLottery, drawNumbers }) => {
+const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onInsert, onDelete, renderHighlight, renderBetText, defaultLottery, drawNumbers, specialMultipliers }) => {
   const result = useMemo(() => parseMultiLotteryInput(row.content), [row.content]);
   const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
   const hasBets = result.segments.some(s => s.parsed.items.length > 0);
@@ -361,7 +362,8 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
             item.combinationWinBets || [],
             item.specialAttributeDeltas || {},
             draws,
-            lType
+            lType,
+            specialMultipliers
           );
           segBreakdown.push(...itemBreakdown);
         });
@@ -371,7 +373,7 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
       }
     });
     return breakdowns;
-  }, [result, drawNumbers, defaultLottery]);
+  }, [result, drawNumbers, defaultLottery, specialMultipliers]);
 
   const totalWinAmount = useMemo(() => {
     return winningBreakdowns.reduce((acc, br) => 
@@ -545,6 +547,14 @@ export default function App() {
   const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
 
   const [allPendingBets, setAllPendingBets] = useState<Record<string, BetOrder[]>>(() => loadFromStorage(STORAGE_KEYS.ALL_PENDING_BETS, {}));
+  const [specialMultipliers, setSpecialMultipliers] = useState<Record<string, number>>(() => {
+    const defaults = lotteryTypes.reduce((acc, type) => {
+      const isHigh = ['新澳', '老澳', '香港', '老cc'].includes(type);
+      return { ...acc, [type]: isHigh ? 47 : 46 };
+    }, {});
+    return loadFromStorage(STORAGE_KEYS.SPECIAL_MULTIPLIERS, defaults);
+  });
+  const [editingMultiplierType, setEditingMultiplierType] = useState<string | null>(null);
   const pendingBets = useMemo(() => allPendingBets[selectedBasketId] || [], [allPendingBets, selectedBasketId]);
 
   const setPendingBets = (newBets: BetOrder[] | ((prev: BetOrder[]) => BetOrder[])) => {
@@ -857,7 +867,8 @@ export default function App() {
               item.combinationWinBets || [],
               item.specialAttributeDeltas || {},
               draws,
-              lType
+              lType,
+              specialMultipliers
             );
             totalWin += win;
           });
@@ -866,7 +877,7 @@ export default function App() {
     });
     
     return { totalBet, totalWin };
-  }, [batchRows, batchDefaultLotteryType, drawNumbers]);
+  }, [batchRows, batchDefaultLotteryType, drawNumbers, specialMultipliers]);
 
   const todayTotalWin = useMemo(() => {
     return todayBets.reduce((sum, order) => {
@@ -890,13 +901,14 @@ export default function App() {
           item.combinationWinDeltas || [],
           item.specialAttributeDeltas || {},
           drawNumbers[item.lotteryType],
-          item.lotteryType
+          item.lotteryType,
+          specialMultipliers
         );
         return itemSum + (win || 0);
       }, 0);
       return sum + orderWin;
     }, 0);
-  }, [todayBets, drawNumbers]);
+  }, [todayBets, drawNumbers, specialMultipliers]);
   const [isDrawLocked, setIsDrawLocked] = useState<Record<string, boolean>>(() => {
     const defaultLocked = lotteryTypes.reduce((acc, type) => ({ ...acc, [type]: false }), {});
     const savedLocked = loadFromStorage(STORAGE_KEYS.IS_DRAW_LOCKED, defaultLocked);
@@ -939,6 +951,10 @@ export default function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.IS_LOTTERY_TYPE_LOCKED, isLotteryTypeLocked);
   }, [isLotteryTypeLocked]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.SPECIAL_MULTIPLIERS, specialMultipliers);
+  }, [specialMultipliers]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SELECTED_BASKET_ID, selectedBasketId);
@@ -1415,7 +1431,7 @@ export default function App() {
     const sortedBets = [...betsToExport].sort((a, b) => a.timestamp - b.timestamp);
     sortedBets.forEach((order, index) => {
       const totalWin = order.manualWinAmount !== undefined ? order.manualWinAmount : (order.items || []).reduce((sum, item) => {
-        const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+        const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType, specialMultipliers);
         return sum + (win || 0);
       }, 0);
 
@@ -1630,7 +1646,8 @@ export default function App() {
           item.combinationWinDeltas || [], 
           item.specialAttributeDeltas || {}, 
           drawNumbers[item.lotteryType], 
-          item.lotteryType
+          item.lotteryType,
+          specialMultipliers
         );
 
         breakdown.forEach(b => {
@@ -1657,7 +1674,8 @@ export default function App() {
           item.combinationWinDeltas || [], 
           item.specialAttributeDeltas || {}, 
           drawNumbers[item.lotteryType], 
-          item.lotteryType
+          item.lotteryType,
+          specialMultipliers
         );
         return itemSum + (win || 0);
       }, 0);
@@ -2062,13 +2080,49 @@ export default function App() {
             <div className="flex items-center gap-2">
               <div className="flex gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-inner">
                 {lotteryTypes.map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedLotteryType(type)}
-                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-950 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
-                  >
-                    {type}
-                  </button>
+                  <div key={type} className="flex flex-col items-center">
+                    <button
+                      onClick={() => !isLotteryTypeLocked && setSelectedLotteryType(type)}
+                      className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedLotteryType === type ? 'bg-stone-950 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      {type}
+                    </button>
+                    {editingMultiplierType === type ? (
+                      <input
+                        autoFocus
+                        type="number"
+                        value={specialMultipliers[type] || (['新澳', '老澳', '香港', '老cc'].includes(type) ? 47 : 46)}
+                        onBlur={() => setEditingMultiplierType(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingMultiplierType(null)}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val)) {
+                            setSpecialMultipliers(prev => ({ ...prev, [type]: val }));
+                          }
+                        }}
+                        className="w-7 h-3.5 bg-white border border-stone-200 rounded text-[8px] font-black text-center outline-none focus:border-stone-400 mt-0.5"
+                      />
+                    ) : (
+                      <div 
+                        onClick={(e) => {
+                          // detail === 1 is single click, detail === 2 is double click but handled by onDoubleClick
+                          if (e.detail === 1) {
+                            setSpecialMultipliers(prev => ({
+                              ...prev,
+                              [type]: prev[type] === 47 ? 46 : 47
+                            }));
+                          }
+                        }}
+                        onDoubleClick={() => setEditingMultiplierType(type)}
+                        className={`text-[8px] font-black tracking-tighter px-1 rounded transition-colors mt-0.5 cursor-pointer select-none ${
+                          specialMultipliers[type] === 47 ? 'text-amber-600' : 'text-stone-400'
+                        } hover:bg-stone-200`}
+                        title="单击切换46/47，双击编辑"
+                      >
+                        {specialMultipliers[type]}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
               <button
@@ -2081,6 +2135,26 @@ export default function App() {
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
                 )}
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('是否确定要将所有彩种的特码倍率恢复为默认设置？')) {
+                    const defaults = lotteryTypes.reduce((acc, type) => {
+                      const isHigh = ['新澳', '老澳', '香港', '老cc'].includes(type);
+                      return { ...acc, [type]: isHigh ? 47 : 46 };
+                    }, {});
+                    setSpecialMultipliers(defaults);
+                  }
+                }}
+                className="p-1.5 rounded-lg bg-stone-100 text-stone-400 hover:text-stone-600 border border-stone-200 transition-all"
+                title="刷新并重置所有彩种倍率为默认"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                  <path d="M21 3v5h-5"/>
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                  <path d="M8 16H3v5"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -3402,6 +3476,7 @@ export default function App() {
                         idx={idx}
                         defaultLottery={batchDefaultLotteryType}
                         drawNumbers={drawNumbers}
+                        specialMultipliers={specialMultipliers}
                         renderHighlight={renderHighlightedInput}
                         renderBetText={renderHighlightedText}
                         onUpdate={(content) => {
@@ -3659,7 +3734,7 @@ export default function App() {
                             ) : (
                               order.manualWinAmount !== undefined ? (order.manualWinAmount > 0 ? `¥ ${order.manualWinAmount.toLocaleString()}` : '') : (() => {
                                 const totalWin = (order.items || []).reduce((sum, item) => {
-                                  const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                  const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType, specialMultipliers);
                                   return sum + (win || 0);
                                 }, 0);
                                 return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -3761,7 +3836,7 @@ export default function App() {
                                         setEditingWinAmount(order.manualWinAmount);
                                       } else {
                                         const winAmt = (order.items || []).reduce((sum, item) => {
-                                          const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                          const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType, specialMultipliers);
                                           return sum + (win || 0);
                                         }, 0);
                                         setEditingWinAmount(winAmt || '');
@@ -3916,7 +3991,7 @@ export default function App() {
                                 ) : (
                                   order.manualWinAmount !== undefined ? (order.manualWinAmount > 0 ? `¥ ${order.manualWinAmount.toLocaleString()}` : '') : (() => {
                                     const totalWin = (order.items || []).reduce((sum, item) => {
-                                      const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                      const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType, specialMultipliers);
                                       return sum + (win || 0);
                                     }, 0);
                                     return totalWin > 0 ? `¥ ${totalWin.toLocaleString()}` : '';
@@ -4018,7 +4093,7 @@ export default function App() {
                                             setEditingWinAmount(order.manualWinAmount);
                                           } else {
                                             const winAmt = (order.items || []).reduce((sum, item) => {
-                                              const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType);
+                                              const win = calculateWinAmount(item.numberDeltas, item.flatNumberDeltas || {}, item.zodiacDeltas, item.teXiaoDeltas || {}, item.tailDeltas, item.multiZodiacDeltas, item.sixZodiacDeltas, item.fiveZodiacDeltas, item.fourZodiacDeltas, item.multiTailDeltas, item.notInDeltas, item.combinationWinDeltas || [], item.specialAttributeDeltas || {}, drawNumbers[item.lotteryType], item.lotteryType, specialMultipliers);
                                               return sum + (win || 0);
                                             }, 0);
                                             setEditingWinAmount(winAmt || '');

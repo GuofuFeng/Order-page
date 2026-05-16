@@ -100,7 +100,8 @@ export const calculateWinAmount = (
   combinationWinDeltas: CombinationWinBet[] = [],
   specialAttributeDeltas: Record<string, number> = {},
   drawNumbers: (number | '')[],
-  lotteryType?: string
+  lotteryType?: string,
+  multipliers?: Record<string, number>
 ): number | null => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return null;
 
@@ -111,14 +112,18 @@ export const calculateWinAmount = (
   const normalNums = drawNums.slice(0, 6); // First 6 numbers are "平码"
 
   // 1. Special Number (特码) calculation
-  // Odds: 新澳, 老澳, 香港, 老cc -> 47x. Others -> 46x.
   const specialNum = drawNumbers[6] as number;
   const specialZodiac = getZodiacFromNumber(specialNum);
   // Ensure we check both numeric and string keys because JSON.parse converts numeric keys to strings
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
-    const multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+    let multiplier = 47;
+    if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
+      multiplier = multipliers[lotteryType];
+    } else {
+      const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
+      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+    }
     totalWin += betAmount * multiplier;
     hasWin = true;
   }
@@ -579,7 +584,8 @@ export const getWinningBreakdown = (
   combinationWinDeltas: CombinationWinBet[] = [],
   specialAttributeDeltas: Record<string, number> = {},
   drawNumbers: (number | '')[],
-  lotteryType?: string
+  lotteryType?: string,
+  multipliers?: Record<string, number>
 ): { type: string; amount: number; multiplier: number; win: number }[] => {
   if (!drawNumbers || drawNumbers.length < 7 || drawNumbers.some(n => n === '')) return [];
 
@@ -594,8 +600,13 @@ export const getWinningBreakdown = (
   // 1. Special Number
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
-    const multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+    let multiplier = 47;
+    if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
+      multiplier = multipliers[lotteryType];
+    } else {
+      const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
+      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+    }
     breakdown.push({ type: '特', amount: betAmount, multiplier, win: betAmount * multiplier });
   }
 
