@@ -554,6 +554,7 @@ export default function App() {
     }, {});
     return loadFromStorage(STORAGE_KEYS.SPECIAL_MULTIPLIERS, defaults);
   });
+  const [commissionRate, setCommissionRate] = useState<number>(() => loadFromStorage(STORAGE_KEYS.COMMISSION_RATE, 4));
   const [editingMultiplierType, setEditingMultiplierType] = useState<string | null>(null);
   const pendingBets = useMemo(() => allPendingBets[selectedBasketId] || [], [allPendingBets, selectedBasketId]);
 
@@ -955,6 +956,10 @@ export default function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SPECIAL_MULTIPLIERS, specialMultipliers);
   }, [specialMultipliers]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.COMMISSION_RATE, commissionRate);
+  }, [commissionRate]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SELECTED_BASKET_ID, selectedBasketId);
@@ -1414,13 +1419,12 @@ export default function App() {
 
     // Define columns
     worksheet.columns = [
-      { header: '序号', key: 'index', width: 10 },
-      { header: '彩种', key: 'type', width: 15 },
+      { header: '序号', key: 'index', width: 10, alignment: { horizontal: 'center' } },
+      { header: '彩种', key: 'type', width: 15, alignment: { horizontal: 'center' } },
       { header: '注单内容', key: 'content', width: 60 },
-      { header: '下注金额', key: 'total', width: 15 },
-      { header: '中奖类型', key: 'winType', width: 20 },
-      { header: '中奖金额', key: 'win', width: 15 },
-      { header: '下单时间', key: 'time', width: 25 }
+      { header: '下注金额', key: 'total', width: 15, alignment: { horizontal: 'center' } },
+      { header: '中奖类型', key: 'winType', width: 20, alignment: { horizontal: 'center' } },
+      { header: '中奖金额', key: 'win', width: 15, alignment: { horizontal: 'center' } }
     ];
 
     // Style header
@@ -1452,8 +1456,7 @@ export default function App() {
         content: '', // Will be set as rich text
         total: order.total,
         winType: winTypeStr,
-        win: totalWin > 0 ? totalWin : '',
-        time: new Date(order.timestamp).toLocaleString()
+        win: totalWin > 0 ? totalWin : ''
       });
 
       // Style win cell if there's a win
@@ -1462,11 +1465,17 @@ export default function App() {
         winCell.font = { bold: true, color: { argb: 'FFFF0000' } };
       }
 
+      // Center align all columns except content
+      row.getCell('index').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('type').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('total').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('winType').alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell('win').alignment = { horizontal: 'center', vertical: 'middle' };
+
       // Style other cells to match UI
       row.getCell('type').font = { bold: true, color: { argb: 'FF78716C' } }; // stone-500
       row.getCell('total').font = { bold: true, color: { argb: 'FF1C1917' } }; // stone-900
       row.getCell('index').font = { color: { argb: 'FFA8A29E' } }; // stone-400
-      row.getCell('time').font = { color: { argb: 'FFA8A29E' } }; // stone-400
 
       // Handle rich text for content (highlighting)
       const contentCell = row.getCell('content');
@@ -1692,34 +1701,68 @@ export default function App() {
 
     worksheet.addRow([]);
     worksheet.addRow([]);
-    worksheet.addRow(['总下注', '', '', totalSum]);
-    const summaryRow = worksheet.lastRow;
-    if (summaryRow) {
-      summaryRow.getCell(1).font = { bold: true };
-      summaryRow.getCell(4).font = { bold: true, color: { argb: 'FF1C1917' } };
-    }
-
-    worksheet.addRow(['总中奖', '', '', totalWinSum]);
+    
+    // Total Win Sum (总金额)
+    worksheet.addRow(['总金额', totalWinSum]);
     const winSummaryRow = worksheet.lastRow;
     if (winSummaryRow) {
       winSummaryRow.getCell(1).font = { bold: true };
-      winSummaryRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } };
+      winSummaryRow.getCell(1).alignment = { horizontal: 'center' };
+      winSummaryRow.getCell(2).font = { bold: true };
+      winSummaryRow.getCell(2).alignment = { horizontal: 'center' };
     }
 
-    // Add winning breakdowns in the 5th column, starting from summaryRow
+    // Total Bet Sum (总下注)
+    worksheet.addRow(['总下注', totalSum]);
+    const summaryRow = worksheet.lastRow;
+    if (summaryRow) {
+      summaryRow.getCell(1).font = { bold: true };
+      summaryRow.getCell(1).alignment = { horizontal: 'center' };
+      summaryRow.getCell(2).font = { bold: true };
+      summaryRow.getCell(2).alignment = { horizontal: 'center' };
+    }
+
+    // Commission (水)
+    const commissionAmt = totalSum * (commissionRate / 100);
+    worksheet.addRow(['水', commissionAmt.toFixed(1)]);
+    const commissionRow = worksheet.lastRow;
+    if (commissionRow) {
+      commissionRow.getCell(1).font = { bold: true };
+      commissionRow.getCell(1).alignment = { horizontal: 'center' };
+      commissionRow.getCell(2).font = { bold: true };
+      commissionRow.getCell(2).alignment = { horizontal: 'center' };
+    }
+
+    // Remaining (庄)
+    const remainingSum = totalSum - totalWinSum - commissionAmt;
+    worksheet.addRow(['庄', remainingSum.toFixed(1)]);
+    const remainingRow = worksheet.lastRow;
+    if (remainingRow) {
+      remainingRow.getCell(1).font = { bold: true };
+      remainingRow.getCell(1).alignment = { horizontal: 'center' };
+      remainingRow.getCell(2).font = { bold: true, color: remainingSum >= 0 ? { argb: 'FF059669' } : { argb: 'FFDC2626' } };
+      remainingRow.getCell(2).alignment = { horizontal: 'center' };
+    }
+
+    // Add winning breakdowns in the 5th column
     breakdownLines.forEach((line, idx) => {
       let targetRow: any;
       if (idx === 0) {
-        targetRow = summaryRow;
-      } else if (idx === 1) {
         targetRow = winSummaryRow;
+      } else if (idx === 1) {
+        targetRow = summaryRow;
+      } else if (idx === 2) {
+        targetRow = commissionRow;
+      } else if (idx === 3) {
+        targetRow = remainingRow;
       } else {
         targetRow = worksheet.addRow(['', '', '', '', '']);
       }
       
       if (targetRow) {
-        targetRow.getCell(5).value = line;
-        targetRow.getCell(5).font = { color: { argb: 'FFFF0000' } };
+        const detailsCell = targetRow.getCell(5);
+        detailsCell.value = line;
+        detailsCell.font = { size: 9, color: { argb: 'FF78716C' } };
       }
     });
 
@@ -3531,6 +3574,20 @@ export default function App() {
                   <span className="text-[10px] text-stone-400 uppercase tracking-widest">当日中奖总金额</span>
                   <span className={`text-xl font-bold ${todayTotalWin > 0 ? 'text-rose-600' : 'text-stone-400'}`}>
                     ¥ {todayTotalWin.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end mr-4 border-l border-stone-200 pl-4">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-stone-400 uppercase tracking-widest">抽水比例</span>
+                    <button 
+                      onClick={() => setCommissionRate(commissionRate === 4 ? 5 : 4)}
+                      className="px-1.5 py-0.5 rounded bg-stone-100 text-[10px] font-black text-stone-600 hover:bg-stone-200 transition-colors shadow-sm"
+                    >
+                      {commissionRate}%
+                    </button>
+                  </div>
+                  <span className="text-xl font-bold text-amber-600">
+                    ¥ {(todayBets.reduce((sum, o) => sum + o.total, 0) * (commissionRate / 100)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   </span>
                 </div>
                 <button

@@ -8,7 +8,8 @@ export const STORAGE_KEYS = {
   SELECTED_BASKET_ID: 'selectedBasketId',
   ALL_PENDING_BETS: 'allPendingBets',
   IS_LOTTERY_TYPE_LOCKED: 'isLotteryTypeLocked',
-  SPECIAL_MULTIPLIERS: 'specialMultipliers'
+  SPECIAL_MULTIPLIERS: 'specialMultipliers',
+  COMMISSION_RATE: 'commissionRate'
 };
 
 export const saveToStorage = (key: string, data: any) => {
