@@ -1702,24 +1702,24 @@ export default function App() {
     worksheet.addRow([]);
     worksheet.addRow([]);
     
-    // Total Win Sum (总金额)
-    worksheet.addRow(['总金额', totalWinSum]);
+    // Total Bet Sum (总下注)
+    worksheet.addRow(['总下注', totalSum]);
+    const betSummaryRow = worksheet.lastRow;
+    if (betSummaryRow) {
+      betSummaryRow.getCell(1).font = { bold: true };
+      betSummaryRow.getCell(1).alignment = { horizontal: 'center' };
+      betSummaryRow.getCell(2).font = { bold: true };
+      betSummaryRow.getCell(2).alignment = { horizontal: 'center' };
+    }
+
+    // Total Win Sum (总中奖)
+    worksheet.addRow(['总中奖', totalWinSum]);
     const winSummaryRow = worksheet.lastRow;
     if (winSummaryRow) {
       winSummaryRow.getCell(1).font = { bold: true };
       winSummaryRow.getCell(1).alignment = { horizontal: 'center' };
       winSummaryRow.getCell(2).font = { bold: true };
       winSummaryRow.getCell(2).alignment = { horizontal: 'center' };
-    }
-
-    // Total Bet Sum (总下注)
-    worksheet.addRow(['总下注', totalSum]);
-    const summaryRow = worksheet.lastRow;
-    if (summaryRow) {
-      summaryRow.getCell(1).font = { bold: true };
-      summaryRow.getCell(1).alignment = { horizontal: 'center' };
-      summaryRow.getCell(2).font = { bold: true };
-      summaryRow.getCell(2).alignment = { horizontal: 'center' };
     }
 
     // Commission (水)
@@ -1748,9 +1748,9 @@ export default function App() {
     breakdownLines.forEach((line, idx) => {
       let targetRow: any;
       if (idx === 0) {
-        targetRow = winSummaryRow;
+        targetRow = betSummaryRow;
       } else if (idx === 1) {
-        targetRow = summaryRow;
+        targetRow = winSummaryRow;
       } else if (idx === 2) {
         targetRow = commissionRow;
       } else if (idx === 3) {
