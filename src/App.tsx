@@ -556,6 +556,7 @@ export default function App() {
   });
   const [commissionRate, setCommissionRate] = useState<number>(() => loadFromStorage(STORAGE_KEYS.COMMISSION_RATE, 4));
   const [editingMultiplierType, setEditingMultiplierType] = useState<string | null>(null);
+  const [editingMultiplierValue, setEditingMultiplierValue] = useState<string>('');
   const pendingBets = useMemo(() => allPendingBets[selectedBasketId] || [], [allPendingBets, selectedBasketId]);
 
   const setPendingBets = (newBets: BetOrder[] | ((prev: BetOrder[]) => BetOrder[])) => {
@@ -2133,17 +2134,32 @@ export default function App() {
                     {editingMultiplierType === type ? (
                       <input
                         autoFocus
-                        type="number"
-                        value={specialMultipliers[type] || (['新澳', '老澳', '香港', '老cc'].includes(type) ? 47 : 46)}
-                        onBlur={() => setEditingMultiplierType(null)}
-                        onKeyDown={(e) => e.key === 'Enter' && setEditingMultiplierType(null)}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value);
+                        type="text"
+                        value={editingMultiplierValue}
+                        onBlur={() => {
+                          const val = parseFloat(editingMultiplierValue);
                           if (!isNaN(val)) {
-                            setSpecialMultipliers(prev => ({ ...prev, [type]: val }));
+                            const roundedVal = Math.round(val * 10) / 10;
+                            setSpecialMultipliers(prev => ({ ...prev, [type]: roundedVal }));
+                          }
+                          setEditingMultiplierType(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = parseFloat(editingMultiplierValue);
+                            if (!isNaN(val)) {
+                              const roundedVal = Math.round(val * 10) / 10;
+                              setSpecialMultipliers(prev => ({ ...prev, [type]: roundedVal }));
+                            }
+                            setEditingMultiplierType(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingMultiplierType(null);
                           }
                         }}
-                        className="w-7 h-3.5 bg-white border border-stone-200 rounded text-[8px] font-black text-center outline-none focus:border-stone-400 mt-0.5"
+                        onChange={(e) => {
+                          setEditingMultiplierValue(e.target.value);
+                        }}
+                        className="w-10 h-3.5 bg-white border border-stone-200 rounded text-[8px] font-black text-center outline-none focus:border-stone-400 mt-0.5"
                       />
                     ) : (
                       <div 
@@ -2156,7 +2172,10 @@ export default function App() {
                             }));
                           }
                         }}
-                        onDoubleClick={() => setEditingMultiplierType(type)}
+                        onDoubleClick={() => {
+                          setEditingMultiplierType(type);
+                          setEditingMultiplierValue((specialMultipliers[type] || (['新澳', '老澳', '香港', '老cc'].includes(type) ? 47 : 46)).toString());
+                        }}
                         className={`text-[8px] font-black tracking-tighter px-1 rounded transition-colors mt-0.5 cursor-pointer select-none ${
                           specialMultipliers[type] === 47 ? 'text-amber-600' : 'text-stone-400'
                         } hover:bg-stone-200`}
