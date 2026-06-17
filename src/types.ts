@@ -67,6 +67,9 @@ export interface ConfirmedBet {
   basketId: string;
   manualWinType?: string;
   manualWinAmount?: number;
+  frozenWinAmount?: number;
+  frozenWinType?: string;
+  isFrozen?: boolean;
 }
 
 export interface BatchImportEntry {
