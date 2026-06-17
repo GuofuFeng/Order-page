@@ -1,10 +1,12 @@
-import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements } from '../constants';
+import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements, zodiacNumbers, YEAR_MAIN_ZODIAC, MULTIPLIERS } from '../constants';
 import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 
 export const getZodiacFromNumber = (num: number | '') => {
   if (num === '' || num < 1 || num > 49) return '';
-  const index = (num - 1) % 12;
-  return zodiacs[index];
+  for (const [zodiac, nums] of Object.entries(zodiacNumbers)) {
+    if (nums.includes(num)) return zodiac;
+  }
+  return '';
 };
 
 export const formatNumber = (num: number | string) => {
@@ -26,8 +28,6 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   if (/^\d{1,2}$/.test(part)) {
     const n = parseInt(part);
     // Special Number rule: only the 7th number (index 6) counts for "Special Number Area"
-    // However, the user said "在特码区下注的所有号码，都是在下注对应彩种中的第七个号码"
-    // So for highlighting, we highlight if it matches the 7th number.
     return drawNumbers[6] === n;
   }
 
@@ -41,12 +41,12 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   // Check for Color, Size, Parity (Special Number only)
   if (drawNumbers[6] === '') return false;
   const specialNum = drawNumbers[6] as number;
-  
+
   if (part === '单' || part === '单数') return specialNum % 2 !== 0;
   if (part === '双' || part === '双数') return specialNum % 2 === 0;
   if (part === '大' || part === '大数') return specialNum >= 25 && specialNum <= 49;
   if (part === '小' || part === '小数') return specialNum >= 1 && specialNum <= 24;
-  
+
   if (part === '红' || part === '红波') return redNumbers.includes(specialNum);
   if (part === '蓝' || part === '蓝波') return blueNumbers.includes(specialNum);
   if (part === '绿' || part === '绿波') return greenNumbers.includes(specialNum);
@@ -124,75 +124,71 @@ export const calculateWinAmount = (
   // Ensure we check both numeric and string keys because JSON.parse converts numeric keys to strings
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    let multiplier = 47;
+    let multiplier = MULTIPLIERS.specialNumber.highOdds;
     if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
       multiplier = multipliers[lotteryType];
     } else {
       const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
-      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? MULTIPLIERS.specialNumber.highOdds : MULTIPLIERS.specialNumber.default;
     }
     totalWin += betAmount * multiplier;
     hasWin = true;
   }
 
-  // 1.2 Te Xiao (特肖) calculation: 11x multiplier (9x for Horse) if special zodiac matches
+  // 1.2 Te Xiao (特肖) calculation: using configurable multipliers
   Object.entries(teXiaoDeltas).forEach(([z, amt]) => {
     if (specialZodiac === z) {
-      const multiplier = z === '马' ? 9 : 11;
+      const multiplier = z === YEAR_MAIN_ZODIAC ? MULTIPLIERS.teXiao.main : MULTIPLIERS.teXiao.others;
       totalWin += amt * multiplier;
       hasWin = true;
     }
   });
 
-  // 1.5 Flat Number (平码) calculation: 7x multiplier if in first 6 numbers
+  // 1.5 Flat Number (平码) calculation
   Object.entries(flatNumberDeltas).forEach(([numStr, amt]) => {
     const n = parseInt(numStr);
     if (normalNums.includes(n)) {
-      totalWin += amt * 7;
+      totalWin += amt * MULTIPLIERS.flatNumber;
       hasWin = true;
     }
   });
 
-  // 2. Flat Zodiac (平肖) calculation: 2x multiplier (1.8x for Horse) if in any of the 7 numbers
+  // 2. Flat Zodiac (平肖) calculation: using configurable multipliers
   const winningZodiacs = Array.from(new Set(drawNumbers.map(n => getZodiacFromNumber(n)).filter(Boolean)));
   Object.entries(zodiacDeltas).forEach(([z, amt]) => {
     if (winningZodiacs.includes(z)) {
-      const multiplier = z === '马' ? 1.8 : 2;
+      const multiplier = z === YEAR_MAIN_ZODIAC ? MULTIPLIERS.flatZodiac.main : MULTIPLIERS.flatZodiac.others;
       totalWin += amt * multiplier;
       hasWin = true;
     }
   });
 
-  // 3. Flat Tail (平尾) calculation: 2x for tail 0, 1.8x for tails 1-9
+  // 3. Flat Tail (平尾) calculation: using configurable multipliers
   const winningTails = Array.from(new Set(drawNumbers.map(n => (n === '' ? -1 : n % 10)).filter(t => t !== -1)));
   Object.entries(tailDeltas).forEach(([tailStr, amt]) => {
     const tail = parseInt(tailStr);
     if (winningTails.includes(tail)) {
-      const multiplier = tail === 0 ? 2 : 1.8;
+      const multiplier = tail === 0 ? MULTIPLIERS.flatTail.tail0 : MULTIPLIERS.flatTail.otherTails;
       totalWin += amt * multiplier;
       hasWin = true;
     }
   });
 
   // 4. Multi-Zodiac (连肖) calculation
-  // 2连肖: 4x (Horse: 3.5x)
-  // 3连肖: 10x (Horse: 9x)
-  // 4连肖: 30x (Horse: 28x)
-  // 5连肖: 100x (Horse: 85x)
   multiZodiacDeltas.forEach(bet => {
     if (bet.tuoGroups && bet.tuoGroups.length > 0) {
       bet.tuoGroups.forEach(group => {
         const allPresent = group.every(z => winningZodiacs.includes(z));
         if (allPresent) {
           const count = group.length;
-          const hasHorse = group.includes('马');
+          const hasMain = group.includes(YEAR_MAIN_ZODIAC);
           let multiplier = 0;
-          
-          if (count === 2) multiplier = hasHorse ? 3.5 : 4;
-          else if (count === 3) multiplier = hasHorse ? 9 : 10;
-          else if (count === 4) multiplier = hasHorse ? 28 : 30;
-          else if (count >= 5) multiplier = hasHorse ? 85 : 100;
-          
+
+          if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
+          else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
+          else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
+          else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+
           if (multiplier > 0) {
             totalWin += bet.amount * multiplier;
             hasWin = true;
@@ -203,14 +199,14 @@ export const calculateWinAmount = (
       const allPresent = bet.zodiacs.every(z => winningZodiacs.includes(z));
       if (allPresent) {
         const count = bet.zodiacs.length;
-        const hasHorse = bet.zodiacs.includes('马');
+        const hasMain = bet.zodiacs.includes(YEAR_MAIN_ZODIAC);
         let multiplier = 0;
-        
-        if (count === 2) multiplier = hasHorse ? 3.5 : 4;
-        else if (count === 3) multiplier = hasHorse ? 9 : 10;
-        else if (count === 4) multiplier = hasHorse ? 28 : 30;
-        else if (count >= 5) multiplier = hasHorse ? 85 : 100;
-        
+
+        if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
+        else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
+        else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
+        else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
           hasWin = true;
@@ -219,31 +215,31 @@ export const calculateWinAmount = (
     }
   });
 
-  // 5. Six-Zodiac (六中/六肖) calculation: 1.9x multiplier if special zodiac is in the set
+  // 5. Six-Zodiac (六中/六肖) calculation
   if (sixZodiacDeltas) {
     sixZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
-        totalWin += bet.amount * 1.9;
+        totalWin += bet.amount * MULTIPLIERS.sixZodiac;
         hasWin = true;
       }
     });
   }
 
-  // 5.5 Five-Zodiac (五中/五肖) calculation: 2.4x multiplier if special zodiac is in the set
+  // 5.5 Five-Zodiac (五中/五肖) calculation
   if (fiveZodiacDeltas) {
     fiveZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
-        totalWin += bet.amount * 2.4;
+        totalWin += bet.amount * MULTIPLIERS.fiveZodiac;
         hasWin = true;
       }
     });
   }
 
-  // 6. Four-Zodiac (四中/四肖) calculation: 2.8x multiplier if special zodiac is in the set
+  // 6. Four-Zodiac (四中/四肖) calculation
   if (fourZodiacDeltas) {
     fourZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
-        totalWin += bet.amount * 2.8;
+        totalWin += bet.amount * MULTIPLIERS.fourZodiac;
         hasWin = true;
       }
     });
@@ -254,16 +250,7 @@ export const calculateWinAmount = (
     notInDeltas.forEach(bet => {
       const isWinner = bet.numbers.every(n => !drawNums.includes(n));
       if (isWinner) {
-        let multiplier = 0;
-        if (bet.x === 5) multiplier = 2;
-        else if (bet.x === 6) multiplier = 2.5;
-        else if (bet.x === 7) multiplier = 3;
-        else if (bet.x === 8) multiplier = 3.5;
-        else if (bet.x === 9) multiplier = 4;
-        else if (bet.x === 10) multiplier = 5;
-        else if (bet.x === 11) multiplier = 6;
-        else if (bet.x === 12) multiplier = 7;
-
+        const multiplier = MULTIPLIERS.notIn[bet.x] || 0;
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
           hasWin = true;
@@ -279,12 +266,7 @@ export const calculateWinAmount = (
       const allPresent = betTails.every(t => winningTails.includes(t));
       if (allPresent) {
         const count = betTails.length;
-        let multiplier = 0;
-        if (count === 2) multiplier = 3;
-        else if (count === 3) multiplier = 7;
-        else if (count === 4) multiplier = 15;
-        else if (count === 5) multiplier = 40;
-
+        const multiplier = MULTIPLIERS.multiTail[count] || 0;
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
           hasWin = true;
@@ -308,14 +290,13 @@ export const calculateWinAmount = (
             const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
             if (hasSpecial && hasNormal) {
               isWinner = true;
-              multiplier = 100;
+              multiplier = MULTIPLIERS.combinationWin['特碰'];
             }
           } else {
             const allPresent = nums.every(n => normalNums.includes(n));
             if (allPresent) {
               isWinner = true;
-              if (bet.type === '二中二') multiplier = 60;
-              else if (bet.type === '三中三') multiplier = 600;
+              multiplier = MULTIPLIERS.combinationWin[bet.type] || 0;
             }
           }
 
@@ -335,14 +316,13 @@ export const calculateWinAmount = (
           const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
           if (hasSpecial && hasNormal) {
             isWinner = true;
-            multiplier = 100;
+            multiplier = MULTIPLIERS.combinationWin['特碰'];
           }
         } else {
           const allPresent = bet.numbers.every(n => normalNums.includes(n));
           if (allPresent) {
             isWinner = true;
-            if (bet.type === '二中二') multiplier = 60;
-            else if (bet.type === '三中三') multiplier = 600;
+            multiplier = MULTIPLIERS.combinationWin[bet.type] || 0;
           }
         }
 
@@ -357,49 +337,36 @@ export const calculateWinAmount = (
   // 10. Special Attribute (波色, 大小, 单双) calculation
   Object.entries(specialAttributeDeltas).forEach(([attr, amt]) => {
     let isWinner = false;
-    let multiplier = 0;
-    
+    let multiplier = MULTIPLIERS.specialAttribute[attr] || 0;
+
     if (attr === '红波') {
       isWinner = redNumbers.includes(specialNum);
-      multiplier = 2.7;
     } else if (attr === '蓝波') {
       isWinner = blueNumbers.includes(specialNum);
-      multiplier = 2.8;
     } else if (attr === '绿波') {
       isWinner = greenNumbers.includes(specialNum);
-      multiplier = 2.8;
     } else if (attr === '大数') {
       isWinner = specialNum >= 25 && specialNum <= 49;
-      multiplier = 1.9;
     } else if (attr === '小数') {
       isWinner = specialNum >= 1 && specialNum <= 24;
-      multiplier = 1.9;
     } else if (attr === '单数') {
       isWinner = specialNum % 2 !== 0;
-      multiplier = 1.9;
     } else if (attr === '双数') {
       isWinner = specialNum % 2 === 0;
-      multiplier = 1.9;
     } else if (attr === '红单') {
       isWinner = redNumbers.includes(specialNum) && specialNum % 2 !== 0;
-      multiplier = 5.7;
     } else if (attr === '红双') {
       isWinner = redNumbers.includes(specialNum) && specialNum % 2 === 0;
-      multiplier = 5.5;
     } else if (attr === '绿单') {
       isWinner = greenNumbers.includes(specialNum) && specialNum % 2 !== 0;
-      multiplier = 5.7;
     } else if (attr === '绿双') {
       isWinner = greenNumbers.includes(specialNum) && specialNum % 2 === 0;
-      multiplier = 6.5;
     } else if (attr === '蓝单') {
       isWinner = blueNumbers.includes(specialNum) && specialNum % 2 !== 0;
-      multiplier = 5.7;
     } else if (attr === '蓝双') {
       isWinner = blueNumbers.includes(specialNum) && specialNum % 2 === 0;
-      multiplier = 5.7;
     }
-    
+
     if (isWinner && multiplier > 0) {
       totalWin += amt * multiplier;
       hasWin = true;
@@ -434,7 +401,6 @@ export const getWinningDetails = (
   const specialNum = drawNumbers[6] as number;
   const specialZodiac = getZodiacFromNumber(specialNum);
   const winningTails = Array.from(new Set(drawNums.map(n => n % 10)));
-  const winningHeads = Array.from(new Set(drawNums.map(n => Math.floor(n / 10))));
 
   // 1. Special Number
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
@@ -460,7 +426,7 @@ export const getWinningDetails = (
   // 2. Flat Zodiac
   Object.entries(zodiacDeltas).forEach(([z, amt]) => {
     if (winningZodiacs.includes(z)) {
-      const type = z === '马' ? '平马' : '平肖';
+      const type = z === YEAR_MAIN_ZODIAC ? `平${YEAR_MAIN_ZODIAC}` : '平肖';
       typeSums[type] = (typeSums[type] || 0) + amt;
     }
   });
@@ -479,15 +445,15 @@ export const getWinningDetails = (
     if (bet.tuoGroups && bet.tuoGroups.length > 0) {
       bet.tuoGroups.forEach(group => {
         if (group.every(z => winningZodiacs.includes(z))) {
-          const hasHorse = group.includes('马');
-          const type = hasHorse ? `${group.length}肖马` : `${group.length}肖`;
+          const hasMain = group.includes(YEAR_MAIN_ZODIAC);
+          const type = hasMain ? `${group.length}肖${YEAR_MAIN_ZODIAC}` : `${group.length}肖`;
           typeSums[type] = (typeSums[type] || 0) + bet.amount;
         }
       });
     } else {
       if (bet.zodiacs.every(z => winningZodiacs.includes(z))) {
-        const hasHorse = bet.zodiacs.includes('马');
-        const type = hasHorse ? `${bet.zodiacs.length}肖马` : `${bet.zodiacs.length}肖`;
+        const hasMain = bet.zodiacs.includes(YEAR_MAIN_ZODIAC);
+        const type = hasMain ? `${bet.zodiacs.length}肖${YEAR_MAIN_ZODIAC}` : `${bet.zodiacs.length}肖`;
         typeSums[type] = (typeSums[type] || 0) + bet.amount;
       }
     }
@@ -631,12 +597,12 @@ export const getWinningBreakdown = (
   // 1. Special Number
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    let multiplier = 47;
+    let multiplier = MULTIPLIERS.specialNumber.highOdds;
     if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
       multiplier = multipliers[lotteryType];
     } else {
       const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
-      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? 47 : 46;
+      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? MULTIPLIERS.specialNumber.highOdds : MULTIPLIERS.specialNumber.default;
     }
     breakdown.push({ type: '特', amount: betAmount, multiplier, win: betAmount * multiplier });
   }
@@ -644,7 +610,7 @@ export const getWinningBreakdown = (
   // 1.2 Te Xiao
   Object.entries(teXiaoDeltas).forEach(([z, amt]) => {
     if (specialZodiac === z) {
-      const multiplier = z === '马' ? 9 : 11;
+      const multiplier = z === YEAR_MAIN_ZODIAC ? MULTIPLIERS.teXiao.main : MULTIPLIERS.teXiao.others;
       breakdown.push({ type: '特肖', amount: amt, multiplier, win: amt * multiplier });
     }
   });
@@ -653,15 +619,15 @@ export const getWinningBreakdown = (
   Object.entries(flatNumberDeltas).forEach(([numStr, amt]) => {
     const n = parseInt(numStr);
     if (normalNums.includes(n)) {
-      breakdown.push({ type: '平码', amount: amt, multiplier: 7, win: amt * 7 });
+      breakdown.push({ type: '平码', amount: amt, multiplier: MULTIPLIERS.flatNumber, win: amt * MULTIPLIERS.flatNumber });
     }
   });
 
   // 2. Flat Zodiac
   Object.entries(zodiacDeltas).forEach(([z, amt]) => {
     if (winningZodiacs.includes(z)) {
-      const multiplier = z === '马' ? 1.8 : 2;
-      const type = z === '马' ? '平马' : '平肖';
+      const multiplier = z === YEAR_MAIN_ZODIAC ? MULTIPLIERS.flatZodiac.main : MULTIPLIERS.flatZodiac.others;
+      const type = z === YEAR_MAIN_ZODIAC ? `平${YEAR_MAIN_ZODIAC}` : '平肖';
       breakdown.push({ type, amount: amt, multiplier, win: amt * multiplier });
     }
   });
@@ -670,7 +636,7 @@ export const getWinningBreakdown = (
   Object.entries(tailDeltas).forEach(([tailStr, amt]) => {
     const tail = parseInt(tailStr);
     if (winningTails.includes(tail)) {
-      const multiplier = tail === 0 ? 2 : 1.8;
+      const multiplier = tail === 0 ? MULTIPLIERS.flatTail.tail0 : MULTIPLIERS.flatTail.otherTails;
       const type = tail === 0 ? '平0尾' : '平尾';
       breakdown.push({ type, amount: amt, multiplier, win: amt * multiplier });
     }
@@ -682,13 +648,13 @@ export const getWinningBreakdown = (
       bet.tuoGroups.forEach(group => {
         if (group.every(z => winningZodiacs.includes(z))) {
           const count = group.length;
-          const hasHorse = group.includes('马');
+          const hasMain = group.includes(YEAR_MAIN_ZODIAC);
           let multiplier = 0;
-          if (count === 2) multiplier = hasHorse ? 3.5 : 4;
-          else if (count === 3) multiplier = hasHorse ? 9 : 10;
-          else if (count === 4) multiplier = hasHorse ? 28 : 30;
-          else if (count >= 5) multiplier = hasHorse ? 85 : 100;
-          
+          if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
+          else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
+          else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
+          else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+
           if (multiplier > 0) {
             breakdown.push({ type: `${count}连肖`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
           }
@@ -697,12 +663,12 @@ export const getWinningBreakdown = (
     } else {
       if (bet.zodiacs.every(z => winningZodiacs.includes(z))) {
         const count = bet.zodiacs.length;
-        const hasHorse = bet.zodiacs.includes('马');
+        const hasMain = bet.zodiacs.includes(YEAR_MAIN_ZODIAC);
         let multiplier = 0;
-        if (count === 2) multiplier = hasHorse ? 3.5 : 4;
-        else if (count === 3) multiplier = hasHorse ? 9 : 10;
-        else if (count === 4) multiplier = hasHorse ? 28 : 30;
-        else if (count >= 5) multiplier = hasHorse ? 85 : 100;
+        if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
+        else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
+        else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
+        else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
 
         if (multiplier > 0) {
           breakdown.push({ type: `${count}连肖`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
@@ -715,7 +681,7 @@ export const getWinningBreakdown = (
   if (sixZodiacDeltas) {
     sixZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
-        breakdown.push({ type: '六中', amount: bet.amount, multiplier: 1.9, win: bet.amount * 1.9 });
+        breakdown.push({ type: '六中', amount: bet.amount, multiplier: MULTIPLIERS.sixZodiac, win: bet.amount * MULTIPLIERS.sixZodiac });
       }
     });
   }
@@ -724,7 +690,7 @@ export const getWinningBreakdown = (
   if (fiveZodiacDeltas) {
     fiveZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
-        breakdown.push({ type: '五中', amount: bet.amount, multiplier: 2.4, win: bet.amount * 2.4 });
+        breakdown.push({ type: '五中', amount: bet.amount, multiplier: MULTIPLIERS.fiveZodiac, win: bet.amount * MULTIPLIERS.fiveZodiac });
       }
     });
   }
@@ -733,7 +699,7 @@ export const getWinningBreakdown = (
   if (fourZodiacDeltas) {
     fourZodiacDeltas.forEach(bet => {
       if (bet.zodiacs.includes(specialZodiac)) {
-        breakdown.push({ type: '四中', amount: bet.amount, multiplier: 2.8, win: bet.amount * 2.8 });
+        breakdown.push({ type: '四中', amount: bet.amount, multiplier: MULTIPLIERS.fourZodiac, win: bet.amount * MULTIPLIERS.fourZodiac });
       }
     });
   }
@@ -742,15 +708,7 @@ export const getWinningBreakdown = (
   if (notInDeltas) {
     notInDeltas.forEach(bet => {
       if (bet.numbers.every(n => !drawNums.includes(n))) {
-        let multiplier = 0;
-        if (bet.x === 5) multiplier = 2;
-        else if (bet.x === 6) multiplier = 2.5;
-        else if (bet.x === 7) multiplier = 3;
-        else if (bet.x === 8) multiplier = 3.5;
-        else if (bet.x === 9) multiplier = 4;
-        else if (bet.x === 10) multiplier = 5;
-        else if (bet.x === 11) multiplier = 6;
-        else if (bet.x === 12) multiplier = 7;
+        const multiplier = MULTIPLIERS.notIn[bet.x] || 0;
         if (multiplier > 0) {
           breakdown.push({ type: `${bet.x}不中`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
         }
@@ -763,13 +721,10 @@ export const getWinningBreakdown = (
     multiTailDeltas.forEach(bet => {
       const betTails = bet.zodiacs.map(Number);
       if (betTails.every(t => winningTails.includes(t))) {
-        let multiplier = 0;
-        if (betTails.length === 2) multiplier = 3;
-        else if (betTails.length === 3) multiplier = 7;
-        else if (betTails.length === 4) multiplier = 15;
-        else if (betTails.length === 5) multiplier = 40;
+        const count = betTails.length;
+        const multiplier = MULTIPLIERS.multiTail[count] || 0;
         if (multiplier > 0) {
-          breakdown.push({ type: `${betTails.length}连尾`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
+          breakdown.push({ type: `${count}连尾`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
         }
       }
     });
@@ -785,10 +740,10 @@ export const getWinningBreakdown = (
             const otherNum = nums.find(n => n !== specialNum);
             const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
             if (hasSpecial && hasNormal) {
-              breakdown.push({ type: bet.type, amount: bet.amount, multiplier: 100, win: bet.amount * 100 });
+              breakdown.push({ type: bet.type, amount: bet.amount, multiplier: MULTIPLIERS.combinationWin['特碰'], win: bet.amount * MULTIPLIERS.combinationWin['特碰'] });
             }
           } else if (nums.every(n => normalNums.includes(n))) {
-            const multiplier = bet.type === '二中二' ? 60 : 600;
+            const multiplier = MULTIPLIERS.combinationWin[bet.type] || 0;
             breakdown.push({ type: bet.type, amount: bet.amount, multiplier, win: bet.amount * multiplier });
           }
         });
@@ -798,10 +753,10 @@ export const getWinningBreakdown = (
           const otherNum = bet.numbers.find(n => n !== specialNum);
           const hasNormal = otherNum !== undefined && normalNums.includes(otherNum);
           if (hasSpecial && hasNormal) {
-            breakdown.push({ type: bet.type, amount: bet.amount, multiplier: 100, win: bet.amount * 100 });
+            breakdown.push({ type: bet.type, amount: bet.amount, multiplier: MULTIPLIERS.combinationWin['特碰'], win: bet.amount * MULTIPLIERS.combinationWin['特碰'] });
           }
         } else if (bet.numbers.every(n => normalNums.includes(n))) {
-          const multiplier = bet.type === '二中二' ? 60 : 600;
+          const multiplier = MULTIPLIERS.combinationWin[bet.type] || 0;
           breakdown.push({ type: bet.type, amount: bet.amount, multiplier, win: bet.amount * multiplier });
         }
       }
@@ -811,22 +766,22 @@ export const getWinningBreakdown = (
   // 10. Special Attribute
   Object.entries(specialAttributeDeltas).forEach(([attr, amt]) => {
     let isWinner = false;
-    let multiplier = 0;
-    if (attr === '红波') { isWinner = redNumbers.includes(specialNum); multiplier = 2.7; }
-    else if (attr === '蓝波') { isWinner = blueNumbers.includes(specialNum); multiplier = 2.8; }
-    else if (attr === '绿波') { isWinner = greenNumbers.includes(specialNum); multiplier = 2.8; }
-    else if (attr === '大数') { isWinner = specialNum >= 25 && specialNum <= 49; multiplier = 1.9; }
-    else if (attr === '小数') { isWinner = specialNum >= 1 && specialNum <= 24; multiplier = 1.9; }
-    else if (attr === '单数') { isWinner = specialNum % 2 !== 0; multiplier = 1.9; }
-    else if (attr === '双数') { isWinner = specialNum % 2 === 0; multiplier = 1.9; }
-    else if (attr === '红单') { isWinner = redNumbers.includes(specialNum) && specialNum % 2 !== 0; multiplier = 5.7; }
-    else if (attr === '红双') { isWinner = redNumbers.includes(specialNum) && specialNum % 2 === 0; multiplier = 5.5; }
-    else if (attr === '绿单') { isWinner = greenNumbers.includes(specialNum) && specialNum % 2 !== 0; multiplier = 5.7; }
-    else if (attr === '绿双') { isWinner = greenNumbers.includes(specialNum) && specialNum % 2 === 0; multiplier = 6.5; }
-    else if (attr === '蓝单') { isWinner = blueNumbers.includes(specialNum) && specialNum % 2 !== 0; multiplier = 5.7; }
-    else if (attr === '蓝双') { isWinner = blueNumbers.includes(specialNum) && specialNum % 2 === 0; multiplier = 5.7; }
-    
-    if (isWinner) {
+    let multiplier = MULTIPLIERS.specialAttribute[attr] || 0;
+    if (attr === '红波') { isWinner = redNumbers.includes(specialNum); }
+    else if (attr === '蓝波') { isWinner = blueNumbers.includes(specialNum); }
+    else if (attr === '绿波') { isWinner = greenNumbers.includes(specialNum); }
+    else if (attr === '大数') { isWinner = specialNum >= 25 && specialNum <= 49; }
+    else if (attr === '小数') { isWinner = specialNum >= 1 && specialNum <= 24; }
+    else if (attr === '单数') { isWinner = specialNum % 2 !== 0; }
+    else if (attr === '双数') { isWinner = specialNum % 2 === 0; }
+    else if (attr === '红单') { isWinner = redNumbers.includes(specialNum) && specialNum % 2 !== 0; }
+    else if (attr === '红双') { isWinner = redNumbers.includes(specialNum) && specialNum % 2 === 0; }
+    else if (attr === '绿单') { isWinner = greenNumbers.includes(specialNum) && specialNum % 2 !== 0; }
+    else if (attr === '绿双') { isWinner = greenNumbers.includes(specialNum) && specialNum % 2 === 0; }
+    else if (attr === '蓝单') { isWinner = blueNumbers.includes(specialNum) && specialNum % 2 !== 0; }
+    else if (attr === '蓝双') { isWinner = blueNumbers.includes(specialNum) && specialNum % 2 === 0; }
+
+    if (isWinner && multiplier > 0) {
       breakdown.push({ type: attr, amount: amt, multiplier, win: amt * multiplier });
     }
   });
@@ -834,22 +789,18 @@ export const getWinningBreakdown = (
   return breakdown;
 };
 
-/**
- * Future-proofing: Add more complex winning rules here.
- * For example: checkSpecialNumberOnly, checkNormalNumbersOnly, etc.
- */
 export const checkIsSpecialWinner = (part: string, context: WinningContext): boolean => {
   const { drawNumbers, isLocked } = context;
   if (!isLocked || !drawNumbers || drawNumbers[6] === '') return false;
-  
+
   const specialNum = drawNumbers[6];
   if (/^\d{1,2}$/.test(part)) {
     return parseInt(part) === specialNum;
   }
-  
+
   if (zodiacs.includes(part)) {
     return getZodiacFromNumber(specialNum) === part;
   }
-  
+
   return false;
 };
