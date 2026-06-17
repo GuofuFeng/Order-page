@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
-import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS } from './utils/betParser';
+import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS, REGEX_EXCLUSION } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails, getWinningBreakdown } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData, BatchImportEntry } from './types';
 
@@ -2004,7 +2004,7 @@ export default function App() {
 
     function renderBetContent(text: string, context: any) {
       // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, "拖" keyword, combination types, and Five Elements
-      const parts = text.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|红单|红双|蓝单|蓝双|绿单|绿双|单|双|大|小|红|绿|蓝|家|野|男|女|天|地|吉|凶|美|丑|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数|金|木|水|火|土)/);
+      const parts = text.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|红单|红双|蓝单|蓝双|绿单|绿双|单|双|大|小|红|绿|蓝|家|野|男|女|天|地|吉|凶|美|丑|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数|金|木|水|火|土|不要|其他各|其他)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -2019,6 +2019,14 @@ export default function App() {
       return parts.map((part, partIdx) => {
         if (!part) return null;
         
+        if (part === '不要') {
+          return <span key={partIdx} className="text-stone-400 font-medium mx-0.5">{part}</span>;
+        }
+
+        if (part === '其他各' || part === '其他') {
+          return <span key={partIdx} className="text-stone-400 font-medium mx-0.5">{part}</span>;
+        }
+
         if (['三中三二中二', '二中二三中三', '三中三', '二中二', '特碰'].includes(part)) {
           isCombinationContext = true;
           return <span key={partIdx} className="text-emerald-600 font-bold">{part}</span>;

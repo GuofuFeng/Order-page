@@ -1,12 +1,17 @@
 import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements, zodiacNumbers, YEAR_MAIN_ZODIAC, MULTIPLIERS } from '../constants';
 import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 
+// Pre-compute O(1) number to zodiac lookup array (indices 1-49)
+const numToZodiacMap = new Array<string>(50).fill('');
+Object.entries(zodiacNumbers).forEach(([zodiac, nums]) => {
+  nums.forEach(num => {
+    numToZodiacMap[num] = zodiac;
+  });
+});
+
 export const getZodiacFromNumber = (num: number | '') => {
   if (num === '' || num < 1 || num > 49) return '';
-  for (const [zodiac, nums] of Object.entries(zodiacNumbers)) {
-    if (nums.includes(num)) return zodiac;
-  }
-  return '';
+  return numToZodiacMap[num];
 };
 
 export const formatNumber = (num: number | string) => {
@@ -19,6 +24,44 @@ export interface WinningContext {
   drawNumbers: (number | '')[];
   isLocked: boolean;
 }
+
+// Helpers to extract logic and remove code duplication
+const getSpecialNumberMultiplier = (
+  lotteryType?: string,
+  multipliers?: Record<string, number>
+): number => {
+  if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
+    return multipliers[lotteryType];
+  }
+  const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
+  return lotteryType && highOddsTypes.includes(lotteryType)
+    ? MULTIPLIERS.specialNumber.highOdds
+    : MULTIPLIERS.specialNumber.default;
+};
+
+const getMultiZodiacMultiplier = (count: number, hasMain: boolean): number => {
+  const key = Math.min(count, 5) as 2 | 3 | 4 | 5;
+  const config = MULTIPLIERS.multiZodiac[key];
+  if (!config) return 0;
+  return hasMain ? config.main : config.others;
+};
+
+const checkSpecialAttributeWinner = (attr: string, specialNum: number): boolean => {
+  if (attr === '红波') return redNumbers.includes(specialNum);
+  if (attr === '蓝波') return blueNumbers.includes(specialNum);
+  if (attr === '绿波') return greenNumbers.includes(specialNum);
+  if (attr === '大数') return specialNum >= 25 && specialNum <= 49;
+  if (attr === '小数') return specialNum >= 1 && specialNum <= 24;
+  if (attr === '单数') return specialNum % 2 !== 0;
+  if (attr === '双数') return specialNum % 2 === 0;
+  if (attr === '红单') return redNumbers.includes(specialNum) && specialNum % 2 !== 0;
+  if (attr === '红双') return redNumbers.includes(specialNum) && specialNum % 2 === 0;
+  if (attr === '绿单') return greenNumbers.includes(specialNum) && specialNum % 2 !== 0;
+  if (attr === '绿双') return greenNumbers.includes(specialNum) && specialNum % 2 === 0;
+  if (attr === '蓝单') return blueNumbers.includes(specialNum) && specialNum % 2 !== 0;
+  if (attr === '蓝双') return blueNumbers.includes(specialNum) && specialNum % 2 === 0;
+  return false;
+};
 
 export const checkIsWinner = (part: string, context: WinningContext): boolean => {
   const { drawNumbers, isLocked } = context;
@@ -42,21 +85,8 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   if (drawNumbers[6] === '') return false;
   const specialNum = drawNumbers[6] as number;
 
-  if (part === '单' || part === '单数') return specialNum % 2 !== 0;
-  if (part === '双' || part === '双数') return specialNum % 2 === 0;
-  if (part === '大' || part === '大数') return specialNum >= 25 && specialNum <= 49;
-  if (part === '小' || part === '小数') return specialNum >= 1 && specialNum <= 24;
-
-  if (part === '红' || part === '红波') return redNumbers.includes(specialNum);
-  if (part === '蓝' || part === '蓝波') return blueNumbers.includes(specialNum);
-  if (part === '绿' || part === '绿波') return greenNumbers.includes(specialNum);
-
-  if (part === '红单') return redNumbers.includes(specialNum) && specialNum % 2 !== 0;
-  if (part === '红双') return redNumbers.includes(specialNum) && specialNum % 2 === 0;
-  if (part === '蓝单') return blueNumbers.includes(specialNum) && specialNum % 2 !== 0;
-  if (part === '蓝双') return blueNumbers.includes(specialNum) && specialNum % 2 === 0;
-  if (part === '绿单') return greenNumbers.includes(specialNum) && specialNum % 2 !== 0;
-  if (part === '绿双') return greenNumbers.includes(specialNum) && specialNum % 2 === 0;
+  const hasAttrMatch = checkSpecialAttributeWinner(part, specialNum);
+  if (hasAttrMatch) return true;
 
   // Check for Zodiac Groups (Special Number only)
   const specialZodiac = getZodiacFromNumber(specialNum);
@@ -124,13 +154,7 @@ export const calculateWinAmount = (
   // Ensure we check both numeric and string keys because JSON.parse converts numeric keys to strings
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    let multiplier = MULTIPLIERS.specialNumber.highOdds;
-    if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
-      multiplier = multipliers[lotteryType];
-    } else {
-      const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
-      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? MULTIPLIERS.specialNumber.highOdds : MULTIPLIERS.specialNumber.default;
-    }
+    const multiplier = getSpecialNumberMultiplier(lotteryType, multipliers);
     totalWin += betAmount * multiplier;
     hasWin = true;
   }
@@ -182,12 +206,7 @@ export const calculateWinAmount = (
         if (allPresent) {
           const count = group.length;
           const hasMain = group.includes(YEAR_MAIN_ZODIAC);
-          let multiplier = 0;
-
-          if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
-          else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
-          else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
-          else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+          const multiplier = getMultiZodiacMultiplier(count, hasMain);
 
           if (multiplier > 0) {
             totalWin += bet.amount * multiplier;
@@ -200,12 +219,7 @@ export const calculateWinAmount = (
       if (allPresent) {
         const count = bet.zodiacs.length;
         const hasMain = bet.zodiacs.includes(YEAR_MAIN_ZODIAC);
-        let multiplier = 0;
-
-        if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
-        else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
-        else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
-        else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+        const multiplier = getMultiZodiacMultiplier(count, hasMain);
 
         if (multiplier > 0) {
           totalWin += bet.amount * multiplier;
@@ -336,36 +350,8 @@ export const calculateWinAmount = (
 
   // 10. Special Attribute (波色, 大小, 单双) calculation
   Object.entries(specialAttributeDeltas).forEach(([attr, amt]) => {
-    let isWinner = false;
-    let multiplier = MULTIPLIERS.specialAttribute[attr] || 0;
-
-    if (attr === '红波') {
-      isWinner = redNumbers.includes(specialNum);
-    } else if (attr === '蓝波') {
-      isWinner = blueNumbers.includes(specialNum);
-    } else if (attr === '绿波') {
-      isWinner = greenNumbers.includes(specialNum);
-    } else if (attr === '大数') {
-      isWinner = specialNum >= 25 && specialNum <= 49;
-    } else if (attr === '小数') {
-      isWinner = specialNum >= 1 && specialNum <= 24;
-    } else if (attr === '单数') {
-      isWinner = specialNum % 2 !== 0;
-    } else if (attr === '双数') {
-      isWinner = specialNum % 2 === 0;
-    } else if (attr === '红单') {
-      isWinner = redNumbers.includes(specialNum) && specialNum % 2 !== 0;
-    } else if (attr === '红双') {
-      isWinner = redNumbers.includes(specialNum) && specialNum % 2 === 0;
-    } else if (attr === '绿单') {
-      isWinner = greenNumbers.includes(specialNum) && specialNum % 2 !== 0;
-    } else if (attr === '绿双') {
-      isWinner = greenNumbers.includes(specialNum) && specialNum % 2 === 0;
-    } else if (attr === '蓝单') {
-      isWinner = blueNumbers.includes(specialNum) && specialNum % 2 !== 0;
-    } else if (attr === '蓝双') {
-      isWinner = blueNumbers.includes(specialNum) && specialNum % 2 === 0;
-    }
+    const isWinner = checkSpecialAttributeWinner(attr, specialNum);
+    const multiplier = MULTIPLIERS.specialAttribute[attr] || 0;
 
     if (isWinner && multiplier > 0) {
       totalWin += amt * multiplier;
@@ -543,21 +529,7 @@ export const getWinningDetails = (
 
   // 10. Special Attribute
   Object.entries(specialAttributeDeltas).forEach(([attr, amt]) => {
-    let isWinner = false;
-    if (attr === '红波') isWinner = redNumbers.includes(specialNum);
-    else if (attr === '蓝波') isWinner = blueNumbers.includes(specialNum);
-    else if (attr === '绿波') isWinner = greenNumbers.includes(specialNum);
-    else if (attr === '大数') isWinner = specialNum >= 25 && specialNum <= 49;
-    else if (attr === '小数') isWinner = specialNum >= 1 && specialNum <= 24;
-    else if (attr === '单数') isWinner = specialNum % 2 !== 0;
-    else if (attr === '双数') isWinner = specialNum % 2 === 0;
-    else if (attr === '红单') isWinner = redNumbers.includes(specialNum) && specialNum % 2 !== 0;
-    else if (attr === '红双') isWinner = redNumbers.includes(specialNum) && specialNum % 2 === 0;
-    else if (attr === '绿单') isWinner = greenNumbers.includes(specialNum) && specialNum % 2 !== 0;
-    else if (attr === '绿双') isWinner = greenNumbers.includes(specialNum) && specialNum % 2 === 0;
-    else if (attr === '蓝单') isWinner = blueNumbers.includes(specialNum) && specialNum % 2 !== 0;
-    else if (attr === '蓝双') isWinner = blueNumbers.includes(specialNum) && specialNum % 2 === 0;
-
+    const isWinner = checkSpecialAttributeWinner(attr, specialNum);
     if (isWinner) {
       typeSums[attr] = (typeSums[attr] || 0) + amt;
     }
@@ -597,13 +569,7 @@ export const getWinningBreakdown = (
   // 1. Special Number
   const betAmount = numberDeltas[specialNum] || (numberDeltas as any)[specialNum.toString()];
   if (betAmount) {
-    let multiplier = MULTIPLIERS.specialNumber.highOdds;
-    if (multipliers && lotteryType && multipliers[lotteryType] !== undefined) {
-      multiplier = multipliers[lotteryType];
-    } else {
-      const highOddsTypes = ['新澳', '老澳', '香港', '老cc'];
-      multiplier = (lotteryType && highOddsTypes.includes(lotteryType)) ? MULTIPLIERS.specialNumber.highOdds : MULTIPLIERS.specialNumber.default;
-    }
+    const multiplier = getSpecialNumberMultiplier(lotteryType, multipliers);
     breakdown.push({ type: '特', amount: betAmount, multiplier, win: betAmount * multiplier });
   }
 
@@ -649,11 +615,7 @@ export const getWinningBreakdown = (
         if (group.every(z => winningZodiacs.includes(z))) {
           const count = group.length;
           const hasMain = group.includes(YEAR_MAIN_ZODIAC);
-          let multiplier = 0;
-          if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
-          else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
-          else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
-          else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+          const multiplier = getMultiZodiacMultiplier(count, hasMain);
 
           if (multiplier > 0) {
             breakdown.push({ type: `${count}连肖`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
@@ -664,11 +626,7 @@ export const getWinningBreakdown = (
       if (bet.zodiacs.every(z => winningZodiacs.includes(z))) {
         const count = bet.zodiacs.length;
         const hasMain = bet.zodiacs.includes(YEAR_MAIN_ZODIAC);
-        let multiplier = 0;
-        if (count === 2) multiplier = hasMain ? MULTIPLIERS.multiZodiac[2].main : MULTIPLIERS.multiZodiac[2].others;
-        else if (count === 3) multiplier = hasMain ? MULTIPLIERS.multiZodiac[3].main : MULTIPLIERS.multiZodiac[3].others;
-        else if (count === 4) multiplier = hasMain ? MULTIPLIERS.multiZodiac[4].main : MULTIPLIERS.multiZodiac[4].others;
-        else if (count >= 5) multiplier = hasMain ? MULTIPLIERS.multiZodiac[5].main : MULTIPLIERS.multiZodiac[5].others;
+        const multiplier = getMultiZodiacMultiplier(count, hasMain);
 
         if (multiplier > 0) {
           breakdown.push({ type: `${count}连肖`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
@@ -765,21 +723,8 @@ export const getWinningBreakdown = (
 
   // 10. Special Attribute
   Object.entries(specialAttributeDeltas).forEach(([attr, amt]) => {
-    let isWinner = false;
-    let multiplier = MULTIPLIERS.specialAttribute[attr] || 0;
-    if (attr === '红波') { isWinner = redNumbers.includes(specialNum); }
-    else if (attr === '蓝波') { isWinner = blueNumbers.includes(specialNum); }
-    else if (attr === '绿波') { isWinner = greenNumbers.includes(specialNum); }
-    else if (attr === '大数') { isWinner = specialNum >= 25 && specialNum <= 49; }
-    else if (attr === '小数') { isWinner = specialNum >= 1 && specialNum <= 24; }
-    else if (attr === '单数') { isWinner = specialNum % 2 !== 0; }
-    else if (attr === '双数') { isWinner = specialNum % 2 === 0; }
-    else if (attr === '红单') { isWinner = redNumbers.includes(specialNum) && specialNum % 2 !== 0; }
-    else if (attr === '红双') { isWinner = redNumbers.includes(specialNum) && specialNum % 2 === 0; }
-    else if (attr === '绿单') { isWinner = greenNumbers.includes(specialNum) && specialNum % 2 !== 0; }
-    else if (attr === '绿双') { isWinner = greenNumbers.includes(specialNum) && specialNum % 2 === 0; }
-    else if (attr === '蓝单') { isWinner = blueNumbers.includes(specialNum) && specialNum % 2 !== 0; }
-    else if (attr === '蓝双') { isWinner = blueNumbers.includes(specialNum) && specialNum % 2 === 0; }
+    const isWinner = checkSpecialAttributeWinner(attr, specialNum);
+    const multiplier = MULTIPLIERS.specialAttribute[attr] || 0;
 
     if (isWinner && multiplier > 0) {
       breakdown.push({ type: attr, amount: amt, multiplier, win: amt * multiplier });
