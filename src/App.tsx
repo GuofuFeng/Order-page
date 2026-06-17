@@ -12,6 +12,9 @@ import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
 import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS, REGEX_EXCLUSION } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails, getWinningBreakdown } from './utils/winningCalculator';
 import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData, BatchImportEntry } from './types';
+import { useAuth } from './context/AuthContext';
+import { LoginRegister } from './components/LoginRegister';
+import { AdminPanel } from './components/AdminPanel';
 
 // Helper to get Beijing Date String (YYYY-MM-DD) with 04:00 AM cutoff
 const getBeijingDateString = (timestamp: number) => {
@@ -546,7 +549,8 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
 };
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<'order' | 'draw' | 'batch' | 'confirm'>('order');
+  const { user, loading: authLoading, logout, deductPoints } = useAuth();
+  const [currentPage, setCurrentPage] = useState<'order' | 'draw' | 'batch' | 'confirm' | 'admin'>('order');
   const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(new Set());
   const [inputText, setInputText] = useState('');
   const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
@@ -666,6 +670,54 @@ export default function App() {
 
   // Final confirmed bets for the table
   const [confirmedBets, setConfirmedBets] = useState<ConfirmedBet[]>(() => loadFromStorage(STORAGE_KEYS.CONFIRMED_BETS, []));
+
+  // Refs for tracking synchronization state
+  const hasSyncedRef = useRef(false);
+  const skipNextSyncPostRef = useRef(false);
+
+  // 1. Initial Load Sync: When user logins, load bets from database and merge
+  useEffect(() => {
+    if (user) {
+      hasSyncedRef.current = false;
+      fetch('/api/sync/bets')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Sync fetch failed');
+        })
+        .then(data => {
+          if (data.bets) {
+            skipNextSyncPostRef.current = true;
+            setConfirmedBets(data.bets);
+          }
+          hasSyncedRef.current = true;
+        })
+        .catch(err => {
+          console.error('Initial bets sync failed:', err);
+          hasSyncedRef.current = true; // allow updates even if fetch fails to avoid locking local edits
+        });
+    } else {
+      hasSyncedRef.current = false;
+    }
+  }, [user]);
+
+  // 2. Post-changes Sync: Whenever confirmedBets changes, push to database if logged in and initialized
+  useEffect(() => {
+    if (user && hasSyncedRef.current) {
+      if (skipNextSyncPostRef.current) {
+        skipNextSyncPostRef.current = false;
+        return;
+      }
+      fetch('/api/sync/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bets: confirmedBets })
+      })
+        .then(res => {
+          if (!res.ok) console.error('Failed to auto-sync bets to database');
+        })
+        .catch(err => console.error('Sync bets request error:', err));
+    }
+  }, [confirmedBets, user]);
 
   // Batch Import state
   const [batchRows, setBatchRows] = useState<BatchImportEntry[]>([]);
@@ -1504,6 +1556,15 @@ export default function App() {
       return;
     }
 
+    if (user && user.role !== 'admin') {
+      try {
+        await deductPoints('download');
+      } catch (err: any) {
+        alert(err.message || '扣减积分失败，导出已拦截。');
+        return;
+      }
+    }
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Confirmed Bets');
 
@@ -2196,6 +2257,22 @@ export default function App() {
 
   const highlightedInput = useMemo(() => renderHighlightedInput(inputText, parsedResult.validMatches, parsedResult.invalidMatches), [inputText, parsedResult.validMatches, parsedResult.invalidMatches]);
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center font-bold text-stone-600 text-xs tracking-widest uppercase">
+        正在载入安全会话...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+        <LoginRegister />
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-stone-50 text-stone-950 font-sans flex flex-col overflow-hidden">
       {/* 1. Header Navigation (Top Section) */}
@@ -2342,9 +2419,54 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {user && (
+            <div className="flex items-center gap-3 bg-stone-50 border border-stone-200/60 px-3 py-1.5 rounded-xl shadow-sm">
+              <div className="flex flex-col items-end text-[10px] font-bold text-stone-600 leading-tight">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-stone-800">{user.username}</span>
+                  {user.role === 'admin' && (
+                    <span className="bg-amber-100 text-amber-700 text-[8px] px-1 rounded-sm">管理员</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5 font-mono text-[9px]">
+                  <span className="text-amber-600">积分: {user.points}</span>
+                  <span className="w-1 h-1 bg-stone-300 rounded-full"></span>
+                  {user.monthly_card_expires_at && new Date(user.monthly_card_expires_at).getTime() > Date.now() ? (
+                    <span className="text-emerald-600" title={user.monthly_card_expires_at}>月卡有效</span>
+                  ) : (
+                    <span className="text-stone-400">无月卡</span>
+                  )}
+                </div>
+              </div>
+
+              {user.role === 'admin' && (
+                <button
+                  onClick={() => setCurrentPage(currentPage === 'admin' ? 'order' : 'admin')}
+                  className={`px-2 py-1 rounded-lg text-[9px] font-black tracking-tight border transition-all ${
+                    currentPage === 'admin'
+                      ? 'bg-amber-600 border-amber-700 text-white shadow-sm'
+                      : 'bg-white border-stone-200 text-amber-700 hover:bg-stone-100'
+                  }`}
+                >
+                  {currentPage === 'admin' ? '返回系统' : '后台管理'}
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  logout();
+                  setCurrentPage('order');
+                }}
+                className="px-2 py-1 bg-white hover:bg-stone-100 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-lg text-[9px] font-black transition-all cursor-pointer shadow-sm"
+              >
+                退出
+              </button>
+            </div>
+          )}
+
           <div className="text-stone-400 text-[10px] font-medium flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            系统运行中
+            运行中
           </div>
         </div>
       </header>
@@ -3623,8 +3745,21 @@ export default function App() {
                         }
                       });
 
-                      setConfirmedBets(prev => [...prev, ...newConfirmedBets]);
-                      alert(`已成功下单 ${newConfirmedBets.length} 笔注单`);
+                      const executeImport = async () => {
+                        if (user && user.role !== 'admin') {
+                          try {
+                            await deductPoints('import');
+                          } catch (err: any) {
+                            alert(err.message || '扣减积分失败，导入已拦截。');
+                            return;
+                          }
+                        }
+
+                        setConfirmedBets(prev => [...prev, ...newConfirmedBets]);
+                        alert(`已成功下单 ${newConfirmedBets.length} 笔注单`);
+                      };
+
+                      executeImport();
                     }}
                     className={`px-8 py-2.5 rounded-xl transition-all font-black text-xs shadow-lg flex items-center gap-2 ${batchRows.length === 0 ? 'bg-stone-200 text-stone-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0'}`}
                   >
@@ -3683,6 +3818,10 @@ export default function App() {
                 </div>
               )}
             </main>
+          </div>
+        ) : currentPage === 'admin' ? (
+          <div className="flex-grow flex flex-col gap-6 overflow-hidden max-w-[1400px] mx-auto w-full p-6">
+            <AdminPanel />
           </div>
         ) : (
           /* Betting Confirmation Page (注单页) */
