@@ -1,6 +1,6 @@
 import express from 'express';
-import { supabase } from './supabase';
-import { authenticateJWT, requireAdmin, AuthenticatedRequest } from './middleware';
+import { supabase } from './supabase.js';
+import { authenticateJWT, requireAdmin, AuthenticatedRequest } from './middleware.js';
 
 const router = express.Router();
 

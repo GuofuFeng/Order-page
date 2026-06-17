@@ -1,8 +1,8 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { supabase } from './supabase';
-import { JWT_SECRET, authenticateJWT, AuthenticatedRequest } from './middleware';
+import { supabase } from './supabase.js';
+import { JWT_SECRET, authenticateJWT, AuthenticatedRequest } from './middleware.js';
 
 const router = express.Router();
 

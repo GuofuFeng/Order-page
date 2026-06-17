@@ -1,6 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'g-order-jwt-fallback-secret-key-12345';
 

@@ -1,9 +1,9 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import authRouter from './auth';
-import syncRouter from './sync';
-import billingRouter from './billing';
-import adminRouter from './admin';
+import authRouter from './auth.js';
+import syncRouter from './sync.js';
+import billingRouter from './billing.js';
+import adminRouter from './admin.js';
 
 const app = express();
 
