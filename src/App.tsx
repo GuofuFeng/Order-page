@@ -697,8 +697,10 @@ export default function App() {
         });
     } else {
       hasSyncedRef.current = false;
+      // Clear local bets on logout
+      setConfirmedBets([]);
     }
-  }, [user]);
+  }, [user?.id]);
 
   // 2. Post-changes Sync: Whenever confirmedBets changes, push to database if logged in and initialized
   useEffect(() => {
@@ -717,7 +719,7 @@ export default function App() {
         })
         .catch(err => console.error('Sync bets request error:', err));
     }
-  }, [confirmedBets, user]);
+  }, [confirmedBets, user?.id]);
 
   // Batch Import state
   const [batchRows, setBatchRows] = useState<BatchImportEntry[]>([]);
