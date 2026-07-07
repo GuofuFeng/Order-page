@@ -669,7 +669,7 @@ export default function App() {
   const [multiZodiacAmount, setMultiZodiacAmount] = useState<number | ''>('');
 
   // Final confirmed bets for the table
-  const [confirmedBets, setConfirmedBets] = useState<ConfirmedBet[]>(() => loadFromStorage(STORAGE_KEYS.CONFIRMED_BETS, []));
+  const [confirmedBets, setConfirmedBets] = useState<ConfirmedBet[]>([]);
 
   // Refs for tracking synchronization state
   const hasSyncedRef = useRef(false);
@@ -688,19 +688,20 @@ export default function App() {
           if (data.bets) {
             skipNextSyncPostRef.current = true;
             setConfirmedBets(data.bets);
+            hasSyncedRef.current = true; // Only mark sync successful when data is loaded
           }
-          hasSyncedRef.current = true;
         })
         .catch(err => {
           console.error('Initial bets sync failed:', err);
-          hasSyncedRef.current = true; // allow updates even if fetch fails to avoid locking local edits
+          // Do not set hasSyncedRef.current to true to prevent overwriting server data if load fails
         });
     } else {
       hasSyncedRef.current = false;
-      // Clear local bets on logout
-      setConfirmedBets([]);
+      if (!authLoading) {
+        setConfirmedBets([]);
+      }
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   // 2. Post-changes Sync: Whenever confirmedBets changes, push to database if logged in and initialized
   useEffect(() => {
@@ -1059,11 +1060,6 @@ export default function App() {
     const timer = setInterval(checkAndFreezeBets, 60000);
     return () => clearInterval(timer);
   }, [confirmedBets, drawNumbers, specialMultipliers]);
-
-  // Persistence: Save to localStorage on change
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.CONFIRMED_BETS, confirmedBets);
-  }, [confirmedBets]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ALL_PENDING_BETS, allPendingBets);
