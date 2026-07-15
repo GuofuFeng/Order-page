@@ -1,4 +1,4 @@
-import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements, zodiacNumbers, YEAR_MAIN_ZODIAC, MULTIPLIERS } from '../constants';
+import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements, zodiacNumbers, YEAR_MAIN_ZODIAC, MULTIPLIERS, isSumOdd, isSumEven } from '../constants';
 import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 
 // Pre-compute O(1) number to zodiac lookup array (indices 1-49)
@@ -54,6 +54,8 @@ const checkSpecialAttributeWinner = (attr: string, specialNum: number): boolean 
   if (attr === '小数') return specialNum >= 1 && specialNum <= 24;
   if (attr === '单数') return specialNum % 2 !== 0;
   if (attr === '双数') return specialNum % 2 === 0;
+  if (attr === '合单') return isSumOdd(specialNum);
+  if (attr === '合双') return isSumEven(specialNum);
   if (attr === '红单') return redNumbers.includes(specialNum) && specialNum % 2 !== 0;
   if (attr === '红双') return redNumbers.includes(specialNum) && specialNum % 2 === 0;
   if (attr === '绿单') return greenNumbers.includes(specialNum) && specialNum % 2 !== 0;
@@ -85,7 +87,19 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   if (drawNumbers[6] === '') return false;
   const specialNum = drawNumbers[6] as number;
 
-  const hasAttrMatch = checkSpecialAttributeWinner(part, specialNum);
+  // 🔴 核心修复：当在前台渲染字体变红时，用户的输入可能是简写如 '单', '双', '大', '小', '红', '绿', '蓝'，
+  // 也可能是完整名如 '单数', '双数', '大数', '小数', '红波', '蓝波', '绿波'。
+  // 我们将简写归一化为 checkSpecialAttributeWinner 可识别的标准特征字，确保 checkIsWinner 字体变红正常返回 true。
+  let normalizedAttr = part;
+  if (part === '单') normalizedAttr = '单数';
+  else if (part === '双') normalizedAttr = '双数';
+  else if (part === '大') normalizedAttr = '大数';
+  else if (part === '小') normalizedAttr = '小数';
+  else if (part === '红') normalizedAttr = '红波';
+  else if (part === '绿') normalizedAttr = '绿波';
+  else if (part === '蓝') normalizedAttr = '蓝波';
+
+  const hasAttrMatch = checkSpecialAttributeWinner(normalizedAttr, specialNum);
   if (hasAttrMatch) return true;
 
   // Check for Zodiac Groups (Special Number only)
@@ -432,14 +446,14 @@ export const getWinningDetails = (
       bet.tuoGroups.forEach(group => {
         if (group.every(z => winningZodiacs.includes(z))) {
           const hasMain = group.includes(YEAR_MAIN_ZODIAC);
-          const type = hasMain ? `${group.length}肖${YEAR_MAIN_ZODIAC}` : `${group.length}肖`;
+          const type = hasMain ? `${group.length}肖(含${YEAR_MAIN_ZODIAC})` : `${group.length}肖`;
           typeSums[type] = (typeSums[type] || 0) + bet.amount;
         }
       });
     } else {
       if (bet.zodiacs.every(z => winningZodiacs.includes(z))) {
         const hasMain = bet.zodiacs.includes(YEAR_MAIN_ZODIAC);
-        const type = hasMain ? `${bet.zodiacs.length}肖${YEAR_MAIN_ZODIAC}` : `${bet.zodiacs.length}肖`;
+        const type = hasMain ? `${bet.zodiacs.length}肖(含${YEAR_MAIN_ZODIAC})` : `${bet.zodiacs.length}肖`;
         typeSums[type] = (typeSums[type] || 0) + bet.amount;
       }
     }
@@ -618,7 +632,8 @@ export const getWinningBreakdown = (
           const multiplier = getMultiZodiacMultiplier(count, hasMain);
 
           if (multiplier > 0) {
-            breakdown.push({ type: `${count}连肖`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
+            const displayType = hasMain ? `${count}连肖(含${YEAR_MAIN_ZODIAC})` : `${count}连肖`;
+            breakdown.push({ type: displayType, amount: bet.amount, multiplier, win: bet.amount * multiplier });
           }
         }
       });
@@ -629,7 +644,8 @@ export const getWinningBreakdown = (
         const multiplier = getMultiZodiacMultiplier(count, hasMain);
 
         if (multiplier > 0) {
-          breakdown.push({ type: `${count}连肖`, amount: bet.amount, multiplier, win: bet.amount * multiplier });
+          const displayType = hasMain ? `${count}连肖(含${YEAR_MAIN_ZODIAC})` : `${count}连肖`;
+          breakdown.push({ type: displayType, amount: bet.amount, multiplier, win: bet.amount * multiplier });
         }
       }
     }

@@ -161,10 +161,10 @@ const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete,
   // Determine if this is a combination bet that should be folded
   const combinationItems = [
     ...item.combinationWinDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type, numbers: g, amount: d.amount })) : [d]),
-    ...item.multiZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '连肖', zodiacs: g, amount: d.amount })) : [d]),
-    ...item.sixZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '六肖', zodiacs: g, amount: d.amount })) : [d]),
-    ...item.fiveZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '五肖', zodiacs: g, amount: d.amount })) : [d]),
-    ...item.fourZodiacDeltas.flatMap(d => d.tuoGroups ? d.tuoGroups.map(g => ({ type: d.type || '四肖', zodiacs: g, amount: d.amount })) : [d]),
+    ...item.multiZodiacDeltas.flatMap(d => (d.tuoGroups && d.tuoGroups.length > 0) ? d.tuoGroups.map(g => ({ type: d.type || '连肖', zodiacs: g, amount: d.amount })) : [{ type: d.type || '连肖', zodiacs: d.zodiacs, amount: d.amount }]),
+    ...item.sixZodiacDeltas.flatMap(d => (d.tuoGroups && d.tuoGroups.length > 0) ? d.tuoGroups.map(g => ({ type: d.type || '六肖', zodiacs: g, amount: d.amount })) : [{ type: d.type || '六肖', zodiacs: d.zodiacs, amount: d.amount }]),
+    ...item.fiveZodiacDeltas.flatMap(d => (d.tuoGroups && d.tuoGroups.length > 0) ? d.tuoGroups.map(g => ({ type: d.type || '五肖', zodiacs: g, amount: d.amount })) : [{ type: d.type || '五肖', zodiacs: d.zodiacs, amount: d.amount }]),
+    ...item.fourZodiacDeltas.flatMap(d => (d.tuoGroups && d.tuoGroups.length > 0) ? d.tuoGroups.map(g => ({ type: d.type || '四肖', zodiacs: g, amount: d.amount })) : [{ type: d.type || '四肖', zodiacs: d.zodiacs, amount: d.amount }]),
     ...item.multiTailDeltas,
     ...item.notInDeltas
   ];
@@ -240,22 +240,23 @@ const CollapsibleBetItem: React.FC<CollapsibleBetItemProps> = ({ item, onDelete,
   );
 };
 
-const BatchBetItemPreview: React.FC<{ 
-  item: any; 
-  renderBetText: (text: string, lType: string) => React.ReactNode; 
+const BatchBetItemPreview: React.FC<{
+  item: any;
+  renderBetText: (text: string, lType: string) => React.ReactNode;
   lotteryType: string;
 }> = ({ item, renderBetText, lotteryType }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
-  const complexBets = [
-    ...(item.multiZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
-    ...(item.combinationWinBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
-    ...(item.sixZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
-    ...(item.fiveZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
-    ...(item.fourZodiacBets || []).filter((b: any) => b.tuoCount && b.tuoCount > 1),
+
+  const allBets = [
+    ...(item.multiZodiacBets || []),
+    ...(item.combinationWinBets || []),
+    ...(item.sixZodiacBets || []),
+    ...(item.fiveZodiacBets || []),
+    ...(item.fourZodiacBets || []),
   ];
 
-  const hasComplex = complexBets.length > 0;
+  const complexBets = allBets;
+  const hasComplex = allBets.length > 1 || allBets.some((b: any) => b.tuoCount && b.tuoCount > 1);
 
   return (
     <div className="flex flex-col gap-1">
@@ -288,14 +289,20 @@ const BatchBetItemPreview: React.FC<{
             <div key={bIdx} className="flex flex-col gap-1 border-b border-stone-50 last:border-0 pb-1.5 mb-1.5 last:pb-0 last:mb-0">
               <div className="flex justify-between items-center text-[11px] font-black text-stone-400 italic">
                 <span>组合详情 (#{bIdx + 1})</span>
-                <span className="text-emerald-500">共 {bet.tuoCount} 组</span>
+                <span className="text-emerald-500">共 {bet.tuoCount || (bet.tuoGroups ? bet.tuoGroups.length : 1)} 组</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {bet.tuoGroups.map((group: any, gIdx: number) => (
-                  <div key={gIdx} className="px-2 py-0.5 bg-stone-50 rounded text-[10px] font-bold text-stone-600 border border-stone-100">
-                    {Array.isArray(group) ? group.join(', ') : group}
+                {bet.tuoGroups && bet.tuoGroups.length > 0 ? (
+                  bet.tuoGroups.map((group: any, gIdx: number) => (
+                    <div key={gIdx} className="px-2 py-0.5 bg-stone-50 rounded text-[10px] font-bold text-stone-600 border border-stone-100">
+                      {Array.isArray(group) ? group.join(', ') : group}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-2 py-0.5 bg-stone-50 rounded text-[10px] font-bold text-stone-600 border border-stone-100">
+                    {Array.isArray(bet.zodiacs) ? bet.zodiacs.join(', ') : bet.zodiacs}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           ))}
@@ -311,7 +318,7 @@ interface BatchImportRowProps {
   onUpdate: (content: string) => void;
   onInsert: () => void;
   onDelete: () => void;
-  renderHighlight: (text: string, valid: any[], invalid: any[]) => React.ReactNode;
+  renderHighlight: (text: string, validPhrases: string[], invalidPhrases: string[]) => React.ReactNode;
   renderBetText: (text: string, lType: string) => React.ReactNode;
   defaultLottery: string;
   drawNumbers: Record<string, (number | '')[]>;
@@ -393,13 +400,32 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
   }, [winningBreakdowns]);
 
   const winningBadges = useMemo(() => {
-    const badges: { type: string; win: number; amount: number }[] = [];
+    // 🔴 核心修改：在批量导入页汇总面板，将同彩种中奖类型相同的项进行金额合并展示。
+    const mergedBadges: Record<string, { type: string; win: number; amount: number }> = {};
+
     winningBreakdowns.forEach(br => {
       br.items.forEach(i => {
-        badges.push({ type: i.type, win: i.win, amount: i.amount });
+        // 使用 type 作为唯一 key 进行同类型合并
+        const key = i.type;
+        if (mergedBadges[key]) {
+          mergedBadges[key].win += i.win;
+          mergedBadges[key].amount += i.amount;
+        } else {
+          mergedBadges[key] = { type: i.type, win: i.win, amount: i.amount };
+        }
       });
     });
-    return badges;
+
+    // 合并后，将总的该类型中奖对应的“下注金额”追加到文本类型后面进行展示，格式为：“类型+总下注金额” (这里是 amount 的总计)
+    return Object.values(mergedBadges).map(badge => {
+      return {
+        // 展示文字形式如：特15 或者 三连肖10
+        // 将 + 号也去掉，直接以 “类型+下注金额” 展示，例如：特15, 三连肖10
+        type: `${badge.type}${badge.amount.toFixed(1).replace(/\.0$/, '')}`,
+        win: badge.win,
+        amount: badge.amount
+      };
+    });
   }, [winningBreakdowns]);
 
   return (
@@ -419,15 +445,15 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
       <div className="w-[450px] shrink-0">
         <div className="relative bg-stone-50 rounded-xl border border-stone-100 focus-within:border-stone-300 focus-within:bg-white transition-all overflow-hidden">
           {/* Highlight layer - PERFECT SYNC */}
-          <div 
+          <div
             className="absolute inset-0 pointer-events-none p-3 whitespace-pre-wrap break-words text-[14px] font-mono font-bold leading-[1.6] opacity-100 z-0 select-none overflow-hidden"
-            style={{ 
-              boxSizing: 'border-box', 
+            style={{
+              boxSizing: 'border-box',
               border: '1px solid transparent',
               fontFamily: 'font-mono'
             }}
           >
-            {renderHighlight(row.content, result.validMatches, result.invalidMatches)}
+            {renderHighlight(row.content, result.validPhrases || [], result.invalidPhrases || [])}
           </div>
           {/* Real input */}
           <textarea
@@ -509,7 +535,7 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
               <div className="flex flex-wrap gap-1">
                 {winningBadges.map((badge, bIdx) => (
                   <span key={bIdx} className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-md">
-                    {badge.type} {badge.amount}
+                    {badge.type}
                   </span>
                 ))}
               </div>
@@ -2075,6 +2101,27 @@ export default function App() {
       let isTeXiaoContext = false;
       let isCombinationContext = false;
 
+      // 🔴 核心修复：将特征下注别名规范（如 "蓝波"、"小数"、"双数"、"单数"、"大数"）与其核心简写（"蓝"、"小"、"双"、"单"、"大"）做对齐，
+      // 以免在前台通过 parts.map 分隔后，"蓝波" 被分成 "蓝" 和 "波"（或因匹配顺序被其他分支吃掉），确保它们同样可以触发 checkIsWinner 字体变红。
+      // 在 checkIsWinner(part, context) 内部，原先仅处理了 "单", "双" 简写，此处我们可以为 "蓝波"、"大数" 等在 render 之前做别名对齐以触发检测，
+      // 或者在 checkIsWinner 本身已经包含 "蓝波", "大数" 的情况下，确保 split 的正则能精准切割出来。
+      // 正则本身：(红波|蓝波|绿波|大数|小数|单数|双数|合单|合双) 已包含。
+      // 我们在 parts.map 里面需要保证如果 part 是 "波"、"数" 等没有被分割吞噬，
+      // 实际上 text.split 将 "蓝波" 切分为了 "蓝波" (整体)，
+      // 检查 parts.map 内部：
+      // } else if (['单', '双', '大', '小', '红', '绿', '蓝', '红单', '红双', '蓝单', '蓝双', '绿单', '绿双', '家', '野', '男', '女', '天', '地', '吉', '凶', '美', '丑', '合单', '合双', '红波', '蓝波', '绿波', '大数', '小数', '单数', '双数'].includes(part)) {
+      // 为什么不红？因为 checkIsWinner(part, context) 内部对 "蓝波" (attr) 的匹配使用了 checkSpecialAttributeWinner。
+      // 让我们核对 checkIsWinner(part, context) 内部对 WinningContext 属性的支持。
+      // 由于 checkIsWinner 已经调用了 checkSpecialAttributeWinner(part, specialNum)，并且 drawNumbers[6] 是有的。
+      // 那么不红的原因很有可能是：当 part 为例如 "蓝波"、"小数"、"双数" 时，由于 checkIsWinner 接收的 context 是：
+      // context = { drawNumbers: currentLotteryType ? drawNumbers[currentLotteryType] : [], isLocked: ... }
+      // 此时如果是订单页（currentPage === 'order'），它的 drawNumbers 有可能在 renderHighlightedText 中获取时，
+      // 并没有传入正确的当前彩种，或者 context 中 drawNumbers[6] 的值是空的。
+      // 如果已开奖并锁定，checkIsWinner(part, context) 应该返回 true。
+      // 另一个可能原因是在订单列表表格中展示中奖时，renderHighlightedText 传入的 part 没有完全在 list 中，
+      // 或者 split 正则对某些特定字符切割有问题。例如："小数200 31各40" 中的 "小数" 如果没有被正确切割出来，它就无法进入这个分支。
+      // 我们来确保 checkIsWinner 准确执行，并在 part 含有简写如 "单", "双"、"大", "小" 等与 specialAttribute 正确对应。
+      // 让我们确认 `checkIsWinner` 在 `winningCalculator.ts` 中的实现。
       return parts.map((part, partIdx) => {
         if (!part) return null;
         
@@ -2170,74 +2217,47 @@ export default function App() {
     }
   };
 
-  const renderHighlightedInput = (text: string, validMatches: { start: number; end: number }[], invalidMatches: { start: number; end: number }[]) => {
+  const renderHighlightedInput = (text: string, validPhrases: string[] = [], invalidPhrases: string[] = []) => {
     if (!text) return null;
-    
-    const mergeMatches = (matches: { start: number; end: number }[]) => {
-      if (matches.length === 0) return [];
-      matches.sort((a, b) => a.start - b.start);
-      const merged: { start: number; end: number }[] = [];
-      let current = { ...matches[0] };
-      for (let i = 1; i < matches.length; i++) {
-        if (matches[i].start < current.end) {
-          current.end = Math.max(current.end, matches[i].end);
-        } else {
-          merged.push(current);
-          current = { ...matches[i] };
+
+    // 按长度降序排序，防止子串提取干扰（比如 '123' 中的 '12' 抢先匹配）
+    const sortedPhrases = [...invalidPhrases, ...validPhrases]
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+
+    if (sortedPhrases.length === 0) return text;
+
+    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = sortedPhrases.map(escapeRegExp);
+    const regex = new RegExp(`(${escaped.join('|')})`, 'g');
+    const parts = text.split(regex);
+
+    return parts.map((part, idx) => {
+      if (invalidPhrases.includes(part)) {
+        return <span key={idx} className="bg-rose-500/20 border-b-2 border-rose-500/40">{part}</span>;
+      }
+      if (validPhrases.includes(part)) {
+        // 如果有效词组中包含无效号码，需要将无效号码单独标红
+        const containedInvalids = invalidPhrases.filter(ip => part.includes(ip));
+        if (containedInvalids.length > 0) {
+          containedInvalids.sort((a, b) => b.length - a.length);
+          const invalidRegex = new RegExp(`(${containedInvalids.map(escapeRegExp).join('|')})`, 'g');
+          const subParts = part.split(invalidRegex);
+          return (
+            <React.Fragment key={idx}>
+              {subParts.map((subPart, subIdx) => {
+                if (containedInvalids.includes(subPart)) {
+                  return <span key={subIdx} className="bg-rose-500/20 border-b-2 border-rose-500/40">{subPart}</span>;
+                }
+                return <span key={subIdx} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">{subPart}</span>;
+              })}
+            </React.Fragment>
+          );
         }
+        return <span key={idx} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">{part}</span>;
       }
-      merged.push(current);
-      return merged;
-    };
-
-    const mergedValid = mergeMatches(validMatches);
-    const mergedInvalid = mergeMatches(invalidMatches);
-
-    const result: React.ReactNode[] = [];
-    let currentPos = 0;
-
-    // Create a combined list of points of interest
-    const points: { pos: number; type: 'valid' | 'invalid' | 'end', id: number }[] = [];
-    mergedValid.forEach((m, i) => {
-      points.push({ pos: m.start, type: 'valid', id: i });
-      points.push({ pos: m.end, type: 'end', id: i });
+      return part;
     });
-    mergedInvalid.forEach((m, i) => {
-      points.push({ pos: m.start, type: 'invalid', id: i + 1000 });
-      points.push({ pos: m.end, type: 'end', id: i + 1000 });
-    });
-    points.sort((a, b) => a.pos - b.pos || (a.type === 'end' ? -1 : 1));
-
-    let currentInvalidId: number | null = null;
-    let currentValidId: number | null = null;
-
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      if (p.pos > currentPos) {
-        const slice = text.substring(currentPos, p.pos);
-        if (currentInvalidId !== null) {
-          result.push(<span key={`inv-${currentPos}`} className="bg-amber-400/30 border-b-2 border-amber-500/50">{slice}</span>);
-        } else if (currentValidId !== null) {
-          result.push(<span key={`val-${currentPos}`} className="bg-emerald-400/20 border-b-2 border-emerald-400/30">{slice}</span>);
-        } else {
-          result.push(slice);
-        }
-        currentPos = p.pos;
-      }
-
-      if (p.type === 'invalid') currentInvalidId = p.id;
-      else if (p.type === 'valid') currentValidId = p.id;
-      else if (p.type === 'end') {
-        if (p.id >= 1000) currentInvalidId = null;
-        else currentValidId = null;
-      }
-    }
-
-    if (currentPos < text.length) {
-      result.push(text.substring(currentPos));
-    }
-
-    return result;
   };
 
   const handleInputScroll = () => {
@@ -2253,7 +2273,17 @@ export default function App() {
     }
   };
 
-  const highlightedInput = useMemo(() => renderHighlightedInput(inputText, parsedResult.validMatches, parsedResult.invalidMatches), [inputText, parsedResult.validMatches, parsedResult.invalidMatches]);
+  const highlightedInput = useMemo(() => renderHighlightedInput(inputText, parsedResult.validPhrases || [], parsedResult.invalidPhrases || []), [inputText, parsedResult.validPhrases, parsedResult.invalidPhrases]);
+
+  const textInputStyle = {
+    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+    fontSize: '14px',
+    lineHeight: '24px',
+    letterSpacing: 'normal',
+    wordSpacing: 'normal',
+    padding: '12px',
+    borderWidth: '1px',
+  };
 
   if (authLoading) {
     return (
@@ -2976,9 +3006,10 @@ export default function App() {
 
               <div className="flex gap-4 flex-grow min-h-0">
                 <section className="relative flex-grow min-h-0">
-                  <div 
+                  <div
                     ref={inputScrollRef}
-                    className="absolute inset-0 m-0 p-3 pointer-events-none whitespace-pre-wrap break-words text-sm leading-6 tracking-normal text-transparent overflow-y-scroll border border-transparent font-sans scrollbar-hide"
+                    className="absolute inset-0 m-0 p-3 pointer-events-none whitespace-pre-wrap break-words text-sm leading-6 tracking-normal text-transparent overflow-y-scroll border border-transparent rounded-xl font-mono scrollbar-hide"
+                    style={textInputStyle}
                     aria-hidden="true"
                   >
                     {highlightedInput}
@@ -2998,7 +3029,8 @@ export default function App() {
                         handleAddToPending();
                       }
                     }}
-                    className="w-full h-full m-0 p-3 bg-transparent border border-stone-200 rounded-xl shadow-sm focus:ring-2 focus:ring-stone-200 focus:border-stone-400 outline-none transition-all resize-none text-stone-700 text-sm leading-6 tracking-normal relative z-10 font-sans overflow-y-scroll scrollbar-hide appearance-none"
+                    className="w-full h-full m-0 p-3 bg-transparent border border-stone-200 rounded-xl shadow-sm focus:ring-2 focus:ring-stone-200 focus:border-stone-400 outline-none transition-all resize-none text-stone-700 text-sm leading-6 tracking-normal relative z-10 font-mono overflow-y-scroll scrollbar-hide appearance-none"
+                    style={textInputStyle}
                   />
                   {inputText && (
                     <button 
@@ -4124,8 +4156,8 @@ export default function App() {
                                         total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
                                         lotteryType: editingLotteryType,
                                         items: finalItems,
-                                        manualWinType: editingWinType || undefined,
-                                        manualWinAmount: editingWinAmount === '' ? undefined : Number(editingWinAmount)
+                                        manualWinType: editingWinType,
+                                        manualWinAmount: editingWinAmount === '' ? 0 : Number(editingWinAmount)
                                       };
                                       setConfirmedBets(newBets);
                                       setEditingIndex(null);
@@ -4383,8 +4415,8 @@ export default function App() {
                                             total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
                                             lotteryType: editingLotteryType,
                                             items: finalItems,
-                                            manualWinType: editingWinType || undefined,
-                                            manualWinAmount: editingWinAmount === '' ? undefined : Number(editingWinAmount),
+                                            manualWinType: editingWinType,
+                                            manualWinAmount: editingWinAmount === '' ? 0 : Number(editingWinAmount),
                                             isFrozen: false,
                                             frozenWinAmount: undefined,
                                             frozenWinType: undefined
