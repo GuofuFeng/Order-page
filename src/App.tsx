@@ -4156,8 +4156,8 @@ export default function App() {
                                         total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
                                         lotteryType: editingLotteryType,
                                         items: finalItems,
-                                        manualWinType: editingWinType,
-                                        manualWinAmount: editingWinAmount === '' ? 0 : Number(editingWinAmount)
+                                        manualWinType: editingWinType !== '' ? editingWinType : undefined,
+                                        manualWinAmount: editingWinAmount !== '' ? Number(editingWinAmount) : undefined
                                       };
                                       setConfirmedBets(newBets);
                                       setEditingIndex(null);
@@ -4415,8 +4415,8 @@ export default function App() {
                                             total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
                                             lotteryType: editingLotteryType,
                                             items: finalItems,
-                                            manualWinType: editingWinType,
-                                            manualWinAmount: editingWinAmount === '' ? 0 : Number(editingWinAmount),
+                                            manualWinType: editingWinType !== '' ? editingWinType : undefined,
+                                            manualWinAmount: editingWinAmount !== '' ? Number(editingWinAmount) : undefined,
                                             isFrozen: false,
                                             frozenWinAmount: undefined,
                                             frozenWinType: undefined
