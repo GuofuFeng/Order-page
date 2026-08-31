@@ -9,7 +9,8 @@ export const STORAGE_KEYS = {
   ALL_PENDING_BETS: 'allPendingBets',
   IS_LOTTERY_TYPE_LOCKED: 'isLotteryTypeLocked',
   SPECIAL_MULTIPLIERS: 'specialMultipliers',
-  COMMISSION_RATE: 'commissionRate'
+  COMMISSION_RATE: 'commissionRate',
+  BASKET_PRESETS: 'basketPresets'
 };
 
 export const saveToStorage = (key: string, data: any) => {

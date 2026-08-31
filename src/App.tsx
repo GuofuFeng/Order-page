@@ -585,16 +585,96 @@ export default function App() {
   const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
 
   const [allPendingBets, setAllPendingBets] = useState<Record<string, BetOrder[]>>(() => loadFromStorage(STORAGE_KEYS.ALL_PENDING_BETS, {}));
-  const [specialMultipliers, setSpecialMultipliers] = useState<Record<string, number>>(() => {
-    const defaults = lotteryTypes.reduce((acc, type) => {
+  const defaultMultipliers = useMemo(() => {
+    return lotteryTypes.reduce((acc, type) => {
       const isHigh = ['新澳', '老澳', '香港', '老cc'].includes(type);
       return { ...acc, [type]: isHigh ? 47 : 46 };
-    }, {});
-    return loadFromStorage(STORAGE_KEYS.SPECIAL_MULTIPLIERS, defaults);
+    }, {} as Record<string, number>);
+  }, []);
+
+  const [basketPresets, setBasketPresets] = useState<Record<string, { specialMultipliers: Record<string, number>, commissionRate: number }>>(() => {
+    return loadFromStorage(STORAGE_KEYS.BASKET_PRESETS, {});
   });
-  const [commissionRate, setCommissionRate] = useState<number>(() => loadFromStorage(STORAGE_KEYS.COMMISSION_RATE, 4));
+
+  const [specialMultipliers, setSpecialMultipliers] = useState<Record<string, number>>(() => {
+    const presets = loadFromStorage<Record<string, any>>(STORAGE_KEYS.BASKET_PRESETS, {});
+    const basketId = loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A');
+    if (presets[basketId]?.specialMultipliers) {
+      return presets[basketId].specialMultipliers;
+    }
+    return loadFromStorage(STORAGE_KEYS.SPECIAL_MULTIPLIERS, defaultMultipliers);
+  });
+
+  const [commissionRate, setCommissionRate] = useState<number>(() => {
+    const presets = loadFromStorage<Record<string, any>>(STORAGE_KEYS.BASKET_PRESETS, {});
+    const basketId = loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A');
+    if (presets[basketId]?.commissionRate !== undefined) {
+      return presets[basketId].commissionRate;
+    }
+    return loadFromStorage(STORAGE_KEYS.COMMISSION_RATE, 4);
+  });
+
   const [editingMultiplierType, setEditingMultiplierType] = useState<string | null>(null);
   const [editingMultiplierValue, setEditingMultiplierValue] = useState<string>('');
+  const [isEditingCommission, setIsEditingCommission] = useState<boolean>(false);
+  const [editingCommissionValue, setEditingCommissionValue] = useState<string>('');
+
+  const hasPresetsSyncedRef = useRef(false);
+
+  // Wrapper handlers to update presets state, local multipliers, commission rates and localStorage
+  const handleUpdateSpecialMultipliers = (newMultipliers: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)) => {
+    setSpecialMultipliers(prev => {
+      const updated = typeof newMultipliers === 'function' ? newMultipliers(prev) : newMultipliers;
+      setBasketPresets(prevPresets => {
+        const nextPresets = {
+          ...prevPresets,
+          [selectedBasketId]: {
+            ...prevPresets[selectedBasketId],
+            specialMultipliers: updated,
+            commissionRate: prevPresets[selectedBasketId]?.commissionRate ?? commissionRate
+          }
+        };
+        saveToStorage(STORAGE_KEYS.BASKET_PRESETS, nextPresets);
+        return nextPresets;
+      });
+      return updated;
+    });
+  };
+
+  const handleResetSpecialMultipliers = (defaults: Record<string, number>) => {
+    setSpecialMultipliers(defaults);
+    setBasketPresets(prevPresets => {
+      const nextPresets = {
+        ...prevPresets,
+        [selectedBasketId]: {
+          ...prevPresets[selectedBasketId],
+          specialMultipliers: defaults,
+          commissionRate: prevPresets[selectedBasketId]?.commissionRate ?? commissionRate
+        }
+      };
+      saveToStorage(STORAGE_KEYS.BASKET_PRESETS, nextPresets);
+      return nextPresets;
+    });
+  };
+
+  const handleUpdateCommissionRate = (newRate: number | ((prev: number) => number)) => {
+    setCommissionRate(prev => {
+      const updated = typeof newRate === 'function' ? newRate(prev) : newRate;
+      setBasketPresets(prevPresets => {
+        const nextPresets = {
+          ...prevPresets,
+          [selectedBasketId]: {
+            ...prevPresets[selectedBasketId],
+            specialMultipliers: prevPresets[selectedBasketId]?.specialMultipliers ?? specialMultipliers,
+            commissionRate: updated
+          }
+        };
+        saveToStorage(STORAGE_KEYS.BASKET_PRESETS, nextPresets);
+        return nextPresets;
+      });
+      return updated;
+    });
+  };
   const pendingBets = useMemo(() => allPendingBets[selectedBasketId] || [], [allPendingBets, selectedBasketId]);
 
   const setPendingBets = (newBets: BetOrder[] | ((prev: BetOrder[]) => BetOrder[])) => {
@@ -701,7 +781,7 @@ export default function App() {
   const hasSyncedRef = useRef(false);
   const skipNextSyncPostRef = useRef(false);
 
-  // 1. Initial Load Sync: When user logins, load bets from database and merge
+  // 1. Initial Load Sync: When user logins, load bets and presets from database and merge
   useEffect(() => {
     if (user) {
       hasSyncedRef.current = false;
@@ -721,10 +801,44 @@ export default function App() {
           console.error('Initial bets sync failed:', err);
           // Do not set hasSyncedRef.current to true to prevent overwriting server data if load fails
         });
+
+      // Fetch user presets from database
+      hasPresetsSyncedRef.current = false;
+      fetch('/api/sync/presets')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Presets fetch failed');
+        })
+        .then(data => {
+          if (data.presets) {
+            setBasketPresets(data.presets);
+            saveToStorage(STORAGE_KEYS.BASKET_PRESETS, data.presets);
+            // Apply preset of selected basket if present
+            const currentPreset = data.presets[selectedBasketId];
+            if (currentPreset) {
+              if (currentPreset.specialMultipliers) {
+                setSpecialMultipliers(currentPreset.specialMultipliers);
+              }
+              if (currentPreset.commissionRate !== undefined) {
+                setCommissionRate(currentPreset.commissionRate);
+              }
+            }
+          }
+          hasPresetsSyncedRef.current = true;
+        })
+        .catch(err => {
+          console.error('Initial presets sync failed:', err);
+          hasPresetsSyncedRef.current = true; // Allow local updates even if load failed
+        });
     } else {
       hasSyncedRef.current = false;
+      hasPresetsSyncedRef.current = false;
       if (!authLoading) {
         setConfirmedBets([]);
+        setBasketPresets({});
+        localStorage.removeItem(STORAGE_KEYS.BASKET_PRESETS);
+        setSpecialMultipliers(defaultMultipliers);
+        setCommissionRate(4);
       }
     }
   }, [user?.id, authLoading]);
@@ -747,6 +861,21 @@ export default function App() {
         .catch(err => console.error('Sync bets request error:', err));
     }
   }, [confirmedBets, user?.id]);
+
+  // 3. Post-presets Sync: Whenever basketPresets changes, push to database if logged in and initialized
+  useEffect(() => {
+    if (user && hasPresetsSyncedRef.current) {
+      fetch('/api/sync/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presets: basketPresets })
+      })
+        .then(res => {
+          if (!res.ok) console.error('Failed to auto-sync presets to database');
+        })
+        .catch(err => console.error('Sync presets request error:', err));
+    }
+  }, [basketPresets, user?.id]);
 
   // Batch Import state
   const [batchRows, setBatchRows] = useState<BatchImportEntry[]>([]);
@@ -1126,6 +1255,22 @@ export default function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.COMMISSION_RATE, commissionRate);
   }, [commissionRate]);
+
+  // Load correct presets whenever switching baskets
+  useEffect(() => {
+    const preset = basketPresets[selectedBasketId];
+    if (preset) {
+      if (preset.specialMultipliers) {
+        setSpecialMultipliers(preset.specialMultipliers);
+      }
+      if (preset.commissionRate !== undefined) {
+        setCommissionRate(preset.commissionRate);
+      }
+    } else {
+      setSpecialMultipliers(defaultMultipliers);
+      setCommissionRate(4);
+    }
+  }, [selectedBasketId, basketPresets, defaultMultipliers]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SELECTED_BASKET_ID, selectedBasketId);
@@ -2365,7 +2510,7 @@ export default function App() {
                           const val = parseFloat(editingMultiplierValue);
                           if (!isNaN(val)) {
                             const roundedVal = Math.round(val * 10) / 10;
-                            setSpecialMultipliers(prev => ({ ...prev, [type]: roundedVal }));
+                            handleUpdateSpecialMultipliers(prev => ({ ...prev, [type]: roundedVal }));
                           }
                           setEditingMultiplierType(null);
                         }}
@@ -2374,7 +2519,7 @@ export default function App() {
                             const val = parseFloat(editingMultiplierValue);
                             if (!isNaN(val)) {
                               const roundedVal = Math.round(val * 10) / 10;
-                              setSpecialMultipliers(prev => ({ ...prev, [type]: roundedVal }));
+                              handleUpdateSpecialMultipliers(prev => ({ ...prev, [type]: roundedVal }));
                             }
                             setEditingMultiplierType(null);
                           } else if (e.key === 'Escape') {
@@ -2387,11 +2532,11 @@ export default function App() {
                         className="w-10 h-3.5 bg-white border border-stone-200 rounded text-[8px] font-black text-center outline-none focus:border-stone-400 mt-0.5"
                       />
                     ) : (
-                      <div 
+                      <div
                         onClick={(e) => {
                           // detail === 1 is single click, detail === 2 is double click but handled by onDoubleClick
                           if (e.detail === 1) {
-                            setSpecialMultipliers(prev => ({
+                            handleUpdateSpecialMultipliers(prev => ({
                               ...prev,
                               [type]: prev[type] === 47 ? 46 : 47
                             }));
@@ -2430,7 +2575,7 @@ export default function App() {
                       const isHigh = ['新澳', '老澳', '香港', '老cc'].includes(type);
                       return { ...acc, [type]: isHigh ? 47 : 46 };
                     }, {});
-                    setSpecialMultipliers(defaults);
+                    handleResetSpecialMultipliers(defaults);
                   }
                 }}
                 className="p-1.5 rounded-lg bg-stone-100 text-stone-400 hover:text-stone-600 border border-stone-200 transition-all"
@@ -3887,12 +4032,53 @@ export default function App() {
                 <div className="flex flex-col items-end mr-4 border-l border-stone-200 pl-4">
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-stone-400 uppercase tracking-widest">抽水比例</span>
-                    <button 
-                      onClick={() => setCommissionRate(commissionRate === 4 ? 5 : 4)}
-                      className="px-1.5 py-0.5 rounded bg-stone-100 text-[10px] font-black text-stone-600 hover:bg-stone-200 transition-colors shadow-sm"
-                    >
-                      {commissionRate}%
-                    </button>
+                    {isEditingCommission ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editingCommissionValue}
+                        onBlur={() => {
+                          const val = parseFloat(editingCommissionValue);
+                          if (!isNaN(val) && val >= 0 && val <= 100) {
+                            const roundedVal = Math.round(val * 10) / 10;
+                            handleUpdateCommissionRate(roundedVal);
+                          }
+                          setIsEditingCommission(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = parseFloat(editingCommissionValue);
+                            if (!isNaN(val) && val >= 0 && val <= 100) {
+                              const roundedVal = Math.round(val * 10) / 10;
+                              handleUpdateCommissionRate(roundedVal);
+                            }
+                            setIsEditingCommission(false);
+                          } else if (e.key === 'Escape') {
+                            setIsEditingCommission(false);
+                          }
+                        }}
+                        onChange={(e) => {
+                          setEditingCommissionValue(e.target.value);
+                        }}
+                        className="w-12 h-5 bg-white border border-stone-200 rounded text-[10px] font-black text-center outline-none focus:border-stone-400"
+                      />
+                    ) : (
+                      <div
+                        onClick={(e) => {
+                          if (e.detail === 1) {
+                            handleUpdateCommissionRate(commissionRate === 4 ? 5 : 4);
+                          }
+                        }}
+                        onDoubleClick={() => {
+                          setIsEditingCommission(true);
+                          setEditingCommissionValue(commissionRate.toString());
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-stone-100 text-[10px] font-black text-stone-600 hover:bg-stone-200 transition-colors shadow-sm cursor-pointer select-none"
+                        title="单击切换4%/5%，双击编辑"
+                      >
+                        {commissionRate}%
+                      </div>
+                    )}
                   </div>
                   <span className="text-xl font-bold text-amber-600">
                     ¥ {(todayBets.reduce((sum, o) => sum + o.total, 0) * (commissionRate / 100)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}

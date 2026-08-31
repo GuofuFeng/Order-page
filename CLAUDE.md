@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands / 常用命令
 
 ### Development Server / 开发服务器
-*   Run local server with Vite: `npm run dev` (Starts a combined Express + Vite development proxy server on port 3000)
-    使用 Vite 运行本地服务器：`npm run dev`（在端口 3000 启动 Express + Vite 联合开发代理服务器）
+*   Run local server with Vite: `npm run dev` (Starts a combined Express + Vite development proxy server on port 3001)
+    使用 Vite 运行本地服务器：`npm run dev`（在端口 3001 启动 Express + Vite 联合开发代理服务器）
 *   Build application: `npm run build`
     打包构建应用：`npm run build`
 *   Start production build: `npm run start`

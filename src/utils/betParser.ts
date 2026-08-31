@@ -174,7 +174,7 @@ export const REGEX_FIVE_ELEMENTS = new RegExp(BOUNDARY + '([金木水火土](?:[
 export const REGEX_MULTI_TAIL_V2 = new RegExp(BOUNDARY_STRICT + '(?:【?(\\d{2,10})】?)[^\\d]*?(?:各|每|买|压|个|包)?[^\\d]*?([二三四五2345两])?连尾[^\\d]*?(?:各|每|买|压|个|包)?[^\\d]*?(\\+?\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_TAIL_V3 = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)(?:[\\-\\s,，。；;.]*?(\\d)尾[\\-\\s,，。；;.]*?(\\d)尾[\\-\\s,，。；;.]*?(\\d)尾(?:[\\-\\s,，。；;.]*?(\\d)尾)?(?:[\\-\\s,，。；;.]*?(\\d)尾)?)[^\\d]*?(?:各|每|买|压|个|包)?[^\\d]*?(\\+?\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
-export const REGEX_HEAD_TAIL = new RegExp(BOUNDARY + '(\\d+)(头|尾)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_HEAD_TAIL = new RegExp(BOUNDARY + '(\\d+)(头|尾)(?![^\\d\\n\\r]*?(?:大|小|单|双|红|绿|蓝|合单|合双))[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_SPECIAL_ATTR = new RegExp(BOUNDARY + '(红波|蓝波|绿波|大数|小数|单数|双数|合单|合双|红单|红双|蓝单|蓝双|绿单|绿双)(?![^\\d\\n\\r]*?(?:各|每|买|压|个))[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
@@ -190,6 +190,20 @@ export const REGEX_EXCLUSION = new RegExp(
 );
 
 export const REGEX_EACH = new RegExp(BOUNDARY_STRICT + NOISE_PREFIX + '(?:各号|每号|各|每|买|压|个|下注)[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?' + LOOKAHEAD_LOOSE, 'g');
+
+export const REGEX_RANGE_EACH = new RegExp(
+  BOUNDARY_STRICT +
+  '(\\d+)' +
+  '[\\s]*到[\\s]*' +
+  '(\\d+)' +
+  '[\\s]*' +
+  '(各号|每号|各组|每组|每组各|各|每|买|压|个|下注)' +
+  '[\\s]*' +
+  '(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)' +
+  '(?:元|块|米|个|斤|文|闷)?' +
+  LOOKAHEAD_LOOSE,
+  'g'
+);
 
 export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY_STRICT + '(?:((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:平码|独平)(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./+&|\\-*]+)-(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:各|每|买|压|个)(\\d+(?:\\.\\d+)?))(?:米|个|元|块|斤|文|闷)?', 'g');
 
@@ -537,6 +551,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
   }
 
   // Light patterns always run
+  addMatches(REGEX_RANGE_EACH, 'RANGE_EACH');
   addMatches(REGEX_EXCLUSION, 'EXCLUSION');
   addMatches(REGEX_NOT_IN, 'NOT_IN');
   addMatches(REGEX_NOT_IN_REVERSE, 'NOT_IN_REVERSE');
@@ -1554,6 +1569,30 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
         result.lastAmount = amt;
         break;
       }
+      case 'RANGE_EACH': {
+        const startStr = groups[1];
+        const endStr = groups[2];
+        const amt = chineseToNumber(groups[4]);
+
+        const startNum = parseInt(startStr);
+        const endNum = parseInt(endStr);
+
+        if (!isNaN(startNum) && !isNaN(endNum)) {
+          const min = Math.min(startNum, endNum);
+          const max = Math.max(startNum, endNum);
+
+          for (let n = min; n <= max; n++) {
+            if (n >= 1 && n <= 49) {
+              item.numberDeltas[n] = (item.numberDeltas[n] || 0) + amt;
+              item.total += amt;
+              result.parsedBets[n] = (result.parsedBets[n] || 0) + amt;
+              result.selectedNumbers.add(n);
+            }
+          }
+        }
+        result.lastAmount = amt;
+        break;
+      }
       case 'FLAT_NUMBER': {
         const num1 = groups[1] || groups[3] || groups[5];
         const amt1 = groups[2] || groups[4] || groups[6];
@@ -1895,7 +1934,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   applyReplacement(/包(?=红波|蓝波|绿波|大数|小数|单数|双数|单|双|大|小|红单|红双|蓝单|蓝双|录单|录双|绿单|绿双|合单|合双)/g, () => ' ');
   applyReplacement(/(\d+)尾平/g, (match, d) => `平${d}尾`);
   applyReplacement(/([马蛇龙兔虎牛鼠猪狗鸡猴羊家野]{2,12})[拖拖](\d+)/g, (match, z, d) => `${z}连${d}`);
-  applyReplacement(/[xX]/g, () => '各');
+  applyReplacement(/[xX×]/g, () => '各');
 
   // 🔴 核心展开：由于多组连肖（如：'牛鸡虎，牛龙猪鸡，龙猪鸡蛇鼠连肖各10'）最后只有最后一个有'连肖各10'，
   // 我们直接用正则捕获，把这种结构全展开为独立的组结构以逗号连接，同时不改变长度：

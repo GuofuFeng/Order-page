@@ -192,4 +192,59 @@ router.delete('/bet/delete', authenticateJWT, async (req: AuthenticatedRequest, 
   }
 });
 
+// GET /api/sync/presets - Fetch user basket presets
+router.get('/presets', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  if (!req.user) return res.status(401).json({ error: '未登录' });
+
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', `user_presets:${req.user.id}`)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    let presets = {};
+    if (data && data.value) {
+      try {
+        presets = JSON.parse(data.value);
+      } catch (e) {
+        console.error('Failed to parse user presets JSON:', e);
+      }
+    }
+
+    res.json({ presets });
+  } catch (err) {
+    console.error('Fetch presets error:', err);
+    res.status(500).json({ error: '获取预设失败。' });
+  }
+});
+
+// POST /api/sync/presets - Save/Upsert user basket presets
+router.post('/presets', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  if (!req.user) return res.status(401).json({ error: '未登录' });
+
+  const { presets } = req.body;
+  if (!presets || typeof presets !== 'object') {
+    return res.status(400).json({ error: '无效的数据格式。' });
+  }
+
+  try {
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({
+        key: `user_presets:${req.user.id}`,
+        value: JSON.stringify(presets)
+      });
+
+    if (error) throw error;
+
+    res.json({ message: '保存预设成功。' });
+  } catch (err) {
+    console.error('Save presets error:', err);
+    res.status(500).json({ error: '保存预设失败。' });
+  }
+});
+
 export default router;
