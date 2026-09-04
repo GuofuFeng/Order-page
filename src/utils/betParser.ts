@@ -1895,7 +1895,7 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     };
   }
 
-  // 1. 等长别名及错字预清洗 (不改变字符串的总长度和字符绝对索引)
+  // 1. 等长别名及错字预清洗 (不改变字符串的总长度 and 字符绝对索引)
   let preprocessed = inputText;
   let indexMap = Array.from({ length: inputText.length }, (_, i) => i);
 
@@ -1904,6 +1904,12 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     preprocessed = res.result;
     indexMap = res.map;
   };
+
+  // 替换各种不常见的连字符/减号为标准 '-'
+  applyReplacement(/[‑－–—−]/g, () => '-');
+
+  // 将 '@' 替换为空格以防止阻碍边界断言匹配
+  applyReplacement(/@/g, () => ' ');
 
   // 🔴 引入：生肖组宏替换在 wrapper 展开，以便 indexMap 完美追踪其引起的文件偏移位移，彻底绝缘高亮空白间断 Bug！
   const zodiacErrors: string[] = [];
@@ -1930,8 +1936,8 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   });
 
   applyReplacement(/特\s*串/g, () => '特碰');
-  applyReplacement(/友/g, () => '连');
-  applyReplacement(/包(?=红波|蓝波|绿波|大数|小数|单数|双数|单|双|大|小|红单|红双|蓝单|蓝双|录单|录双|绿单|绿双|合单|合双)/g, () => ' ');
+  applyReplacement(/[友有]/g, () => '连');
+  applyReplacement(/包(?=红波|蓝波|绿波|大数|小数|单数|双数|单|双|大|小|红单|红双|蓝单|蓝双|录单|录双|录单|录双|绿单|绿双|合单|合双)/g, () => ' ');
   applyReplacement(/(\d+)尾平/g, (match, d) => `平${d}尾`);
   applyReplacement(/([马蛇龙兔虎牛鼠猪狗鸡猴羊家野]{2,12})[拖拖](\d+)/g, (match, z, d) => `${z}连${d}`);
   applyReplacement(/[xX×]/g, () => '各');

@@ -592,7 +592,7 @@ export default function App() {
     }, {} as Record<string, number>);
   }, []);
 
-  const [basketPresets, setBasketPresets] = useState<Record<string, { specialMultipliers: Record<string, number>, commissionRate: number }>>(() => {
+  const [basketPresets, setBasketPresets] = useState<Record<string, { name?: string, specialMultipliers: Record<string, number>, commissionRate: number }>>(() => {
     return loadFromStorage(STORAGE_KEYS.BASKET_PRESETS, {});
   });
 
@@ -618,6 +618,10 @@ export default function App() {
   const [editingMultiplierValue, setEditingMultiplierValue] = useState<string>('');
   const [isEditingCommission, setIsEditingCommission] = useState<boolean>(false);
   const [editingCommissionValue, setEditingCommissionValue] = useState<string>('');
+
+  // State for basket name editing
+  const [editingBasketId, setEditingBasketId] = useState<string | null>(null);
+  const [editingBasketName, setEditingBasketName] = useState<string>('');
 
   const hasPresetsSyncedRef = useRef(false);
 
@@ -674,6 +678,35 @@ export default function App() {
       });
       return updated;
     });
+  };
+
+  const getBasketDisplayName = (id: string) => {
+    return basketPresets[id]?.name || `篮子 ${id}`;
+  };
+
+  const handleRenameBasket = (id: string, newName: string) => {
+    const trimmed = newName.trim();
+    setBasketPresets(prevPresets => {
+      const currentPreset = prevPresets[id] || {
+        specialMultipliers: defaultMultipliers,
+        commissionRate: 4
+      };
+
+      const nextPresets = {
+        ...prevPresets,
+        [id]: {
+          ...currentPreset,
+          name: trimmed || undefined
+        }
+      };
+      saveToStorage(STORAGE_KEYS.BASKET_PRESETS, nextPresets);
+      return nextPresets;
+    });
+    setEditingBasketId(null);
+  };
+
+  const sanitizeFilename = (name: string): string => {
+    return name.replace(/[\\/:*?"<>|]/g, '_');
   };
   const pendingBets = useMemo(() => allPendingBets[selectedBasketId] || [], [allPendingBets, selectedBasketId]);
 
@@ -3135,15 +3168,44 @@ export default function App() {
                       )}
                     </div>
                     <div className="flex bg-stone-100 p-1 rounded-xl">
-                      {baskets.map(b => (
-                        <button
-                          key={b}
-                          onClick={() => setSelectedBasketId(b)}
-                          className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedBasketId === b ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
-                        >
-                          篮子 {b}
-                        </button>
-                      ))}
+                      {baskets.map(b => {
+                        const isEditing = editingBasketId === b;
+                        const displayName = getBasketDisplayName(b);
+                        return isEditing ? (
+                          <input
+                            key={b}
+                            autoFocus
+                            type="text"
+                            value={editingBasketName}
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={() => handleRenameBasket(b, editingBasketName)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleRenameBasket(b, editingBasketName);
+                              } else if (e.key === 'Escape') {
+                                setEditingBasketId(null);
+                              }
+                            }}
+                            onChange={(e) => setEditingBasketName(e.target.value)}
+                            className="px-2 py-0.5 w-16 bg-white border border-stone-300 rounded text-[10px] font-bold text-stone-950 focus:outline-none"
+                            maxLength={12}
+                          />
+                        ) : (
+                          <button
+                            key={b}
+                            onClick={() => setSelectedBasketId(b)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setEditingBasketId(b);
+                              setEditingBasketName(basketPresets[b]?.name || '');
+                            }}
+                            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${selectedBasketId === b ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                            title="双击可重命名"
+                          >
+                            {displayName}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -3835,12 +3897,12 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-end">
                     <span className="text-[10px] text-stone-400 uppercase tracking-widest">目标篮子</span>
-                    <select 
-                      value={selectedBasketId} 
+                    <select
+                      value={selectedBasketId}
                       onChange={(e) => setSelectedBasketId(e.target.value)}
                       className="bg-stone-100 border-none text-xs font-black p-1 rounded rounded-lg focus:ring-0 cursor-pointer"
                     >
-                      {baskets.map(b => <option key={b} value={b}>篮子 {b}</option>)}
+                      {baskets.map(b => <option key={b} value={b}>{getBasketDisplayName(b)}</option>)}
                     </select>
                   </div>
                   <button
@@ -4005,20 +4067,49 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <h1 className="text-2xl font-black text-stone-950 tracking-tighter uppercase">注单管理中心</h1>
                 <div className="flex bg-stone-100 p-1 rounded-xl">
-                  {baskets.map(b => (
-                    <button
-                      key={b}
-                      onClick={() => setSelectedBasketId(b)}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedBasketId === b ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
-                    >
-                      篮子 {b}
-                    </button>
-                  ))}
+                  {baskets.map(b => {
+                    const isEditing = editingBasketId === b;
+                    const displayName = getBasketDisplayName(b);
+                    return isEditing ? (
+                      <input
+                        key={b}
+                        autoFocus
+                        type="text"
+                        value={editingBasketName}
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={() => handleRenameBasket(b, editingBasketName)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleRenameBasket(b, editingBasketName);
+                          } else if (e.key === 'Escape') {
+                            setEditingBasketId(null);
+                          }
+                        }}
+                        onChange={(e) => setEditingBasketName(e.target.value)}
+                        className="px-2 py-0.5 w-20 bg-white border border-stone-300 rounded text-xs font-bold text-stone-950 focus:outline-none"
+                        maxLength={12}
+                      />
+                    ) : (
+                      <button
+                        key={b}
+                        onClick={() => setSelectedBasketId(b)}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setEditingBasketId(b);
+                          setEditingBasketName(basketPresets[b]?.name || '');
+                        }}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedBasketId === b ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                        title="双击可重命名"
+                      >
+                        {displayName}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-stone-400 uppercase tracking-widest">篮子 {selectedBasketId} 总金额</span>
+                  <span className="text-[10px] text-stone-400 uppercase tracking-widest">{getBasketDisplayName(selectedBasketId)} 总金额</span>
                   <span className="text-xl font-bold text-emerald-600">
                     ¥ {todayBets.reduce((sum, o) => sum + o.total, 0).toLocaleString()}
                   </span>
@@ -4092,7 +4183,11 @@ export default function App() {
                   添加内容
                 </button>
                 <button
-                  onClick={() => handleExportExcel(todayBets, `today_bets_${todayBeijing}.xlsx`)}
+                  onClick={() => {
+                    const customName = getBasketDisplayName(selectedBasketId);
+                    const filename = `${sanitizeFilename(customName)}_${todayBeijing}.xlsx`;
+                    handleExportExcel(todayBets, filename);
+                  }}
                   className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 transition-all font-bold text-sm flex items-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -4439,10 +4534,12 @@ export default function App() {
                                 往日订单 - {date} ({typedBets.length})
                               </div>
                               <div className="flex items-center gap-2">
-                                <button 
+                                <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleExportExcel(typedBets, `bets_${date}.xlsx`);
+                                    const customName = getBasketDisplayName(selectedBasketId);
+                                    const filename = `${sanitizeFilename(customName)}_${date}.xlsx`;
+                                    handleExportExcel(typedBets, filename);
                                   }}
                                   className="text-stone-400 hover:text-emerald-600 transition-colors p-1 flex items-center gap-1 text-[10px] font-bold"
                                   title="生成该日Excel"
