@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
-import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements } from './constants';
+import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements, metalZodiacs, woodZodiacs, waterZodiacs, fireZodiacs, earthZodiacs_Zodiac, redZodiacs, blueZodiacs, greenZodiacs, frontZodiacs, backZodiacs } from './constants';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
 import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS, REGEX_EXCLUSION } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails, getWinningBreakdown } from './utils/winningCalculator';
@@ -2266,8 +2266,26 @@ export default function App() {
     });
 
     function renderBetContent(text: string, context: any) {
+      // 🔴 关键：将占位符还原为原始双字符关键字，以便正确显示和高亮
+      let displayText = text;
+      const placeholderMap: Record<string, string> = {
+        '⚙': '金肖',
+        '⚘': '木肖',
+        '⚡': '水肖',
+        '⚗': '火肖',
+        '⚛': '土肖',
+        '⚐': '红肖',
+        '⚑': '蓝肖',
+        '⚒': '绿肖',
+        '⚔': '前肖',
+        '⚕': '后肖',
+      };
+      Object.entries(placeholderMap).forEach(([placeholder, original]) => {
+        displayText = displayText.replace(new RegExp(placeholder, 'g'), original);
+      });
+
       // Updated regex to capture multi-digit tails like "246尾", "x不中" prefix, "拖" keyword, combination types, and Five Elements
-      const parts = text.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|红单|红双|蓝单|蓝双|绿单|绿双|单|双|大|小|红|绿|蓝|家|野|男|女|天|地|吉|凶|美|丑|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数|金|木|水|火|土|不要|其他各|其他)/);
+      const parts = displayText.split(/(三中三二中二|二中二三中三|三中三|二中二|特碰|特肖|平码|独平|平?\d+尾|\d{1,2}|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|红单|红双|蓝单|蓝双|绿单|绿双|单|双|大|小|红|绿|蓝|家|野|男|女|天|地|吉|凶|美|丑|合单|合双|[五六七八九十]{1,2}不中|\d{1,2}不中|拖|红波|蓝波|绿波|大数|小数|单数|双数|金肖|木肖|水肖|火肖|土肖|红肖|蓝肖|绿肖|前肖|后肖|金|木|水|火|土|不要|其他各|其他)/);
       const drawNums = context.drawNumbers || [];
       const normalNums = drawNums.slice(0, 6);
       const specialNum = drawNums[6];
@@ -2382,11 +2400,39 @@ export default function App() {
             const numbersInElement = fiveElements[part];
             const hasSpecial = numbersInElement.includes(specialNum as number);
             const hasNormal = numbersInElement.some(n => normalNums.includes(n));
-            
+
             if (hasSpecial) {
               return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
             } else if (hasNormal) {
               return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
+            }
+          } else if (part.endsWith('肖') && part.length === 2) {
+            // 处理生肖属性：金肖、木肖、水肖、火肖、土肖、红肖、蓝肖、绿肖、前肖、后肖
+            const attrChar = part[0];
+            let attrZodiacs: string[] = [];
+
+            if (attrChar === '金') attrZodiacs = metalZodiacs;
+            else if (attrChar === '木') attrZodiacs = woodZodiacs;
+            else if (attrChar === '水') attrZodiacs = waterZodiacs;
+            else if (attrChar === '火') attrZodiacs = fireZodiacs;
+            else if (attrChar === '土') attrZodiacs = earthZodiacs_Zodiac;
+            else if (attrChar === '红') attrZodiacs = redZodiacs;
+            else if (attrChar === '蓝') attrZodiacs = blueZodiacs;
+            else if (attrChar === '绿') attrZodiacs = greenZodiacs;
+            else if (attrChar === '前') attrZodiacs = frontZodiacs;
+            else if (attrChar === '后') attrZodiacs = backZodiacs;
+
+            if (attrZodiacs.length > 0) {
+              // 检查特码是否属于该生肖属性
+              const hasSpecial = attrZodiacs.includes(winningZodiacSpecial);
+              // 检查正码是否有属于该生肖属性的
+              const hasNormal = attrZodiacs.some(z => winningZodiacsNormal.includes(z));
+
+              if (hasSpecial) {
+                return <span key={partIdx} className="text-red-600 font-black underline decoration-2 underline-offset-4 bg-red-50 px-0.5 rounded">{part}</span>;
+              } else if (hasNormal) {
+                return <span key={partIdx} className="text-blue-600 font-black underline decoration-2 underline-offset-4 bg-blue-50 px-0.5 rounded">{part}</span>;
+              }
             }
           }
         }

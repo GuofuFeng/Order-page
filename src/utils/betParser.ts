@@ -1,6 +1,37 @@
-import { chineseNumberMap, zodiacs, redNumbers, blueNumbers, greenNumbers, numbers, lotteryTypes, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements, zodiacNumbers } from '../constants';
+import { chineseNumberMap, zodiacs, redNumbers, blueNumbers, greenNumbers, numbers, lotteryTypes, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements, zodiacNumbers, metalZodiacs, woodZodiacs, waterZodiacs, fireZodiacs, earthZodiacs_Zodiac, redZodiacs, blueZodiacs, greenZodiacs, frontZodiacs, backZodiacs } from '../constants';
 import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 import { getZodiacFromNumber } from './winningCalculator';
+
+// 新生肖属性占位符（使用罕见Unicode字符避免冲突）
+export const ZODIAC_ATTR_PLACEHOLDERS = {
+  '金肖': '⚙', // 金肖占位符
+  '木肖': '⚘', // 木肖占位符
+  '水肖': '⚡', // 水肖占位符
+  '火肖': '⚗', // 火肖占位符
+  '土肖': '⚛', // 土肖占位符
+  '红肖': '⚐', // 红肖占位符
+  '蓝肖': '⚑', // 蓝肖占位符
+  '绿肖': '⚒', // 绿肖占位符
+  '前肖': '⚔', // 前肖占位符
+  '后肖': '⚕', // 后肖占位符
+} as const;
+
+export const REVERSE_PLACEHOLDERS = Object.fromEntries(
+  Object.entries(ZODIAC_ATTR_PLACEHOLDERS).map(([k, v]) => [v, k])
+) as Record<string, string>;
+
+// 单独导出占位符常量供类型安全访问
+export const PLACEHOLDER_METAL_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['金肖'];
+export const PLACEHOLDER_WOOD_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['木肖'];
+export const PLACEHOLDER_WATER_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['水肖'];
+export const PLACEHOLDER_FIRE_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['火肖'];
+export const PLACEHOLDER_EARTH_ZODIAC_ATTR = ZODIAC_ATTR_PLACEHOLDERS['土肖'];
+export const PLACEHOLDER_RED_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['红肖'];
+export const PLACEHOLDER_BLUE_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['蓝肖'];
+export const PLACEHOLDER_GREEN_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['绿肖'];
+export const PLACEHOLDER_FRONT_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['前肖'];
+export const PLACEHOLDER_BACK_ZODIAC = ZODIAC_ATTR_PLACEHOLDERS['后肖'];
+
 
 function getCombinations<T>(array: T[], size: number): T[][] {
   if (size > array.length || size <= 0) return [];
@@ -122,7 +153,7 @@ const BOUNDARY = '(?<=^|[\\s,，。；;.、/\\d\\n\\r*:\\uff1a]|' + lotteryTypes
 const BOUNDARY_STRICT = '(?<=^|[\\s,，。；;、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const BOUNDARY_COMBO = '(?<=^|[\\s,，。；;.、/\\n\\r*:\\uff1a]|' + lotteryTypes.join('|') + '|' + LOTTERY_ALIASES + ')';
 const LOOKAHEAD = '(?=$|[\\s,，。；;.](?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|特肖|特|特碰|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + ')|(?:[二三四五2345两]?(?:连肖|连|连尾|不中|中)|平|[马蛇龙兔虎牛鼠猪狗鸡猴羊]*包|不中|特码|特肖|特|特碰|正码|合计|计|总计|共|总|' + lotteryTypes.join('|') + '))';
-const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特*:\\uff1a]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野男女天地吉凶美丑])';
+const LOOKAHEAD_LOOSE = '(?=$|[\\s,，。；;.、/！!！?？#特*:\\uff1a]|' + lotteryTypes.join('|') + '|[马蛇龙兔虎牛鼠猪狗鸡猴羊大小单双红绿蓝家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕])';
 const NOISE_PREFIX = '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特碰|特肖|特码|包肖|包(?!肖)|平特|平肖|不中|六中|五中|四中|六肖|五肖|4中|二尾|三尾|四尾|五尾|两尾|连肖|连尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\*:\\uff1a\\u4e00-\u9fa5])+?)';
 
 // 8. 新增：高优先级“生肖 + 特/包/特码/平/平特 + 金额”正则
@@ -144,16 +175,16 @@ export const REGEX_MULTI_ZODIAC_MULTI_GROUP_POST = new RegExp(
 );
 
 export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)((?:(?:\\s*)(?:\\d[\\s,，。；;.、/\\-*]*){2,10}[^\\d\\n\\r各每号]*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+)', 'g');
-export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中|6肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){6})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|五肖|5中|5肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，.、/\\-*]*){5})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中|4肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){4})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?=[^\\n\\r]*?(?:三中三|二中二|特碰))(?:(三中三二中二|二中二三中三|三中三|二中二|二中2|特碰)[^\\d\\n\\r马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]*?(?:复试|复式|复)?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)(?:[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二|特碰)(?:复试|复式|复)?)?[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '(?=[^\\n\\r]*?(?:三中三|二中二|特碰))(?:(三中三二中二|二中二三中三|三中三|二中二|二中2|特碰)[^\\d\\n\\r马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]*?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)[拖拖]((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)(?:[^\\d\\n\\r]*?(三中三二中二|二中二三中三|三中三|二中二|特碰))?[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})(?<![二三四五六七八九十2-9]|10|两)(?:连肖|连)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五六23456两])(?:连肖|连(?!尾)|连买|买)|([二三四五六23456两])肖|(?<![二三四五六23456两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12}[^\\d\\n\\r]*?(?:(?!连肖|连尾|不中|三中三|二中二|特碰|复式|复试|平特|平肖|平特一肖|平特肖|独平).)*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+', 'g');
-export const REGEX_MULTI_ZODIAC_HABIT = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_MULTI_ZODIAC_HABIT_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:([二三四五六23456两])(连肖|连|肖))[\\s]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*){2,12})[^\\d\\n\\r]*?(' + 
+export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中|6肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){6})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|五肖|5中|5肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，.、/\\-*]*){5})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中|4肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){4})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?=[^\\n\\r]*?(?:三中三|二中二|特碰))(?:(三中三二中二|二中二三中三|三中三|二中二|二中2|特碰)[^\\d\\n\\r马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]*?(?:复试|复式|复)?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)(?:[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二|特碰)(?:复试|复式|复)?)?[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '(?=[^\\n\\r]*?(?:三中三|二中二|特碰))(?:(三中三二中二|二中二三中三|三中三|二中二|二中2|特碰)[^\\d\\n\\r马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]*?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)[拖拖]((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)(?:[^\\d\\n\\r]*?(三中三二中二|二中二三中三|三中三|二中二|特碰))?[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){2,12})(?<![二三四五六七八九十2-9]|10|两)(?:连肖|连)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC_ADVANCED = new RegExp(BOUNDARY + '(?:平特)?(?:([二三四五六23456两])(?:连肖|连(?!尾)|连买|买)|([二三四五六23456两])肖|(?<![二三四五六23456两])(连肖|连(?!尾)))((?:(?:\\s*)[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){2,12}[^\\d\\n\\r]*?(?:(?!连肖|连尾|不中|三中三|二中二|特碰|复式|复试|平特|平肖|平特一肖|平特肖|独平).)*?(?:\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:元|块|米|个|元|块|斤|文|闷)?)+', 'g');
+export const REGEX_MULTI_ZODIAC_HABIT = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){2,12})(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC_HABIT_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){2,12})(?:复试|复式|复)(?:([二三四五六23456两])(连肖|连|肖))[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:([二三四五六23456两])(连肖|连|肖))[\\s]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){2,12})[^\\d\\n\\r]*?(' + 
   '(?:复试|复式|复)[^\\d\\n\\r]*?(?:[二三四五六七八九十2-9]|10|两)?(?:连肖|连|连各|连每)?' + 
   '|' +
   '(?:[二三四五六七八九十2-9]|10|两)(?:连肖|连|连各|连每|肖)' + 
@@ -162,14 +193,16 @@ export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎
   ')' + 
   '[^\\d\\n\\r]*?(?:各组|每组)?[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
-export const REGEX_MULTI_ZODIAC_MULTI_GROUP = new RegExp(BOUNDARY + '([二三四五六23456两])(连肖|连|肖)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]{2,12}[，,、\\s]+)+[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]{2,12})[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_MULTI_ZODIAC_MULTI_GROUP = new RegExp(BOUNDARY + '([二三四五六23456两])(连肖|连|肖)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12}[，,、\\s]+)+[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12})[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_NOT_IN = new RegExp(BOUNDARY_STRICT + '(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^马蛇龙兔虎牛鼠猪狗鸡猴羊\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊\\d]+(?:[\\s,，。；;.、/\\-*\\+]+[马蛇龙兔虎牛鼠猪狗鸡猴羊\\d]+)*)[^马蛇龙兔虎牛鼠猪狗鸡猴羊\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_NOT_IN_REVERSE = new RegExp(BOUNDARY_STRICT + '([马蛇龙兔虎牛鼠猪狗鸡猴羊\\d]+(?:[\\s,，。；;.、/\\-*\\+]+[马蛇龙鼠猪狗鸡猴羊\\d]+)*)[^马蛇龙兔虎牛鼠猪狗鸡猴羊\\d\\n\\r]*?(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_BAO = new RegExp(BOUNDARY + '(?:(?:包肖|包|特码|特)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:包肖|包|特码|特))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_TE_XIAO = new RegExp(BOUNDARY + '(?:(?:特肖)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:特肖))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_PING = new RegExp(BOUNDARY + '(?:(?:平特一肖|平特肖|平特|平肖|平)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:平特一肖|平特肖|平特|平肖|平))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_BAO = new RegExp(BOUNDARY + '(?:(?:包肖|包|特码|特)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:包肖|包|特码|特))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_TE_XIAO = new RegExp(BOUNDARY + '(?:(?:特肖)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:特肖))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_PING = new RegExp(BOUNDARY + '(?:(?:平特一肖|平特肖|平特|平肖|平)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:平特一肖|平特肖|平特|平肖|平))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_TAIL = new RegExp(BOUNDARY + '(?:平特|平)(\\d+)尾[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FIVE_ELEMENTS = new RegExp(BOUNDARY + '([金木水火土](?:[\\s,，。；;.、/\\\\\\-+&|\\*]*[金木水火土]|[金木水火土]|[\\u4e00-\\u9fa5])*?)[^金木水火土\\d\\n\\r]*?(?:各|每|买|压|个)?[^金木水火土\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?' + LOOKAHEAD_LOOSE, 'g');
+// 新增：匹配单独的生肖属性占位符（如"金肖各10"被替换为"⚙各10"）
+export const REGEX_ZODIAC_ATTR_STANDALONE = new RegExp(BOUNDARY + '([⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_MULTI_TAIL_V2 = new RegExp(BOUNDARY_STRICT + '(?:【?(\\d{2,10})】?)[^\\d]*?(?:各|每|买|压|个|包)?[^\\d]*?([二三四五2345两])?连尾[^\\d]*?(?:各|每|买|压|个|包)?[^\\d]*?(\\+?\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_TAIL_V3 = new RegExp(BOUNDARY + '(?:([二三四五2345两])?连尾|([二三四五两])尾)(?:[\\-\\s,，。；;.]*?(\\d)尾[\\-\\s,，。；;.]*?(\\d)尾[\\-\\s,，。；;.]*?(\\d)尾(?:[\\-\\s,，。；;.]*?(\\d)尾)?(?:[\\-\\s,，。；;.]*?(\\d)尾)?)[^\\d]*?(?:各|每|买|压|个|包)?[^\\d]*?(\\+?\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
@@ -207,9 +240,9 @@ export const REGEX_RANGE_EACH = new RegExp(
 
 export const REGEX_FLAT_NUMBER = new RegExp(BOUNDARY_STRICT + '(?:((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:平码|独平)(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)([\\d\\.\\s,，。；;./+&|\\-*]+)-(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?)|(?:平码|独平)((?<!\\d)[\\d\\.\\s,，。；;./+&|\\-*]+)(?:各|每|买|压|个)(\\d+(?:\\.\\d+)?))(?:米|个|元|块|斤|文|闷)?', 'g');
 
-export const REGEX_TUO_ZODIAC = new RegExp(BOUNDARY + '([二三四五2345两])[拖拖]([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]{2,12})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*)+)[拖拖]((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*)+)([二三四五六七八九十2345678910两])(?:连肖|连|连各|连每)?(?:各组|每组)?[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
-export const REGEX_TUO_ZODIAC_V4 = new RegExp(BOUNDARY + '(?<!\\d)([二三四五2345两])(?:连肖|连|连各|连每)?((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*)+)[拖拖]((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑][\\s,，。；;.、/\\-*]*)+)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_TUO_ZODIAC = new RegExp(BOUNDARY + '([二三四五2345两])[拖拖]([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12})[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_TUO_ZODIAC_V3 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*)+)[拖拖]((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*)+)([二三四五六七八九十2345678910两])(?:连肖|连|连各|连每)?(?:各组|每组)?[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_TUO_ZODIAC_V4 = new RegExp(BOUNDARY + '(?<!\\d)([二三四五2345两])(?:连肖|连|连各|连每)?((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*)+)[拖拖]((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*)+)[^\\d]*?(?:各|每|买|压|个)?[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 
 export const REGEX_GENERIC = new RegExp(BOUNDARY_STRICT + '((?:(?!各|每|买|压|个|下注|各号|每号|平(?!码)|复(?!码)|连|拖|三中三|二中二|特碰|特肖|特码|包肖|包(?!肖)|平特|平肖|不中|六中|五中|四中|六肖|五肖|四肖|6中|5中|4中|二尾|三尾|四尾|五尾|两尾|连肖|连尾)[0-9,，。；;.、/ \\t\\+\\-\\(\\)\\[\\]\\{\\}\\*:\\uff1a\\u4e00-\u9fa5])*?(?:大|小|单|双|红|绿|蓝|家|野|男|女|天|地|吉|凶|美|丑|合单|合双)+)[^\\d]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|#)?' + LOOKAHEAD_LOOSE, 'g');
 
@@ -309,6 +342,26 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
         tokens.push(...luckyZodiacs);
       } else if (char === '凶' || char === '丑') {
         tokens.push(...unluckyZodiacs);
+      } else if (char === '⚙') {
+        tokens.push(...metalZodiacs);
+      } else if (char === '⚘') {
+        tokens.push(...woodZodiacs);
+      } else if (char === '⚡') {
+        tokens.push(...waterZodiacs);
+      } else if (char === '⚗') {
+        tokens.push(...fireZodiacs);
+      } else if (char === '⚛') {
+        tokens.push(...earthZodiacs_Zodiac);
+      } else if (char === '⚐') {
+        tokens.push(...redZodiacs);
+      } else if (char === '⚑') {
+        tokens.push(...blueZodiacs);
+      } else if (char === '⚒') {
+        tokens.push(...greenZodiacs);
+      } else if (char === '⚔') {
+        tokens.push(...frontZodiacs);
+      } else if (char === '⚕') {
+        tokens.push(...backZodiacs);
       }
     }
     return tokens;
@@ -416,7 +469,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
       }
 
       // Zodiacs
-      const zodiacMatches = sub.match(/[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]/g);
+      const zodiacMatches = sub.match(/[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]/g);
       if (zodiacMatches) {
         zodiacMatches.forEach(z => {
           if (z === '家') {
@@ -558,6 +611,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
   addMatches(REGEX_PING, 'PING');
   addMatches(REGEX_TE_XIAO, 'TE_XIAO');
   addMatches(REGEX_BAO, 'BAO');
+  addMatches(REGEX_ZODIAC_ATTR_STANDALONE, 'ZODIAC_ATTR_STANDALONE');
   addMatches(REGEX_TAIL, 'TAIL');
   addMatches(REGEX_FIVE_ELEMENTS, 'FIVE_ELEMENTS');
   addMatches(REGEX_HEAD_TAIL, 'HEAD_TAIL');
@@ -765,7 +819,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
       }
       case 'MULTI_ZODIAC_MULTI_GROUP': {
         // 判断是后置格式还是前置格式
-        const isPostFormat = /[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]/.test(groups[1] || '');
+        const isPostFormat = /[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]/.test(groups[1] || '');
 
         let countStr = '';
         let typeStr = '';
@@ -1061,7 +1115,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
       case 'TUO_ZODIAC_V4': {
         const getZodiacTokens = (str: string): string[] => {
           const tokens: string[] = [];
-          const matches = str.match(/[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]/g);
+          const matches = str.match(/[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]/g);
           if (matches) {
             matches.forEach(m => {
               if (m === '家') tokens.push(...domesticZodiacs);
@@ -1072,6 +1126,17 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
               else if (m === '地') tokens.push(...earthZodiacs);
               else if (m === '吉' || m === '美') tokens.push(...luckyZodiacs);
               else if (m === '凶' || m === '丑') tokens.push(...unluckyZodiacs);
+              // 新增占位符处理
+              else if (m === '⚙') tokens.push(...metalZodiacs);
+              else if (m === '⚘') tokens.push(...woodZodiacs);
+              else if (m === '⚡') tokens.push(...waterZodiacs);
+              else if (m === '⚗') tokens.push(...fireZodiacs);
+              else if (m === '⚛') tokens.push(...earthZodiacs_Zodiac);
+              else if (m === '⚐') tokens.push(...redZodiacs);
+              else if (m === '⚑') tokens.push(...blueZodiacs);
+              else if (m === '⚒') tokens.push(...greenZodiacs);
+              else if (m === '⚔') tokens.push(...frontZodiacs);
+              else if (m === '⚕') tokens.push(...backZodiacs);
               else tokens.push(m);
             });
           }
@@ -1187,6 +1252,31 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
             item.zodiacDeltas[z] = (item.zodiacDeltas[z] || 0) + amt;
             item.total += amt;
             result.parsedZodiacBets[z] = (result.parsedZodiacBets[z] || 0) + amt;
+          }
+        });
+        result.lastAmount = amt;
+        break;
+      }
+      case 'ZODIAC_ATTR_STANDALONE': {
+        // 处理单独的生肖属性占位符（如"金肖各10"被替换为"⚙各10"）
+        const placeholderStr = groups[1];
+        const isEach = !!groups[2]; // 检查是否有"各"、"每"等字符
+        const amt = chineseToNumber(groups[3]);
+        const tokens = expandZodiacs(placeholderStr);
+
+        // 默认按照"包肖"处理（分配到号码）
+        tokens.forEach(z => {
+          if (zodiacs.includes(z)) {
+            const nums = getNumbersForZodiac(z);
+            if (nums.length > 0) {
+              const amtPerNum = isEach ? amt : (amt / nums.length); // 如果有"各"则每个号码都是该金额，否则平均分配
+              nums.forEach(n => {
+                item.numberDeltas[n] = (item.numberDeltas[n] || 0) + amtPerNum;
+                result.parsedBets[n] = (result.parsedBets[n] || 0) + amtPerNum;
+                result.selectedNumbers.add(n);
+              });
+              item.total += isEach ? (amt * nums.length) : amt;
+            }
           }
         });
         result.lastAmount = amt;
@@ -1341,7 +1431,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
 
         const getTokens = (str: string): string[] => {
           const tokens: string[] = [];
-          const matches = str.match(/\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|\d{1,2}/g);
+          const matches = str.match(/\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\d{1,2}/g);
           if (matches) {
             matches.forEach(m => {
               if (m === '家') tokens.push(...domesticZodiacs);
@@ -1352,6 +1442,17 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
               else if (m === '地') tokens.push(...earthZodiacs);
               else if (m === '吉' || m === '美') tokens.push(...luckyZodiacs);
               else if (m === '凶' || m === '丑') tokens.push(...unluckyZodiacs);
+              // 新增占位符处理
+              else if (m === '⚙') tokens.push(...metalZodiacs);
+              else if (m === '⚘') tokens.push(...woodZodiacs);
+              else if (m === '⚡') tokens.push(...waterZodiacs);
+              else if (m === '⚗') tokens.push(...fireZodiacs);
+              else if (m === '⚛') tokens.push(...earthZodiacs_Zodiac);
+              else if (m === '⚐') tokens.push(...redZodiacs);
+              else if (m === '⚑') tokens.push(...blueZodiacs);
+              else if (m === '⚒') tokens.push(...greenZodiacs);
+              else if (m === '⚔') tokens.push(...frontZodiacs);
+              else if (m === '⚕') tokens.push(...backZodiacs);
               else tokens.push(m);
             });
           }
@@ -1445,7 +1546,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
 
         const getTokens = (str: string): string[] => {
           const tokens: string[] = [];
-          const matches = str.match(/\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]|\d{1,2}/g);
+          const matches = str.match(/\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\d{1,2}/g);
           if (matches) {
             matches.forEach(m => {
               if (m === '家') tokens.push(...domesticZodiacs);
@@ -1456,6 +1557,17 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
               else if (m === '地') tokens.push(...earthZodiacs);
               else if (m === '吉' || m === '美') tokens.push(...luckyZodiacs);
               else if (m === '凶' || m === '丑') tokens.push(...unluckyZodiacs);
+              // 新增占位符处理
+              else if (m === '⚙') tokens.push(...metalZodiacs);
+              else if (m === '⚘') tokens.push(...woodZodiacs);
+              else if (m === '⚡') tokens.push(...waterZodiacs);
+              else if (m === '⚗') tokens.push(...fireZodiacs);
+              else if (m === '⚛') tokens.push(...earthZodiacs_Zodiac);
+              else if (m === '⚐') tokens.push(...redZodiacs);
+              else if (m === '⚑') tokens.push(...blueZodiacs);
+              else if (m === '⚒') tokens.push(...greenZodiacs);
+              else if (m === '⚔') tokens.push(...frontZodiacs);
+              else if (m === '⚕') tokens.push(...backZodiacs);
               else tokens.push(m);
             });
           }
@@ -1911,41 +2023,86 @@ export const parseBetInput = (inputText: string): ParsedInput => {
   // 将 '@' 替换为空格以防止阻碍边界断言匹配
   applyReplacement(/@/g, () => ' ');
 
+  // 🔴 新增：生肖属性关键字替换（必须在宏展开之前）
+  // 将双字符生肖属性关键字替换为单字符占位符，避免与波色/五行冲突
+  applyReplacement(/金肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['金肖']);
+  applyReplacement(/木肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['木肖']);
+  applyReplacement(/水肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['水肖']);
+  applyReplacement(/火肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['火肖']);
+  applyReplacement(/土肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['土肖']);
+  applyReplacement(/红肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['红肖']);
+  applyReplacement(/蓝肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['蓝肖']);
+  applyReplacement(/绿肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['绿肖']);
+  applyReplacement(/前肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['前肖']);
+  applyReplacement(/后肖/g, () => ZODIAC_ATTR_PLACEHOLDERS['后肖']);
+
   // 🔴 引入：生肖组宏替换在 wrapper 展开，以便 indexMap 完美追踪其引起的文件偏移位移，彻底绝缘高亮空白间断 Bug！
   const zodiacErrors: string[] = [];
-  const macroExpanderRegex = /(六中|六肖|6中|6肖|五中|五肖|5中|5肖|四中|四肖|4中|4肖)\s*(家|野|男|女|天|地|吉|美|凶|丑)肖?/g;
+  const macroExpanderRegex = /(六中|六肖|6中|6肖|五中|五肖|5中|5肖|四中|四肖|4中|4肖)\s*(家|野|男|女|天|地|吉|美|凶|丑|⚙|⚘|⚡|⚗|⚛|⚐|⚑|⚒|⚔|⚕)肖?/g;
+
+  // 生肖组映射（包含新增的占位符）
+  const zodiacGroupMap: Record<string, string[]> = {};
+  zodiacGroupMap['家'] = domesticZodiacs;
+  zodiacGroupMap['野'] = wildZodiacs;
+  zodiacGroupMap['男'] = maleZodiacs;
+  zodiacGroupMap['女'] = femaleZodiacs;
+  zodiacGroupMap['天'] = heavenZodiacs;
+  zodiacGroupMap['地'] = earthZodiacs;
+  zodiacGroupMap['吉'] = luckyZodiacs;
+  zodiacGroupMap['美'] = luckyZodiacs;
+  zodiacGroupMap['凶'] = unluckyZodiacs;
+  zodiacGroupMap['丑'] = unluckyZodiacs;
+  zodiacGroupMap[PLACEHOLDER_METAL_ZODIAC] = metalZodiacs;
+  zodiacGroupMap[PLACEHOLDER_WOOD_ZODIAC] = woodZodiacs;
+  zodiacGroupMap[PLACEHOLDER_WATER_ZODIAC] = waterZodiacs;
+  zodiacGroupMap[PLACEHOLDER_FIRE_ZODIAC] = fireZodiacs;
+  zodiacGroupMap[PLACEHOLDER_EARTH_ZODIAC_ATTR] = earthZodiacs_Zodiac;
+  zodiacGroupMap[PLACEHOLDER_RED_ZODIAC] = redZodiacs;
+  zodiacGroupMap[PLACEHOLDER_BLUE_ZODIAC] = blueZodiacs;
+  zodiacGroupMap[PLACEHOLDER_GREEN_ZODIAC] = greenZodiacs;
+  zodiacGroupMap[PLACEHOLDER_FRONT_ZODIAC] = frontZodiacs;
+  zodiacGroupMap[PLACEHOLDER_BACK_ZODIAC] = backZodiacs;
+
   applyReplacement(macroExpanderRegex, (match, type, group) => {
     const requiredCount = (type.startsWith('六') || type.startsWith('6')) ? 6 :
                           (type.startsWith('五') || type.startsWith('5')) ? 5 : 4;
-    const count = groupCounts[group];
-    if (count === requiredCount) {
-      return type + groupMembers[group];
+    const groupZodiacs = zodiacGroupMap[group] || [];
+    const actualCount = groupZodiacs.length;
+
+    if (actualCount === requiredCount) {
+      return type + groupZodiacs.join('');
     } else {
-      const pinyinGroupName = group === '家' ? '家肖' :
-                             group === '野' ? '野肖' :
-                             group === '男' ? '男肖' :
-                             group === '女' ? '女肖' :
-                             group === '天' ? '天肖' :
-                             group === '地' ? '地肖' :
-                             group === '吉' ? '吉肖' :
-                             group === '美' ? '美肖' :
-                             group === '凶' ? '凶肖' : '丑肖';
-      zodiacErrors.push(`‘${match}’是错误的，因为${pinyinGroupName}一共包含${count}个生肖，数量不等于‘${type}’本应该匹配的生肖数量(${requiredCount})`);
+      // 生肖数量不匹配，记录错误并保持原文不展开
+      const groupName = REVERSE_PLACEHOLDERS[group] || (
+        group === '家' ? '家肖' :
+        group === '野' ? '野肖' :
+        group === '男' ? '男肖' :
+        group === '女' ? '女肖' :
+        group === '天' ? '天肖' :
+        group === '地' ? '地肖' :
+        group === '吉' ? '吉肖' :
+        group === '美' ? '美肖' :
+        group === '凶' ? '凶肖' : '丑肖'
+      );
+      zodiacErrors.push(`'${match}'是错误的，因为${groupName}一共包含${actualCount}个生肖，数量不等于'${type}'本应该匹配的生肖数量(${requiredCount})`);
       return match;
     }
   });
 
   applyReplacement(/特\s*串/g, () => '特碰');
   applyReplacement(/[友有]/g, () => '连');
+  // 将 'b' 或 'B' 替换为 '包'（支持 'b马20' 和 '马b20' 两种格式）
+  applyReplacement(/(?<=^|[\s,，。；;.、/\d\n\r*:：])[bB](?=\s*[马蛇龙兔虎牛鼠猪狗鸡猴羊])/g, () => '包'); // b马20
+  applyReplacement(/(?<=[马蛇龙兔虎牛鼠猪狗鸡猴羊])\s*[bB](?=\s*\d)/g, () => '包'); // 马b20
   applyReplacement(/包(?=红波|蓝波|绿波|大数|小数|单数|双数|单|双|大|小|红单|红双|蓝单|蓝双|录单|录双|录单|录双|绿单|绿双|合单|合双)/g, () => ' ');
   applyReplacement(/(\d+)尾平/g, (match, d) => `平${d}尾`);
-  applyReplacement(/([马蛇龙兔虎牛鼠猪狗鸡猴羊家野]{2,12})[拖拖](\d+)/g, (match, z, d) => `${z}连${d}`);
+  applyReplacement(/([马蛇龙兔虎牛鼠猪狗鸡猴羊家野⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12})[拖拖](\d+)/g, (match, z, d) => `${z}连${d}`);
   applyReplacement(/[xX×]/g, () => '各');
 
   // 🔴 核心展开：由于多组连肖（如：'牛鸡虎，牛龙猪鸡，龙猪鸡蛇鼠连肖各10'）最后只有最后一个有'连肖各10'，
   // 我们直接用正则捕获，把这种结构全展开为独立的组结构以逗号连接，同时不改变长度：
   // 长度对齐由包装层解析器映射完成，所以我们只要展开它让核心解析器可以正确通过逗号匹配到各组！
-  const multiGroupPostRegex = /((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野]{2,12}[，,、\s]+)+)([马蛇龙兔虎牛鼠猪狗鸡猴羊家野]{2,12})([二三四五六23456两]?(?:连肖|连|肖))((各|每|买|压|个)?\d+(?:\.\d+)?)/g;
+  const multiGroupPostRegex = /((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12}[，,、\s]+)+)([马蛇龙兔虎牛鼠猪狗鸡猴羊家野⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12})([二三四五六23456两]?(?:连肖|连|肖))((各|每|买|压|个)?\d+(?:\.\d+)?)/g;
   applyReplacement(multiGroupPostRegex, (match, prefix, lastGroup, type, suffix) => {
     // 将 '牛鸡虎，牛龙猪鸡，' 的组全部提取
     const groups = prefix.split(/[，,、\s]+/).filter(Boolean);

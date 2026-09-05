@@ -1,4 +1,4 @@
-import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements, zodiacNumbers, YEAR_MAIN_ZODIAC, MULTIPLIERS, isSumOdd, isSumEven } from '../constants';
+import { zodiacs, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, fiveElements, zodiacNumbers, YEAR_MAIN_ZODIAC, MULTIPLIERS, isSumOdd, isSumEven, metalZodiacs, woodZodiacs, waterZodiacs, fireZodiacs, earthZodiacs_Zodiac, redZodiacs, blueZodiacs, greenZodiacs, frontZodiacs, backZodiacs } from '../constants';
 import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
 
 // Pre-compute O(1) number to zodiac lookup array (indices 1-49)
@@ -112,6 +112,22 @@ export const checkIsWinner = (part: string, context: WinningContext): boolean =>
   if (part === '地') return earthZodiacs.includes(specialZodiac);
   if (part === '吉' || part === '美') return luckyZodiacs.includes(specialZodiac);
   if (part === '凶' || part === '丑') return unluckyZodiacs.includes(specialZodiac);
+
+  // 新增：五行生肖属性（支持占位符和原始双字符关键字）
+  if (part === '⚙' || part === '金肖') return metalZodiacs.includes(specialZodiac);
+  if (part === '⚘' || part === '木肖') return woodZodiacs.includes(specialZodiac);
+  if (part === '⚡' || part === '水肖') return waterZodiacs.includes(specialZodiac);
+  if (part === '⚗' || part === '火肖') return fireZodiacs.includes(specialZodiac);
+  if (part === '⚛' || part === '土肖') return earthZodiacs_Zodiac.includes(specialZodiac);
+
+  // 新增：波色生肖属性（支持占位符和原始双字符关键字）
+  if (part === '⚐' || part === '红肖') return redZodiacs.includes(specialZodiac);
+  if (part === '⚑' || part === '蓝肖') return blueZodiacs.includes(specialZodiac);
+  if (part === '⚒' || part === '绿肖') return greenZodiacs.includes(specialZodiac);
+
+  // 新增：前后肖（支持占位符和原始双字符关键字）
+  if (part === '⚔' || part === '前肖') return frontZodiacs.includes(specialZodiac);
+  if (part === '⚕' || part === '后肖') return backZodiacs.includes(specialZodiac);
 
   // Check for Five Elements
   if (['金', '木', '水', '火', '土'].includes(part)) {

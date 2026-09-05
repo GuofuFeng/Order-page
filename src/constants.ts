@@ -18,6 +18,16 @@ export {
   luckyZodiacs,
   unluckyZodiacs,
   fiveElements,
+  metalZodiacs,
+  woodZodiacs,
+  waterZodiacs,
+  fireZodiacs,
+  earthZodiacs_Zodiac,
+  redZodiacs,
+  blueZodiacs,
+  greenZodiacs,
+  frontZodiacs,
+  backZodiacs,
 } from './config/bettingRules';
 
 export const isSumOdd = (n: number) => {

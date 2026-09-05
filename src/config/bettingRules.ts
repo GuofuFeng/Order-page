@@ -61,6 +61,22 @@ export const earthZodiacs = ['蛇', '羊', '鸡', '狗', '鼠', '虎'];       //
 export const luckyZodiacs = ['兔', '龙', '蛇', '马', '羊', '鸡'];       // 吉肖 / 美肖
 export const unluckyZodiacs = ['鼠', '牛', '虎', '猴', '狗', '猪'];     // 凶肖 / 丑肖
 
+// 新增：五行生肖属性
+export const metalZodiacs = ['猴', '鸡'];                    // 金肖 (2个生肖)
+export const woodZodiacs = ['虎', '兔'];                     // 木肖 (2个生肖)
+export const waterZodiacs = ['鼠', '猪'];                    // 水肖 (2个生肖)
+export const fireZodiacs = ['蛇', '马'];                     // 火肖 (2个生肖)
+export const earthZodiacs_Zodiac = ['牛', '龙', '羊', '狗']; // 土肖 (4个生肖，注意：earthZodiacs已被天地肖使用)
+
+// 新增：波色生肖属性
+export const redZodiacs = ['鼠', '兔', '马', '鸡'];          // 红肖 (4个生肖)
+export const blueZodiacs = ['虎', '蛇', '猴', '猪'];         // 蓝肖 (4个生肖)
+export const greenZodiacs = ['牛', '龙', '羊', '狗'];        // 绿肖 (4个生肖)
+
+// 新增：前后肖
+export const frontZodiacs = ['鼠', '牛', '虎', '兔', '龙', '蛇'];  // 前肖 (6个生肖)
+export const backZodiacs = ['马', '羊', '猴', '鸡', '狗', '猪'];   // 后肖 (6个生肖)
+
 // 5. 五行属性号码定义
 export const fiveElements: Record<string, number[]> = {
   '金': [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
