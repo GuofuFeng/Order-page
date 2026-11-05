@@ -50,3 +50,4 @@ PERFORMANCE_OPTIMIZATION.md
 BASKET_PRESETS_SYNC_TEST.md
 VERCEL_vs_LOCAL_CRON.md
 AGENTS.md
+scripts/check_quick_phrases_schema.mjs

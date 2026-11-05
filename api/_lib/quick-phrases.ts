@@ -13,14 +13,14 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
       .from('quick_phrases')
       .select('*')
       .eq('user_id', req.user.id)
-      .order('order', { ascending: true });
+      .order('order_num', { ascending: true });
 
     if (error) throw error;
 
     const phrases = (data || []).map(p => ({
       id: p.id,
       text: p.text,
-      order: p.order,
+      order: p.order_num,
       isSystem: p.is_system || false
     }));
 
@@ -60,12 +60,12 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     // Get max order value
     const { data: maxOrderData } = await supabase
       .from('quick_phrases')
-      .select('order')
+      .select('order_num')
       .eq('user_id', req.user.id)
-      .order('order', { ascending: false })
+      .order('order_num', { ascending: false })
       .limit(1);
 
-    const maxOrder = maxOrderData && maxOrderData.length > 0 ? (maxOrderData[0].order || 0) : 0;
+    const maxOrder = maxOrderData && maxOrderData.length > 0 ? (maxOrderData[0].order_num || 0) : 0;
 
     const newId = `qp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const { data: inserted, error } = await supabase
@@ -74,7 +74,7 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
         id: newId,
         user_id: req.user.id,
         text: text.trim(),
-        order: maxOrder + 1,
+        order_num: maxOrder + 1,
         is_system: false
       })
       .select()
@@ -87,7 +87,7 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
       phrase: {
         id: inserted.id,
         text: inserted.text,
-        order: inserted.order,
+        order: inserted.order_num,
         isSystem: inserted.is_system || false
       }
     });
@@ -112,7 +112,7 @@ router.put('/reorder', authenticateJWT, async (req: AuthenticatedRequest, res) =
     const updates = ids.map((id: string, index: number) =>
       supabase
         .from('quick_phrases')
-        .update({ order: index + 1 })
+        .update({ order_num: index + 1 })
         .eq('id', id)
         .eq('user_id', req.user!.id)
     );
