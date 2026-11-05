@@ -28,6 +28,7 @@ scripts/inspect_bets.mjs
 scripts/inspect_settings.mjs
 scripts/inspect_settings2.mjs
 scripts/check_counts.mjs
+scripts/check_tables.mjs
 
 # Root-level scratch SQL files (already run on Supabase, not canonical migrations)
 CREATE_TABLE_NOW.sql

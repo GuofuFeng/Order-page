@@ -4,10 +4,10 @@ import authRouter from './auth.js';
 import syncRouter from './sync.js';
 import billingRouter from './billing.js';
 import adminRouter from './admin.js';
-import quickPhrasesRouter from './quick-phrases.js';
-import textReplacementsRouter from './text-replacements.js';
-import pendingBetsRouter from './pending-bets.js';
-import cleanupRouter from './cleanup.js';
+import quickPhrasesRouter from './_lib/quick-phrases.js';
+import textReplacementsRouter from './_lib/text-replacements.js';
+import pendingBetsRouter from './_lib/pending-bets.js';
+import cleanupRouter from './_lib/cleanup.js';
 import { supabase } from './supabase.js';
 
 const app = express();

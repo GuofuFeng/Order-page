@@ -1,6 +1,6 @@
 import express from 'express';
-import { supabase } from './supabase.js';
-import { authenticateJWT, AuthenticatedRequest } from './middleware.js';
+import { supabase } from '../supabase.js';
+import { authenticateJWT, AuthenticatedRequest } from '../middleware.js';
 import { detectConflicts, previewReplacement } from './utils/conflictDetector.js';
 
 const router = express.Router();

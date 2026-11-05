@@ -1,6 +1,6 @@
 import express from 'express';
-import { supabase } from './supabase.js';
-import { authenticateJWT, AuthenticatedRequest } from './middleware.js';
+import { supabase } from '../supabase.js';
+import { authenticateJWT, AuthenticatedRequest } from '../middleware.js';
 
 const router = express.Router();
 
@@ -25,9 +25,9 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     }));
 
     res.json({ phrases });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Fetch quick phrases error:', err);
-    res.status(500).json({ error: '获取常用词失败' });
+    res.status(500).json({ error: '获取常用词失败', detail: err?.message, code: err?.code });
   }
 });
 
