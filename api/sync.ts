@@ -231,6 +231,8 @@ router.post('/presets', authenticateJWT, async (req: AuthenticatedRequest, res) 
   }
 
   try {
+    console.log('[DEBUG] Saving presets for user', req.user.id, ':', JSON.stringify(presets).substring(0, 200));
+
     const { error } = await supabase
       .from('system_settings')
       .upsert({
@@ -238,8 +240,12 @@ router.post('/presets', authenticateJWT, async (req: AuthenticatedRequest, res) 
         value: JSON.stringify(presets)
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[ERROR] Supabase upsert failed:', error);
+      throw error;
+    }
 
+    console.log('[DEBUG] Presets saved successfully for user', req.user.id);
     res.json({ message: '保存预设成功。' });
   } catch (err) {
     console.error('Save presets error:', err);

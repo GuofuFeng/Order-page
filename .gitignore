@@ -7,3 +7,45 @@ coverage/
 .env*
 !.env.example
 .vercel
+
+# Temp test files
+test-*.html
+test-*.md
+plans/
+
+# Chinese-named temp files
+vercel中的报错信息
+可识别常用格式
+
+# Misc setup guides in root
+QUICK_PHRASES_SETUP.md
+QUICK_START_GUIDE.md
+TEXT_REPLACEMENT_SETUP_GUIDE.md
+TEXT_REPLACEMENT_IMPLEMENTATION_REPORT.md
+
+# Temp diagnostic scripts (keep only daily-cleanup.mjs)
+scripts/inspect_bets.mjs
+scripts/inspect_settings.mjs
+scripts/inspect_settings2.mjs
+scripts/check_counts.mjs
+
+# Root-level scratch SQL files (already run on Supabase, not canonical migrations)
+CREATE_TABLE_NOW.sql
+DATABASE_CLEANUP_SETUP.sql
+FIX_SYSTEM_SETTINGS_VALUE_LENGTH.sql
+diagnose_system_settings.sql
+
+# AI-generated implementation reports (internal notes, not project docs)
+*_REPORT.md
+*_COMPLETE.md
+*_GUIDE.md
+*_SUMMARY.md
+*_PLAN.md
+*_IMPLEMENTATION.md
+CONFLICT_DETECTION_IMPLEMENTATION.md
+DATA_RETENTION_PLAN.md
+DEBUG_RIGHT_CLICK.md
+PERFORMANCE_OPTIMIZATION.md
+BASKET_PRESETS_SYNC_TEST.md
+VERCEL_vs_LOCAL_CRON.md
+AGENTS.md

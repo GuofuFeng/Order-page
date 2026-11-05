@@ -4,11 +4,17 @@ import authRouter from './auth.js';
 import syncRouter from './sync.js';
 import billingRouter from './billing.js';
 import adminRouter from './admin.js';
+import quickPhrasesRouter from './quick-phrases.js';
+import textReplacementsRouter from './text-replacements.js';
+import pendingBetsRouter from './pending-bets.js';
+import cleanupRouter from './cleanup.js';
 import { supabase } from './supabase.js';
 
 const app = express();
 
-app.use(express.json());
+// 增加 JSON 请求体大小限制到 10MB（足够大，但不会影响性能）
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
 // Routing Prefix config
@@ -16,6 +22,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/quick-phrases', quickPhrasesRouter);
+app.use('/api/text-replacements', textReplacementsRouter);
+app.use('/api/pending-bets', pendingBetsRouter);
+app.use('/api/cleanup', cleanupRouter);
 
 // Diagnostic health check route to verify Supabase connectivity
 app.get('/api/health', async (req, res) => {

@@ -3,18 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { numbers, zodiacs, lotteryTypes, redNumbers, blueNumbers, greenNumbers, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements, metalZodiacs, woodZodiacs, waterZodiacs, fireZodiacs, earthZodiacs_Zodiac, redZodiacs, blueZodiacs, greenZodiacs, frontZodiacs, backZodiacs } from './constants';
-import { STORAGE_KEYS, saveToStorage, loadFromStorage } from './utils/storage';
+import { STORAGE_KEYS, saveToStorage, loadFromStorage, getStorageKey } from './utils/storage';
 import { parseBetInput, parseMultiLotteryInput, chineseToNumber, REGEX_SIX_ZODIAC, REGEX_FIVE_ZODIAC, REGEX_FOUR_ZODIAC, REGEX_MULTI_ZODIAC, REGEX_MULTI_ZODIAC_ADVANCED, REGEX_MULTI_ZODIAC_V2, REGEX_TUO_ZODIAC_V3, REGEX_NOT_IN, REGEX_EACH, REGEX_GENERIC, REGEX_BAO, REGEX_TE_XIAO, REGEX_PING, REGEX_TAIL, REGEX_MULTI_TAIL_ADVANCED, REGEX_MULTI_TAIL_V2, REGEX_MULTI_TAIL_V3, REGEX_FLAT_NUMBER, REGEX_TUO_ZODIAC, REGEX_HEAD_TAIL, REGEX_COMBINATION_WIN, REGEX_FIVE_ELEMENTS, REGEX_EXCLUSION } from './utils/betParser';
 import { getZodiacFromNumber, formatNumber, checkIsWinner, calculateWinAmount, getWinningDetails, getWinningBreakdown } from './utils/winningCalculator';
-import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData, BatchImportEntry } from './types';
+import { BetOrder, ConfirmedBet, MultiZodiacBet, NotInBet, CombinationWinBet, TextParsedData, BatchImportEntry, QuickPhrase, TextReplacement } from './types';
 import { useAuth } from './context/AuthContext';
 import { LoginRegister } from './components/LoginRegister';
 import { AdminPanel } from './components/AdminPanel';
+import { QuickPhrasePanel } from './components/QuickPhrasePanel';
+import { TextReplacementPanel } from './components/TextReplacementPanel';
+import { insertTextAtCursor } from './utils/textInsertion';
+import { debounce } from './utils/debounce';
 
 // Helper to get Beijing Date String (YYYY-MM-DD) with 04:00 AM cutoff
 const getBeijingDateString = (timestamp: number) => {
@@ -323,10 +327,56 @@ interface BatchImportRowProps {
   defaultLottery: string;
   drawNumbers: Record<string, (number | '')[]>;
   specialMultipliers: Record<string, number>;
+  textReplacements: TextReplacement[];
 }
 
-const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onInsert, onDelete, renderHighlight, renderBetText, defaultLottery, drawNumbers, specialMultipliers }) => {
-  const result = useMemo(() => parseMultiLotteryInput(row.content), [row.content]);
+const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onInsert, onDelete, renderHighlight, renderBetText, defaultLottery, drawNumbers, specialMultipliers, textReplacements }) => {
+  // 本地状态用于立即显示用户输入（无延迟）
+  const [localContent, setLocalContent] = useState(row.content);
+
+  // 解析结果使用 debounce，延迟 300ms
+  const [parsedContent, setParsedContent] = useState(row.content);
+
+  useEffect(() => {
+    setLocalContent(row.content);
+    setParsedContent(row.content);
+  }, [row.content]);
+
+  // Debounce 解析，300ms 延迟
+  const debouncedSetParsed = useMemo(
+    () => debounce((content: string) => {
+      setParsedContent(content);
+    }, 300),
+    []
+  );
+
+  // 使用 useCallback 避免不必要的父组件更新
+  const handleContentChange = useCallback((content: string) => {
+    setLocalContent(content); // 立即更新显示
+    onUpdate(content); // 通知父组件（但不会触发子组件重新渲染）
+    debouncedSetParsed(content); // 延迟解析
+  }, [onUpdate, debouncedSetParsed]);
+
+  const result = useMemo(() => parseMultiLotteryInput(parsedContent, textReplacements), [parsedContent, textReplacements]);
+
+  // 🔴 新增：计算替换后的文本用于高亮显示
+  const replacedContent = useMemo(() => {
+    if (!textReplacements || textReplacements.length === 0) return localContent;
+
+    let replaced = localContent;
+    const enabledRules = textReplacements
+      .filter(r => r.enabled)
+      .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+
+    for (const rule of enabledRules) {
+      const escapedFrom = rule.fromText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedFrom, 'g');
+      replaced = replaced.replace(regex, rule.toText);
+    }
+
+    return replaced;
+  }, [localContent, textReplacements]);
+
   const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
   const hasBets = result.segments.some(s => s.parsed.items.length > 0);
   const hasLottery = result.segments.some(s => !!s.lotteryType);
@@ -348,7 +398,7 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
       const scrollHeight = textareaRef.current.scrollHeight;
       textareaRef.current.style.height = Math.max(50, scrollHeight) + 'px';
     }
-  }, [row.content]);
+  }, [localContent]);
 
   // Logic for totals and winning status
   const totalBetAmount = useMemo(() => {
@@ -453,13 +503,29 @@ const BatchImportRow: React.FC<BatchImportRowProps> = ({ row, idx, onUpdate, onI
               fontFamily: 'font-mono'
             }}
           >
-            {renderHighlight(row.content, result.validPhrases || [], result.invalidPhrases || [])}
+            {renderHighlight(replacedContent, result.validPhrases || [], result.invalidPhrases || [])}
           </div>
           {/* Real input */}
           <textarea
             ref={textareaRef}
-            value={row.content}
-            onChange={(e) => onUpdate(e.target.value)}
+            value={localContent}
+            onChange={(e) => handleContentChange(e.target.value)}
+            onContextMenu={async (e) => {
+              e.preventDefault();
+              console.log('批量导入：右键点击');
+
+              // 保存 textarea 引用，因为 e.currentTarget 在异步后会变成 null
+              const textarea = e.currentTarget;
+
+              try {
+                const text = await navigator.clipboard.readText();
+                console.log('批量导入：成功读取剪贴板:', text);
+                insertTextAtCursor(textarea, text);
+              } catch (err) {
+                console.error('批量导入：无法读取剪贴板:', err);
+                alert('无法读取剪贴板。请检查浏览器权限设置，或使用 Ctrl+V 粘贴。');
+              }
+            }}
             className="w-full p-3 bg-transparent border-none outline-none relative z-10 text-[14px] font-mono font-bold leading-[1.6] resize-none block overflow-hidden caret-stone-800"
             style={{ 
               boxSizing: 'border-box',
@@ -584,7 +650,9 @@ export default function App() {
   const [selectedBasketId, setSelectedBasketId] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A'));
   const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
 
-  const [allPendingBets, setAllPendingBets] = useState<Record<string, BetOrder[]>>(() => loadFromStorage(STORAGE_KEYS.ALL_PENDING_BETS, {}));
+  const [allPendingBets, setAllPendingBets] = useState<Record<string, BetOrder[]>>({});
+  const hasPendingSyncedRef = useRef(false); // Track if pending bets have been synced from server
+
   const defaultMultipliers = useMemo(() => {
     return lotteryTypes.reduce((acc, type) => {
       const isHigh = ['新澳', '老澳', '香港', '老cc'].includes(type);
@@ -618,6 +686,13 @@ export default function App() {
   const [editingMultiplierValue, setEditingMultiplierValue] = useState<string>('');
   const [isEditingCommission, setIsEditingCommission] = useState<boolean>(false);
   const [editingCommissionValue, setEditingCommissionValue] = useState<string>('');
+
+  // Quick Phrases state
+  const [quickPhrases, setQuickPhrases] = useState<QuickPhrase[]>([]);
+
+  // Text Replacements state
+  const [textReplacements, setTextReplacements] = useState<TextReplacement[]>([]);
+  const [isReplacementPanelOpen, setIsReplacementPanelOpen] = useState(false);
 
   // State for basket name editing
   const [editingBasketId, setEditingBasketId] = useState<string | null>(null);
@@ -724,7 +799,7 @@ export default function App() {
   const [amount, setAmount] = useState<number | ''>('');
   
   // Parsing logic for textarea input
-  const parsedResult = useMemo(() => parseMultiLotteryInput(inputText), [inputText]);
+  const parsedResult = useMemo(() => parseMultiLotteryInput(inputText, textReplacements), [inputText, textReplacements]);
 
   const mergedParsedData = useMemo(() => {
     const { segments } = parsedResult;
@@ -835,6 +910,28 @@ export default function App() {
           // Do not set hasSyncedRef.current to true to prevent overwriting server data if load fails
         });
 
+      // Fetch pending bets from server
+      hasPendingSyncedRef.current = false;
+      fetch('/api/pending-bets')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Pending bets fetch failed');
+        })
+        .then(data => {
+          if (data.allPendingBets) {
+            setAllPendingBets(data.allPendingBets);
+            hasPendingSyncedRef.current = true;
+          }
+        })
+        .catch(err => {
+          console.error('Initial pending bets sync failed:', err);
+          // Fallback to localStorage if server fails
+          const localKey = getStorageKey(STORAGE_KEYS.ALL_PENDING_BETS, user.id);
+          const localPending = loadFromStorage(localKey, {});
+          setAllPendingBets(localPending);
+          hasPendingSyncedRef.current = true;
+        });
+
       // Fetch user presets from database
       hasPresetsSyncedRef.current = false;
       fetch('/api/sync/presets')
@@ -863,15 +960,49 @@ export default function App() {
           console.error('Initial presets sync failed:', err);
           hasPresetsSyncedRef.current = true; // Allow local updates even if load failed
         });
+
+      // Fetch user quick phrases from database
+      fetch('/api/quick-phrases')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Quick phrases fetch failed');
+        })
+        .then(data => {
+          if (data.phrases) {
+            setQuickPhrases(data.phrases);
+          }
+        })
+        .catch(err => {
+          console.error('Initial quick phrases sync failed:', err);
+        });
+
+      // Fetch user text replacements from database
+      fetch('/api/text-replacements')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Text replacements fetch failed');
+        })
+        .then(data => {
+          if (data.replacements) {
+            setTextReplacements(data.replacements);
+          }
+        })
+        .catch(err => {
+          console.error('Initial text replacements sync failed:', err);
+        });
     } else {
       hasSyncedRef.current = false;
       hasPresetsSyncedRef.current = false;
+      hasPendingSyncedRef.current = false;
       if (!authLoading) {
         setConfirmedBets([]);
+        setAllPendingBets({});
         setBasketPresets({});
         localStorage.removeItem(STORAGE_KEYS.BASKET_PRESETS);
         setSpecialMultipliers(defaultMultipliers);
         setCommissionRate(4);
+        setQuickPhrases([]);
+        setTextReplacements([]);
       }
     }
   }, [user?.id, authLoading]);
@@ -1096,7 +1227,7 @@ export default function App() {
     let totalWin = 0;
     
     batchRows.forEach(row => {
-      const result = parseMultiLotteryInput(row.content);
+      const result = parseMultiLotteryInput(row.content, textReplacements);
       result.segments.forEach(seg => {
         const segBet = seg.parsed.items.reduce((sum, item) => sum + item.total, 0);
         totalBet += segBet;
@@ -1249,9 +1380,21 @@ export default function App() {
     return () => clearInterval(timer);
   }, [confirmedBets, drawNumbers, specialMultipliers]);
 
+  // Sync allPendingBets to server and localStorage
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.ALL_PENDING_BETS, allPendingBets);
-  }, [allPendingBets]);
+    if (user && hasPendingSyncedRef.current) {
+      // Save to server
+      fetch('/api/pending-bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allPendingBets })
+      }).catch(err => console.error('Save pending bets to server failed:', err));
+
+      // Save to localStorage as backup
+      const localKey = getStorageKey(STORAGE_KEYS.ALL_PENDING_BETS, user.id);
+      saveToStorage(localKey, allPendingBets);
+    }
+  }, [allPendingBets, user]);
 
   // Prevent accidental refresh if there are pending bets
   useEffect(() => {
@@ -1308,10 +1451,6 @@ export default function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SELECTED_BASKET_ID, selectedBasketId);
   }, [selectedBasketId]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.ALL_PENDING_BETS, allPendingBets);
-  }, [allPendingBets]);
 
   // Effect to handle simultaneous filters
   useEffect(() => {
@@ -1419,10 +1558,10 @@ export default function App() {
   const toggleOddEven = () => {
     const oddNumbers = numbers.filter(n => n % 2 !== 0);
     const evenNumbers = numbers.filter(n => n % 2 === 0);
-    
-    const isCurrentlyOdd = selectedNumbers.size === oddNumbers.length && 
+
+    const isCurrentlyOdd = selectedNumbers.size === oddNumbers.length &&
                            oddNumbers.every(n => selectedNumbers.has(n));
-    
+
     if (isCurrentlyOdd) {
       setSelectedNumbers(new Set(evenNumbers));
     } else {
@@ -1430,6 +1569,150 @@ export default function App() {
     }
     // Keep focus on amount input
     amountInputRef.current?.focus();
+  };
+
+  // Quick Phrases handlers
+  const handleAddQuickPhrase = async (text: string): Promise<void> => {
+    try {
+      const res = await fetch('/api/quick-phrases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '添加失败');
+      }
+
+      const data = await res.json();
+      setQuickPhrases(prev => [...prev, data.phrase]);
+    } catch (err: any) {
+      throw new Error(err.message || '添加常用词失败');
+    }
+  };
+
+  const handleUpdateQuickPhrase = async (id: string, text: string): Promise<void> => {
+    try {
+      const res = await fetch(`/api/quick-phrases/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '更新失败');
+      }
+
+      setQuickPhrases(prev => prev.map(p => p.id === id ? { ...p, text } : p));
+    } catch (err: any) {
+      throw new Error(err.message || '更新常用词失败');
+    }
+  };
+
+  const handleDeleteQuickPhrase = async (id: string): Promise<void> => {
+    try {
+      const res = await fetch(`/api/quick-phrases/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '删除失败');
+      }
+
+      setQuickPhrases(prev => prev.filter(p => p.id !== id));
+    } catch (err: any) {
+      throw new Error(err.message || '删除常用词失败');
+    }
+  };
+
+  const handleReorderQuickPhrases = async (reordered: QuickPhrase[]): Promise<void> => {
+    const previous = quickPhrases;
+    setQuickPhrases(reordered);
+
+    try {
+      const res = await fetch('/api/quick-phrases/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: reordered.filter(p => !p.isSystem).map(p => p.id) })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '排序失败');
+      }
+    } catch (err: any) {
+      setQuickPhrases(previous);
+      throw new Error(err.message || '保存常用词排序失败');
+    }
+  };
+
+  // Text Replacements handlers
+  const handleAddTextReplacement = async (fromText: string, toText: string): Promise<void> => {
+    try {
+      const res = await fetch('/api/text-replacements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromText, toText })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '添加失败');
+      }
+
+      const data = await res.json();
+      setTextReplacements(prev => [...prev, data.replacement]);
+
+      // 如果有冲突信息，在error对象中携带
+      if (data.conflicts && data.conflicts.length > 0) {
+        const err: any = new Error('添加成功，但检测到潜在冲突');
+        err.conflicts = data.conflicts;
+        throw err;
+      }
+    } catch (err: any) {
+      throw err; // 将冲突信息传递给组件
+    }
+  };
+
+  const handleUpdateTextReplacement = async (id: string, updates: Partial<TextReplacement>): Promise<void> => {
+    try {
+      const res = await fetch(`/api/text-replacements/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '更新失败');
+      }
+
+      setTextReplacements(prev => prev.map(r =>
+        r.id === id ? { ...r, ...updates } : r
+      ));
+    } catch (err: any) {
+      throw new Error(err.message || '更新替换规则失败');
+    }
+  };
+
+  const handleDeleteTextReplacement = async (id: string): Promise<void> => {
+    try {
+      const res = await fetch(`/api/text-replacements/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '删除失败');
+      }
+
+      setTextReplacements(prev => prev.filter(r => r.id !== id));
+    } catch (err: any) {
+      throw new Error(err.message || '删除替换规则失败');
+    }
   };
 
   // Add to pending bets list
@@ -1446,7 +1729,7 @@ export default function App() {
 
     // 1. Handle text input (Numbers, Zodiacs and Tails)
     if (inputText.trim()) {
-      const { segments } = parseMultiLotteryInput(inputText);
+      const { segments } = parseMultiLotteryInput(inputText, textReplacements);
       
       segments.forEach(seg => {
         const p = seg.parsed;
@@ -2198,8 +2481,11 @@ export default function App() {
   };
 
   const deleteOrdersByDate = (date: string) => {
-    if (window.confirm(`确定要删除 ${date} 的所有订单吗？`)) {
-      const newBets = confirmedBets.filter(bet => getBeijingDateString(bet.timestamp) !== date);
+    const basketName = getBasketDisplayName(selectedBasketId);
+    if (window.confirm(`确定要删除 ${basketName} 中 ${date} 的所有订单吗？`)) {
+      const newBets = confirmedBets.filter(bet =>
+        !(getBeijingDateString(bet.timestamp) === date && bet.basketId === selectedBasketId)
+      );
       setConfirmedBets(newBets);
     }
   };
@@ -2672,7 +2958,19 @@ export default function App() {
         </div>
         <div className="flex items-center gap-4">
           {user && (
-            <div className="flex items-center gap-3 bg-stone-50 border border-stone-200/60 px-3 py-1.5 rounded-xl shadow-sm">
+            <>
+              <button
+                onClick={() => setIsReplacementPanelOpen(true)}
+                className="px-3 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 hover:text-purple-900 rounded-xl text-[10px] font-bold transition-all flex items-center gap-2 shadow-sm"
+                title="文字替换设置"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                  <path d="M21 3v5h-5"/>
+                </svg>
+                替换词
+              </button>
+              <div className="flex items-center gap-3 bg-stone-50 border border-stone-200/60 px-3 py-1.5 rounded-xl shadow-sm">
               <div className="flex flex-col items-end text-[10px] font-bold text-stone-600 leading-tight">
                 <div className="flex items-center gap-1.5">
                   <span className="text-stone-800">{user.username}</span>
@@ -2714,6 +3012,7 @@ export default function App() {
                 退出
               </button>
             </div>
+            </>
           )}
 
           <div className="text-stone-400 text-[10px] font-medium flex items-center gap-2">
@@ -3280,6 +3579,22 @@ export default function App() {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleAddToPending();
+                      }
+                    }}
+                    onContextMenu={async (e) => {
+                      e.preventDefault();
+                      console.log('主输入框：右键点击');
+
+                      // 保存 textarea 引用，因为 e.currentTarget 在异步后会变成 null
+                      const textarea = e.currentTarget;
+
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        console.log('主输入框：成功读取剪贴板:', text);
+                        insertTextAtCursor(textarea, text);
+                      } catch (err) {
+                        console.error('主输入框：无法读取剪贴板:', err);
+                        alert('无法读取剪贴板。请检查浏览器权限设置，或使用 Ctrl+V 粘贴。');
                       }
                     }}
                     className="w-full h-full m-0 p-3 bg-transparent border border-stone-200 rounded-xl shadow-sm focus:ring-2 focus:ring-stone-200 focus:border-stone-400 outline-none transition-all resize-none text-stone-700 text-sm leading-6 tracking-normal relative z-10 font-mono overflow-y-scroll scrollbar-hide appearance-none"
@@ -3958,7 +4273,7 @@ export default function App() {
                       const invalidIndices: number[] = [];
 
                       batchRows.forEach((row, idx) => {
-                        const result = parseMultiLotteryInput(row.content);
+                        const result = parseMultiLotteryInput(row.content, textReplacements);
                         const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
                         const hasBets = result.segments.some(s => s.parsed.items.length > 0);
                         const hasLottery = result.segments.some(s => !!s.lotteryType);
@@ -4048,7 +4363,7 @@ export default function App() {
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     一键确认下单 ({batchRows.filter(row => {
-                        const result = parseMultiLotteryInput(row.content);
+                        const result = parseMultiLotteryInput(row.content, textReplacements);
                         const hasErrors = result.segments.some(s => s.parsed.errors.length > 0) || (row.content.trim().length > 0 && result.segments.length === 0);
                         const hasBets = result.segments.some(s => s.parsed.items.length > 0);
                         const hasLottery = result.segments.some(s => !!s.lotteryType);
@@ -4077,6 +4392,7 @@ export default function App() {
                         defaultLottery={batchDefaultLotteryType}
                         drawNumbers={drawNumbers}
                         specialMultipliers={specialMultipliers}
+                        textReplacements={textReplacements}
                         renderHighlight={renderHighlightedInput}
                         renderBetText={renderHighlightedText}
                         onUpdate={(content) => {
@@ -4441,7 +4757,7 @@ export default function App() {
                                     onClick={() => {
                                       const newBets = [...confirmedBets];
                                       // 重新解析内容以确保数据一致性
-                                      const { segments } = parseMultiLotteryInput(editingContent);
+                                      const { segments } = parseMultiLotteryInput(editingContent, textReplacements);
                                       const updatedItems: BetOrder[] = [];
                                       
                                       segments.forEach(seg => {
@@ -4593,13 +4909,13 @@ export default function App() {
                                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                   Excel
                                 </button>
-                                <button 
+                                <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     deleteOrdersByDate(date);
                                   }}
                                   className="text-stone-300 hover:text-red-500 transition-colors p-1"
-                                  title="删除该日所有订单"
+                                  title="删除该篮子中该日所有订单"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                 </button>
@@ -4702,7 +5018,7 @@ export default function App() {
                                         onClick={() => {
                                           const newBets = [...confirmedBets];
                                           // 重新解析内容以确保数据一致性
-                                          const { segments } = parseMultiLotteryInput(editingContent);
+                                          const { segments } = parseMultiLotteryInput(editingContent, textReplacements);
                                           const updatedItems: BetOrder[] = [];
                                           
                                           segments.forEach(seg => {
@@ -4830,6 +5146,28 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Quick Phrase Panel */}
+      {user && (
+        <QuickPhrasePanel
+          phrases={quickPhrases}
+          onAdd={handleAddQuickPhrase}
+          onDelete={handleDeleteQuickPhrase}
+          onUpdate={handleUpdateQuickPhrase}
+          onReorder={handleReorderQuickPhrases}
+        />
+      )}
+
+      {/* Text Replacement Panel */}
+      {isReplacementPanelOpen && (
+        <TextReplacementPanel
+          replacements={textReplacements}
+          onAdd={handleAddTextReplacement}
+          onUpdate={handleUpdateTextReplacement}
+          onDelete={handleDeleteTextReplacement}
+          onClose={() => setIsReplacementPanelOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { chineseNumberMap, zodiacs, redNumbers, blueNumbers, greenNumbers, numbers, lotteryTypes, domesticZodiacs, wildZodiacs, maleZodiacs, femaleZodiacs, heavenZodiacs, earthZodiacs, luckyZodiacs, unluckyZodiacs, isSumOdd, isSumEven, fiveElements, zodiacNumbers, metalZodiacs, woodZodiacs, waterZodiacs, fireZodiacs, earthZodiacs_Zodiac, redZodiacs, blueZodiacs, greenZodiacs, frontZodiacs, backZodiacs } from '../constants';
-import { MultiZodiacBet, NotInBet, CombinationWinBet } from '../types';
+import { MultiZodiacBet, NotInBet, CombinationWinBet, TextReplacement } from '../types';
 import { getZodiacFromNumber } from './winningCalculator';
+import { applyTextReplacements } from './textReplacer';
 
 // 新生肖属性占位符（使用罕见Unicode字符避免冲突）
 export const ZODIAC_ATTR_PLACEHOLDERS = {
@@ -1807,30 +1808,36 @@ export interface MultiLotteryParsedResult {
   invalidPhrases?: string[];
 }
 
-const parseMultiLotteryInputOriginal = (inputText: string): MultiLotteryParsedResult => {
+const parseMultiLotteryInputOriginal = (inputText: string, replacements?: TextReplacement[]): MultiLotteryParsedResult => {
   if (!inputText.trim()) return { segments: [], validMatches: [], invalidMatches: [] };
 
+  // 🔴 Step 0: 应用用户自定义的文字替换规则
+  let processedText = inputText;
+  if (replacements && replacements.length > 0) {
+    processedText = applyTextReplacements(inputText, replacements);
+  }
+
   const typePattern = `(?:${lotteryTypes.join('|')}|${LOTTERY_ALIASES})`;
-  
+
   const segments: ParsedSegment[] = [];
   const allValidMatches: { start: number; end: number }[] = [];
   const allInvalidMatches: { start: number; end: number }[] = [];
   let firstRecognizedType = '';
 
-  // Use the ORIGINAL inputText to find matches so indices are correct
-  const matches = [...inputText.matchAll(new RegExp(typePattern, 'gi'))];
-  
+  // Use the PROCESSED text to find matches so indices are correct
+  const matches = [...processedText.matchAll(new RegExp(typePattern, 'gi'))];
+
   const parts: { text: string; start: number }[] = [];
   if (matches.length === 0) {
-    parts.push({ text: inputText, start: 0 });
+    parts.push({ text: processedText, start: 0 });
   } else {
     matches.forEach((match, i) => {
       if (i === 0 && match.index > 0) {
-        parts.push({ text: inputText.substring(0, match.index), start: 0 });
+        parts.push({ text: processedText.substring(0, match.index), start: 0 });
       }
       const nextMatch = matches[i + 1];
-      const end = nextMatch ? nextMatch.index : inputText.length;
-      parts.push({ text: inputText.substring(match.index!, end), start: match.index! });
+      const end = nextMatch ? nextMatch.index : processedText.length;
+      parts.push({ text: processedText.substring(match.index!, end), start: match.index! });
     });
   }
   
@@ -1874,7 +1881,7 @@ const parseMultiLotteryInputOriginal = (inputText: string): MultiLotteryParsedRe
       if (type && !firstRecognizedType) firstRecognizedType = type;
     }
 
-    const parsed = parseBetInput(content);
+    const parsed = parseBetInput(content, replacements);
     
     // Adjust match ranges with offset
     const adjustedValid = parsed.validMatches.map(m => ({ start: m.start + offset + (rawType ? rawType.length : 0), end: m.end + offset + (rawType ? rawType.length : 0) }));
@@ -1891,7 +1898,7 @@ const parseMultiLotteryInputOriginal = (inputText: string): MultiLotteryParsedRe
     if (parsed.anyPatternFound || parsed.errors.length > 0) {
       // Apply this content to all preceding types that had no content
       pendingTypes.forEach(pType => {
-        const pParsed = parseBetInput(content);
+        const pParsed = parseBetInput(content, replacements);
         pParsed.recognizedLotteryType = pType;
         // Note: we don't add matches for pending types to avoid duplicates in highlighting
         segments.push({
@@ -1979,7 +1986,11 @@ function replaceAndMap(
 // ==========================================
 // 🔴 新增：parseBetInput 的包装修饰器，实现不改变长度的别名清洗与高亮词组提取
 // ==========================================
-export const parseBetInput = (inputText: string): ParsedInput => {
+
+// 内部全局变量用于传递替换规则（仅在包装函数内使用）
+let globalReplacements: TextReplacement[] = [];
+
+export const parseBetInput = (inputText: string, replacements?: TextReplacement[]): ParsedInput => {
   if (!inputText.trim()) {
     return {
       items: [],
@@ -2007,9 +2018,15 @@ export const parseBetInput = (inputText: string): ParsedInput => {
     };
   }
 
+  // 🔴 Step 0: 应用用户自定义的文字替换规则
+  let processedText = inputText;
+  if (replacements && replacements.length > 0) {
+    processedText = applyTextReplacements(inputText, replacements);
+  }
+
   // 1. 等长别名及错字预清洗 (不改变字符串的总长度 and 字符绝对索引)
-  let preprocessed = inputText;
-  let indexMap = Array.from({ length: inputText.length }, (_, i) => i);
+  let preprocessed = processedText;
+  let indexMap = Array.from({ length: processedText.length }, (_, i) => i);
 
   const applyReplacement = (regex: RegExp, replacer: (...args: any[]) => string) => {
     const res = replaceAndMap(preprocessed, regex, replacer, indexMap);
@@ -2392,10 +2409,10 @@ export const parseBetInput = (inputText: string): ParsedInput => {
 };
 
 // ==========================================
-// 🔴 新增：parseMultiLotteryInput 的包装修饰器，汇聚 Phrases
+// 🔴 新增：parseMultiLotteryInput 的包装修饰器，汇聚 Phrases，支持文字替换
 // ==========================================
-export const parseMultiLotteryInput = (inputText: string): MultiLotteryParsedResult => {
-  const result = parseMultiLotteryInputOriginal(inputText);
+export const parseMultiLotteryInput = (inputText: string, replacements?: TextReplacement[]): MultiLotteryParsedResult => {
+  const result = parseMultiLotteryInputOriginal(inputText, replacements);
 
   const allValidPhrases = new Set<string>();
   const allInvalidPhrases = new Set<string>();

@@ -105,3 +105,18 @@ export interface TextParsedData {
   combinationWinBets: CombinationWinBet[];
   errors: string[];
 }
+
+export interface QuickPhrase {
+  id: string;
+  text: string;
+  order: number;
+  isSystem: boolean;
+}
+
+export interface TextReplacement {
+  id: string;
+  fromText: string;
+  toText: string;
+  enabled: boolean;
+  createdAt?: string;
+}
