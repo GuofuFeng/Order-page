@@ -1,12 +1,14 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { QuickPhrase } from '../types';
+import { insertTextAtCursor } from '../utils/textInsertion';
 
 interface QuickPhrasePanelProps {
   phrases: QuickPhrase[];
   onAdd: (text: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, text: string) => Promise<void>;
-  onReorder: (reordered: QuickPhrase[]) => Promise<void>;
+  onReorder: (reorderedPhrases: QuickPhrase[]) => Promise<void>;
 }
 
 export const QuickPhrasePanel: React.FC<QuickPhrasePanelProps> = ({
@@ -16,269 +18,493 @@ export const QuickPhrasePanel: React.FC<QuickPhrasePanelProps> = ({
   onUpdate,
   onReorder
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [newText, setNewText] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newPhraseText, setNewPhraseText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
-  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [position, setPosition] = useState<{ left: number; bottom: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
+  const [dragOverPhraseId, setDragOverPhraseId] = useState<string | null>(null);
+  const dragStartRef = useRef<{
+    x: number; y: number; left: number; bottom: number; width: number; height: number;
+  } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const lastActiveElementRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
 
-  // Load saved panel position
+  // 跟踪最后活动的 textarea/input（忽略面板自身的新增/编辑输入框）
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('quick-phrase-position');
-      if (saved) setPosition(JSON.parse(saved));
-    } catch { /* ignore */ }
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (panelRef.current?.contains(target)) return;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        lastActiveElementRef.current = target as HTMLTextAreaElement | HTMLInputElement;
+      }
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    return () => document.removeEventListener('focusin', handleFocusIn);
   }, []);
 
-  const savePosition = (pos: { x: number; y: number }) => {
-    try {
-      localStorage.setItem('quick-phrase-position', JSON.stringify(pos));
-    } catch { /* ignore */ }
-  };
-
+  // 拖动面板（只在拖动手柄或空白处时生效）
   const handlePanelMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button, input, textarea')) return;
-    setIsDraggingPanel(true);
+    if (e.button !== 0) return;
+    // 点击在按钮、输入框或可拖动元素上时，不拖动面板
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input') || target.closest('[draggable="true"]')) return;
+
     const rect = panelRef.current?.getBoundingClientRect();
-    if (rect) {
-      dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    }
+    if (!rect) return;
+
+    e.preventDefault();
+
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      left: position?.left ?? 24,
+      bottom: position?.bottom ?? 100,
+      width: rect.width,
+      height: rect.height
+    };
   };
 
   useEffect(() => {
-    if (!isDraggingPanel) return;
-    const onMove = (e: MouseEvent) => {
-      const newPos = {
-        x: e.clientX - dragOffset.current.x,
-        y: e.clientY - dragOffset.current.y
-      };
-      setPosition(newPos);
-      savePosition(newPos);
-    };
-    const onUp = () => setIsDraggingPanel(false);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isDraggingPanel]);
+    if (!isDragging) return;
 
-  const handleAdd = async () => {
-    const trimmed = newText.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setError('');
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStartRef.current) return;
+
+      const { x, y, left, bottom, width, height } = dragStartRef.current;
+      const newLeft = Math.max(0, Math.min(window.innerWidth - width, left + e.clientX - x));
+      const newBottom = Math.max(0, Math.min(window.innerHeight - height, bottom + y - e.clientY));
+
+      const newPosition = { left: newLeft, bottom: newBottom };
+      setPosition(newPosition);
+      localStorage.setItem('quick-phrase-position', JSON.stringify(newPosition));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('quick-phrase-position');
+    if (!saved) return;
     try {
-      await onAdd(trimmed);
-      setNewText('');
-    } catch (err: any) {
-      setError(err.message || '添加失败');
-    } finally {
-      setLoading(false);
+      setPosition(JSON.parse(saved));
+    } catch {
+      localStorage.removeItem('quick-phrase-position');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAdding && addInputRef.current) {
+      addInputRef.current.focus();
+    }
+  }, [isAdding]);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+    }
+  }, [editingId]);
+
+  const handleInsertPhrase = (text: string) => {
+    // 优先使用最后记录的活动元素
+    let targetElement = lastActiveElementRef.current;
+
+    // 如果没有记录，尝试获取当前焦点元素
+    if (!targetElement || !document.body.contains(targetElement)) {
+      const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement | null;
+      if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+        targetElement = activeElement;
+      }
+    }
+
+    // 如果还是没有，尝试查找主输入框
+    if (!targetElement) {
+      targetElement = document.getElementById('input-textarea') as HTMLTextAreaElement;
+    }
+
+    if (targetElement) {
+      insertTextAtCursor(targetElement, text);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setLoading(true);
-    setError('');
+  const handleAddPhrase = async () => {
+    if (!newPhraseText.trim()) return;
+
+    try {
+      await onAdd(newPhraseText.trim());
+      setNewPhraseText('');
+      setIsAdding(false);
+    } catch (err) {
+      alert('添加失败，请重试');
+    }
+  };
+
+  const handleUpdatePhrase = async (id: string) => {
+    if (!editingText.trim()) return;
+
+    try {
+      await onUpdate(id, editingText.trim());
+      setEditingId(null);
+      setEditingText('');
+    } catch (err) {
+      alert('更新失败，请重试');
+    }
+  };
+
+  const handleDeletePhrase = async (id: string) => {
+    if (!window.confirm('确定要删除这个常用词吗？')) return;
+
     try {
       await onDelete(id);
-    } catch (err: any) {
-      setError(err.message || '删除失败');
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      alert('删除失败，请重试');
     }
   };
 
-  const handleStartEdit = (phrase: QuickPhrase) => {
-    setEditingId(phrase.id);
-    setEditingText(phrase.text);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId) return;
-    const trimmed = editingText.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setError('');
-    try {
-      await onUpdate(editingId, trimmed);
-      setEditingId(null);
-    } catch (err: any) {
-      setError(err.message || '更新失败');
-    } finally {
-      setLoading(false);
+  // 拖拽排序处理
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedPhraseId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    // Firefox 需要 setData 才会开始拖拽；用自定义类型避免被拖进 textarea 时插入文本
+    e.dataTransfer.setData('application/x-quick-phrase', id);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
     }
   };
 
-  // Drag-to-reorder
-  const handleDragStart = (id: string) => setDraggedId(id);
-  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+  const handleDragEnd = (e: React.DragEvent) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+    setDraggedPhraseId(null);
+    setDragOverPhraseId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
-    if (!draggedId || draggedId === targetId) return;
-    const userPhrases = phrases.filter(p => !p.isSystem);
-    const from = userPhrases.findIndex(p => p.id === draggedId);
-    const to = userPhrases.findIndex(p => p.id === targetId);
-    if (from === -1 || to === -1) return;
-    const reordered = [...userPhrases];
-    const [moved] = reordered.splice(from, 1);
-    reordered.splice(to, 0, moved);
-    const systemPhrases = phrases.filter(p => p.isSystem);
-    onReorder([...systemPhrases, ...reordered]).catch(() => {});
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedPhraseId && draggedPhraseId !== id) {
+      setDragOverPhraseId(id);
+    }
   };
-  const handleDragEnd = () => setDraggedId(null);
 
-  const systemPhrases = phrases.filter(p => p.isSystem);
-  const userPhrases = phrases.filter(p => !p.isSystem);
+  const handleDragLeave = () => {
+    setDragOverPhraseId(null);
+  };
 
-  const panelStyle: React.CSSProperties = position
-    ? { position: 'fixed', left: position.x, top: position.y, zIndex: 9999 }
-    : { position: 'fixed', bottom: '80px', right: '16px', zIndex: 9999 };
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedPhraseId || draggedPhraseId === targetId) {
+      setDragOverPhraseId(null);
+      return;
+    }
+
+    const draggedIndex = phrases.findIndex(p => p.id === draggedPhraseId);
+    const targetIndex = phrases.findIndex(p => p.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDragOverPhraseId(null);
+      return;
+    }
+
+    // 重新排序
+    const newPhrases = [...phrases];
+    const [draggedPhrase] = newPhrases.splice(draggedIndex, 1);
+    newPhrases.splice(targetIndex, 0, draggedPhrase);
+
+    // 更新 order 字段
+    const reorderedPhrases = newPhrases.map((phrase, index) => ({
+      ...phrase,
+      order: index
+    }));
+
+    try {
+      await onReorder(reorderedPhrases);
+    } catch (err: any) {
+      alert(`排序失败：${err?.message || '请重试'}`);
+    }
+
+    setDragOverPhraseId(null);
+  };
+
+  const userPhrasesCount = phrases.filter(p => !p.isSystem).length;
 
   return (
     <>
-      {/* Toggle button */}
-      <button
-        onClick={() => setIsOpen(v => !v)}
-        className="fixed bottom-4 right-4 z-[9998] w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center hover:bg-amber-600 active:scale-95 transition-all"
-        title="常用词"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-      </button>
-
-      {/* Panel */}
-      {isOpen && (
-        <div
-          ref={panelRef}
-          style={panelStyle}
-          className="w-80 bg-white rounded-2xl shadow-2xl border border-stone-200 flex flex-col overflow-hidden select-none"
-        >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-100 cursor-move"
-            onMouseDown={handlePanelMouseDown}
-          >
-            <span className="font-bold text-amber-800 text-sm">常用词</span>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-amber-400 hover:text-amber-600 transition-colors"
+      {/* 收起状态的容器 */}
+      {!isExpanded && (
+        <div className="fixed left-4 bottom-24 z-50">
+          <AnimatePresence mode="wait">
+            <motion.button
+              key="collapsed"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              onClick={() => setIsExpanded(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm border-2 border-stone-200 rounded-xl shadow-lg hover:shadow-xl hover:border-stone-300 transition-all group"
+              title="展开常用词"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-stone-600 group-hover:text-stone-900 transition-colors"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
-            </button>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="px-4 py-2 bg-red-50 text-red-600 text-xs border-b border-red-100">
-              {error}
-            </div>
-          )}
-
-          {/* Phrase list */}
-          <div className="flex-1 overflow-y-auto max-h-72 p-2 flex flex-col gap-1">
-            {systemPhrases.map(phrase => (
-              <div
-                key={phrase.id}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-50 border border-stone-100 group"
-              >
-                <span className="flex-1 text-xs text-stone-600 truncate">{phrase.text}</span>
-                <span className="text-[10px] text-stone-300 shrink-0">系统</span>
-              </div>
-            ))}
-
-            {userPhrases.map(phrase => (
-              <div
-                key={phrase.id}
-                draggable
-                onDragStart={() => handleDragStart(phrase.id)}
-                onDragOver={e => handleDragOver(e, phrase.id)}
-                onDragEnd={handleDragEnd}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border group transition-all cursor-grab active:cursor-grabbing ${
-                  draggedId === phrase.id
-                    ? 'opacity-50 border-amber-300 bg-amber-50'
-                    : 'bg-white border-stone-100 hover:border-stone-200'
-                }`}
-              >
-                {editingId === phrase.id ? (
-                  <>
-                    <input
-                      autoFocus
-                      className="flex-1 text-xs border border-amber-300 rounded px-1 py-0.5 outline-none"
-                      value={editingText}
-                      onChange={e => setEditingText(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleSaveEdit();
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                    />
-                    <button onClick={handleSaveEdit} className="text-emerald-500 hover:text-emerald-700 shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    </button>
-                    <button onClick={() => setEditingId(null)} className="text-stone-400 hover:text-stone-600 shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex-1 text-xs text-stone-700 truncate">{phrase.text}</span>
-                    <button
-                      onClick={() => handleStartEdit(phrase)}
-                      className="opacity-0 group-hover:opacity-100 text-stone-400 hover:text-amber-500 transition-all shrink-0"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(phrase.id)}
-                      className="opacity-0 group-hover:opacity-100 text-stone-400 hover:text-red-500 transition-all shrink-0"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
-
-            {phrases.length === 0 && (
-              <div className="text-center text-stone-300 text-xs py-6">
-                还没有常用词，在下方输入添加
-              </div>
-            )}
-          </div>
-
-          {/* Add new phrase */}
-          <div className="p-3 border-t border-stone-100">
-            <div className="flex gap-2">
-              <input
-                className="flex-1 text-xs border border-stone-200 rounded-xl px-3 py-2 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
-                placeholder="输入新常用词..."
-                value={newText}
-                onChange={e => setNewText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
-                maxLength={100}
-                disabled={loading}
-              />
-              <button
-                onClick={handleAdd}
-                disabled={!newText.trim() || loading}
-                className="px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold disabled:opacity-40 hover:bg-amber-600 transition-colors shrink-0"
-              >
-                添加
-              </button>
-            </div>
-          </div>
+              <span className="text-xs font-bold text-stone-500 group-hover:text-stone-700 transition-colors">
+                ({phrases.length})
+              </span>
+            </motion.button>
+          </AnimatePresence>
         </div>
       )}
+
+      {/* 展开状态的容器 - 独立的 fixed 定位 */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            ref={panelRef}
+            key="expanded"
+            initial={{ opacity: 0, x: -20, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -20, scale: 0.95 }}
+            style={{
+              position: 'fixed',
+              left: position?.left ?? 24,
+              bottom: position?.bottom ?? 100,
+              cursor: isDragging ? 'grabbing' : 'default',
+              zIndex: 50
+            }}
+            onMouseDown={handlePanelMouseDown}
+            className="flex items-center gap-2 pl-1 pr-2 py-2 bg-white/95 backdrop-blur-sm border-2 border-stone-200 rounded-2xl shadow-2xl max-w-[600px]"
+          >
+            {/* 拖动手柄 */}
+            <div
+              className="self-stretch flex items-center px-0.5 shrink-0 cursor-grab active:cursor-grabbing hover:bg-stone-100 rounded-lg transition-colors"
+              title="拖动调整位置"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-stone-400"
+              >
+                <circle cx="9" cy="5" r="1"></circle>
+                <circle cx="9" cy="12" r="1"></circle>
+                <circle cx="9" cy="19" r="1"></circle>
+                <circle cx="15" cy="5" r="1"></circle>
+                <circle cx="15" cy="12" r="1"></circle>
+                <circle cx="15" cy="19" r="1"></circle>
+              </svg>
+            </div>
+
+            <div className="flex flex-1 min-w-0 flex-wrap items-center gap-2">
+              {/* 系统预设词 */}
+              {phrases.filter(p => p.isSystem).map(phrase => (
+                <button
+                  key={phrase.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // 防止按钮获取焦点
+                    handleInsertPhrase(phrase.text);
+                  }}
+                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold transition-all border border-stone-200 hover:border-stone-300 active:scale-95"
+                  title="点击插入"
+                >
+                  {phrase.text}
+                </button>
+              ))}
+
+              {/* 分隔线 */}
+              {userPhrasesCount > 0 && (
+                <div className="w-px h-6 bg-stone-300"></div>
+              )}
+
+              {/* 用户自定义词 - 支持拖拽排序 */}
+              {phrases.filter(p => !p.isSystem).map(phrase => (
+                editingId === phrase.id ? (
+                  <div key={phrase.id} className="flex items-center gap-1">
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleUpdatePhrase(phrase.id);
+                        } else if (e.key === 'Escape') {
+                          setEditingId(null);
+                          setEditingText('');
+                        }
+                      }}
+                      onBlur={() => handleUpdatePhrase(phrase.id)}
+                      className="px-2 py-1 w-24 bg-white border-2 border-blue-400 rounded-lg text-xs font-bold outline-none"
+                      maxLength={50}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    key={phrase.id}
+                    className="group relative flex items-center"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, phrase.id)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => handleDragOver(e, phrase.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, phrase.id)}
+                  >
+                    <button
+                      onMouseDown={(e) => {
+                        // 不阻止默认行为，让拖拽能够开始
+                        if (e.detail === 1) {
+                          // 单击时插入（但要在拖拽结束后确认不是拖拽操作）
+                          const startX = e.clientX;
+                          const startY = e.clientY;
+                          const mouseUpHandler = (upEvent: MouseEvent) => {
+                            const dx = Math.abs(upEvent.clientX - startX);
+                            const dy = Math.abs(upEvent.clientY - startY);
+                            // 移动距离小于5px才算点击，否则是拖拽
+                            if (dx < 5 && dy < 5) {
+                              handleInsertPhrase(phrase.text);
+                            }
+                            document.removeEventListener('mouseup', mouseUpHandler);
+                          };
+                          document.addEventListener('mouseup', mouseUpHandler);
+                        }
+                      }}
+                      onDoubleClick={() => {
+                        setEditingId(phrase.id);
+                        setEditingText(phrase.text);
+                      }}
+                      className={`px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition-all border border-blue-200 hover:border-blue-300 active:scale-95 ${
+                        dragOverPhraseId === phrase.id ? 'ring-2 ring-blue-400' : ''
+                      }`}
+                      title="点击插入 | 双击编辑 | 拖动排序"
+                    >
+                      {phrase.text}
+                    </button>
+                    <button
+                      onClick={() => handleDeletePhrase(phrase.id)}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                      title="删除"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                )
+              ))}
+
+              {/* 新增输入框或按钮 */}
+              {isAdding ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    ref={addInputRef}
+                    type="text"
+                    value={newPhraseText}
+                    onChange={(e) => setNewPhraseText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddPhrase();
+                      } else if (e.key === 'Escape') {
+                        setIsAdding(false);
+                        setNewPhraseText('');
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!newPhraseText.trim()) {
+                        setIsAdding(false);
+                      } else {
+                        handleAddPhrase();
+                      }
+                    }}
+                    className="px-2 py-1 w-24 bg-white border-2 border-emerald-400 rounded-lg text-xs font-bold outline-none"
+                    placeholder="输入..."
+                    maxLength={50}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="w-8 h-8 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg border-2 border-dashed border-emerald-300 hover:border-emerald-400 transition-all active:scale-95"
+                  title="新增常用词"
+                  disabled={userPhrasesCount >= 20}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* 收起按钮 */}
+            <div className="w-px h-6 bg-stone-300 shrink-0"></div>
+            <button
+              onClick={() => {
+                setIsExpanded(false);
+                setIsAdding(false);
+                setNewPhraseText('');
+                setEditingId(null);
+                setEditingText('');
+                // 收起时清除自定义位置，下次展开回到默认位置
+                setPosition(null);
+                localStorage.removeItem('quick-phrase-position');
+              }}
+              className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-lg transition-all active:scale-95 shrink-0"
+              title="收起"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
