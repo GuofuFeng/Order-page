@@ -4,6 +4,16 @@ import { authenticateJWT, AuthenticatedRequest } from '../middleware.js';
 
 const router = express.Router();
 
+// Built-in default phrases shown to every user; not stored in the database
+const SYSTEM_PHRASES = [
+  { id: 'sys-1', text: '包', order: 1, isSystem: true },
+  { id: 'sys-2', text: '连', order: 2, isSystem: true },
+  { id: 'sys-3', text: '平', order: 3, isSystem: true },
+  { id: 'sys-4', text: '不中', order: 4, isSystem: true }
+];
+
+const isSystemPhraseId = (id: string) => SYSTEM_PHRASES.some(p => p.id === id);
+
 // GET /api/quick-phrases - Get all quick phrases for the current user
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   if (!req.user) return res.status(401).json({ error: '未登录' });
@@ -17,17 +27,18 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
 
     if (error) throw error;
 
-    const phrases = (data || []).map(p => ({
+    const userPhrases = (data || []).map(p => ({
       id: p.id,
       text: p.text,
       order: p.order_num,
       isSystem: p.is_system || false
     }));
 
-    res.json({ phrases });
+    // Default phrases first, then the user's own
+    res.json({ phrases: [...SYSTEM_PHRASES, ...userPhrases] });
   } catch (err: any) {
     console.error('Fetch quick phrases error:', err);
-    res.status(500).json({ error: '获取常用词失败', detail: err?.message, code: err?.code });
+    res.status(500).json({ error: '获取常用词失败' });
   }
 });
 
@@ -133,6 +144,10 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
   const { text } = req.body;
 
+  if (isSystemPhraseId(id)) {
+    return res.status(403).json({ error: '不能修改系统预设常用词' });
+  }
+
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return res.status(400).json({ error: '常用词内容不能为空' });
   }
@@ -163,6 +178,10 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   if (!req.user) return res.status(401).json({ error: '未登录' });
 
   const { id } = req.params;
+
+  if (isSystemPhraseId(id)) {
+    return res.status(403).json({ error: '不能删除系统预设常用词' });
+  }
 
   try {
     const { error } = await supabase
