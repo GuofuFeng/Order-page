@@ -1007,23 +1007,30 @@ export default function App() {
     }
   }, [user?.id, authLoading]);
 
-  // 2. Post-changes Sync: Whenever confirmedBets changes, push to database if logged in and initialized
+  // 2. Post-changes Sync: 禁用自动批量同步，改用增量同步（防止数据丢失）
+  // 注意：批量同步已改为安全的合并模式，但为了性能和安全，前端应使用增量更新
+  // 批量同步接口保留用于初始化和数据修复场景
   useEffect(() => {
-    if (user && hasSyncedRef.current) {
-      if (skipNextSyncPostRef.current) {
-        skipNextSyncPostRef.current = false;
-        return;
-      }
-      fetch('/api/sync/bets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bets: confirmedBets })
-      })
-        .then(res => {
-          if (!res.ok) console.error('Failed to auto-sync bets to database');
-        })
-        .catch(err => console.error('Sync bets request error:', err));
-    }
+    // 暂时禁用自动批量同步，避免数据丢失风险
+    // 新增/修改/删除注单时，通过专用接口进行增量同步
+    // 如需强制同步所有数据，可在用户设置中提供"手动同步"功能
+
+    // 原代码（已禁用）：
+    // if (user && hasSyncedRef.current) {
+    //   if (skipNextSyncPostRef.current) {
+    //     skipNextSyncPostRef.current = false;
+    //     return;
+    //   }
+    //   fetch('/api/sync/bets', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ bets: confirmedBets })
+    //   })
+    //     .then(res => {
+    //       if (!res.ok) console.error('Failed to auto-sync bets to database');
+    //     })
+    //     .catch(err => console.error('Sync bets request error:', err));
+    // }
   }, [confirmedBets, user?.id]);
 
   // 3. Post-presets Sync: Whenever basketPresets changes, push to database if logged in and initialized
@@ -1098,6 +1105,16 @@ export default function App() {
     });
     return groups;
   }, [pastBets]);
+
+  // 性能优化：预先构建注单索引映射，避免渲染时重复执行 indexOf 查找
+  // 将 O(n) 查找优化为 O(1) 查找，解决大量历史注单展开卡顿问题
+  const betIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    confirmedBets.forEach((bet, index) => {
+      map.set(bet.id, index);
+    });
+    return map;
+  }, [confirmedBets]);
 
   // DERIVED: Cumulative amounts from pending and today's confirmed bets
   const cumulativeAmounts = useMemo(() => {
@@ -1184,8 +1201,11 @@ export default function App() {
   // Folding state for past orders (per date)
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
 
+  const getExpandedKey = (date: string) => `${selectedBasketId}_${date}`;
+
   const toggleDateExpansion = (date: string) => {
-    setExpandedDates(prev => ({ ...prev, [date]: !prev[date] }));
+    const key = getExpandedKey(date);
+    setExpandedDates(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   // Editing state for confirmed bets
@@ -2015,24 +2035,39 @@ export default function App() {
       alert('待确认区域没有内容可以提交');
       return;
     }
-    
+
     // Add lottery type prefix to each line to ensure correct highlighting in the table
     // Note: item.text already contains the prefix from handleAddToPending
     const finalContent = pendingBets.map(item => item.text).join('\n');
     const uniqueLotteryTypes = Array.from(new Set(pendingBets.map(item => item.lotteryType)));
     const lotteryTypeDisplay = uniqueLotteryTypes.join(' ');
-    
-    setConfirmedBets(prev => [...prev, { 
+
+    const newBet: ConfirmedBet = {
       id: Math.random().toString(36).substr(2, 9),
-      content: finalContent, 
-      total: currentPendingTotal, 
+      content: finalContent,
+      total: currentPendingTotal,
       timestamp: Date.now(),
       lotteryType: lotteryTypeDisplay,
       basketId: selectedBasketId,
       items: [...pendingBets]
-    }]);
+    };
+
+    setConfirmedBets(prev => [...prev, newBet]);
     setPendingBets([]);
     setDeletedBetsHistory([]);
+
+    // 增量同步：立即将新注单同步到服务器
+    if (user && hasSyncedRef.current) {
+      fetch('/api/sync/bet/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bet: newBet })
+      })
+        .then(res => {
+          if (!res.ok) console.error('Failed to sync new bet to server');
+        })
+        .catch(err => console.error('Sync new bet error:', err));
+    }
   };
 
   const handleExportExcel = async (betsToExport: ConfirmedBet[], filename: string) => {
@@ -2441,14 +2476,14 @@ export default function App() {
       alert('请填写注单内容和金额');
       return;
     }
-    
-    // Attempt to parse manual content for deltas
-    const { parsedBets, parsedZodiacBets, parsedTailBets, parsedMultiZodiacBets, parsedMultiTailBets, parsedNotInBets } = parseBetInput(manualContent);
 
-    setConfirmedBets(prev => [...prev, { 
+    // Attempt to parse manual content for deltas
+    const { parsedBets, parsedFlatBets, parsedZodiacBets, parsedTeXiaoBets, parsedTailBets, parsedSpecialAttributeBets, parsedMultiZodiacBets, parsedMultiTailBets, parsedNotInBets, parsedCombinationWinBets } = parseBetInput(manualContent);
+
+    const newBet: ConfirmedBet = {
       id: Math.random().toString(36).substr(2, 9),
-      content: manualContent, 
-      total: Number(manualTotal), 
+      content: manualContent,
+      total: Number(manualTotal),
       timestamp: Date.now(),
       lotteryType: selectedLotteryType,
       basketId: selectedBasketId,
@@ -2456,37 +2491,87 @@ export default function App() {
         id: Math.random().toString(36).substr(2, 9),
         text: manualContent,
         numberDeltas: parsedBets,
+        flatNumberDeltas: parsedFlatBets,
         zodiacDeltas: parsedZodiacBets,
+        teXiaoDeltas: parsedTeXiaoBets,
         tailDeltas: parsedTailBets,
+        specialAttributeDeltas: parsedSpecialAttributeBets,
         multiZodiacDeltas: parsedMultiZodiacBets,
         sixZodiacDeltas: [],
         fiveZodiacDeltas: [],
         fourZodiacDeltas: [],
         multiTailDeltas: parsedMultiTailBets,
         notInDeltas: parsedNotInBets,
+        combinationWinDeltas: parsedCombinationWinBets,
         total: Number(manualTotal),
         lotteryType: selectedLotteryType,
         timestamp: Date.now()
       }]
-    }]);
+    };
+
+    setConfirmedBets(prev => [...prev, newBet]);
     setManualContent('');
     setManualTotal('');
     setIsAddingManual(false);
+
+    // 增量同步：立即将手动添加的注单同步到服务器
+    if (user && hasSyncedRef.current) {
+      fetch('/api/sync/bet/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bet: newBet })
+      })
+        .then(res => {
+          if (!res.ok) console.error('Failed to sync manual bet to server');
+        })
+        .catch(err => console.error('Sync manual bet error:', err));
+    }
   };
 
   const deleteConfirmedBet = (index: number) => {
+    const betToDelete = confirmedBets[index];
     const newBets = [...confirmedBets];
     newBets.splice(index, 1);
     setConfirmedBets(newBets);
+
+    // 增量同步：立即将删除操作同步到服务器
+    if (user && hasSyncedRef.current && betToDelete) {
+      fetch('/api/sync/bet/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: betToDelete.id })
+      })
+        .then(res => {
+          if (!res.ok) console.error('Failed to sync bet deletion to server');
+        })
+        .catch(err => console.error('Sync delete bet error:', err));
+    }
   };
 
   const deleteOrdersByDate = (date: string) => {
     const basketName = getBasketDisplayName(selectedBasketId);
     if (window.confirm(`确定要删除 ${basketName} 中 ${date} 的所有订单吗？`)) {
+      const betsToDelete = confirmedBets.filter(bet =>
+        getBeijingDateString(bet.timestamp) === date && bet.basketId === selectedBasketId
+      );
       const newBets = confirmedBets.filter(bet =>
         !(getBeijingDateString(bet.timestamp) === date && bet.basketId === selectedBasketId)
       );
       setConfirmedBets(newBets);
+
+      // 增量同步：批量删除指定日期的注单
+      if (user && hasSyncedRef.current && betsToDelete.length > 0) {
+        const idsToDelete = betsToDelete.map(b => b.id);
+        fetch('/api/sync/bet/delete', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: idsToDelete })
+        })
+          .then(res => {
+            if (!res.ok) console.error('Failed to sync batch deletion to server');
+          })
+          .catch(err => console.error('Sync batch delete error:', err));
+      }
     }
   };
 
@@ -4793,7 +4878,7 @@ export default function App() {
                                         lotteryType: editingLotteryType
                                       }));
 
-                                      newBets[originalIdx] = {
+                                      const updatedBet = {
                                         ...newBets[originalIdx],
                                         content: editingContent,
                                         total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
@@ -4802,8 +4887,23 @@ export default function App() {
                                         manualWinType: editingWinType !== '' ? editingWinType : undefined,
                                         manualWinAmount: editingWinAmount !== '' ? Number(editingWinAmount) : undefined
                                       };
+
+                                      newBets[originalIdx] = updatedBet;
                                       setConfirmedBets(newBets);
                                       setEditingIndex(null);
+
+                                      // 增量同步：立即将更新后的注单同步到服务器
+                                      if (user && hasSyncedRef.current) {
+                                        fetch('/api/sync/bet/update', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ bet: updatedBet })
+                                        })
+                                          .then(res => {
+                                            if (!res.ok) console.error('Failed to sync bet update to server');
+                                          })
+                                          .catch(err => console.error('Sync update bet error:', err));
+                                      }
                                     }}
                                     className="w-full px-3 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600"
                                   >
@@ -4889,7 +4989,7 @@ export default function App() {
                                   xmlns="http://www.w3.org/2000/svg" 
                                   width="14" height="14" 
                                   viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                  className={`transition-transform duration-200 ${expandedDates[date] ? 'rotate-180' : ''}`}
+                                  className={`transition-transform duration-200 ${expandedDates[getExpandedKey(date)] ? 'rotate-180' : ''}`}
                                 >
                                   <polyline points="6 9 12 15 18 9"/>
                                 </svg>
@@ -4923,8 +5023,8 @@ export default function App() {
                             </div>
                           </td>
                         </tr>
-                        {expandedDates[date] && typedBets.map((order, idx) => {
-                          const originalIdx = confirmedBets.indexOf(order);
+                        {expandedDates[getExpandedKey(date)] && typedBets.map((order, idx) => {
+                          const originalIdx = betIndexMap.get(order.id) ?? -1;
                           const isEditing = editingIndex === originalIdx;
 
                           return (
@@ -5054,7 +5154,7 @@ export default function App() {
                                             lotteryType: editingLotteryType
                                           }));
 
-                                          newBets[originalIdx] = {
+                                          const updatedBet = {
                                             ...newBets[originalIdx],
                                             content: editingContent,
                                             total: editingTotal === '' ? finalItems.reduce((sum, i) => sum + i.total, 0) : Number(editingTotal),
@@ -5066,8 +5166,23 @@ export default function App() {
                                             frozenWinAmount: undefined,
                                             frozenWinType: undefined
                                           };
+
+                                          newBets[originalIdx] = updatedBet;
                                           setConfirmedBets(newBets);
                                           setEditingIndex(null);
+
+                                          // 增量同步：立即将更新后的注单同步到服务器
+                                          if (user && hasSyncedRef.current) {
+                                            fetch('/api/sync/bet/update', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ bet: updatedBet })
+                                            })
+                                              .then(res => {
+                                                if (!res.ok) console.error('Failed to sync bet update to server');
+                                              })
+                                              .catch(err => console.error('Sync update bet error:', err));
+                                          }
                                         }}
                                         className="w-full px-3 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600"
                                       >

@@ -40,53 +40,139 @@ router.get('/bets', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// POST /api/sync/bets - Batch sync bets (e.g., merging/syncing local state with cloud)
+// POST /api/sync/bets - Batch sync bets (智能合并策略，防止数据丢失)
 router.post('/bets', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   if (!req.user) return res.status(401).json({ error: '未登录' });
 
-  const { bets } = req.body;
+  const { bets, mode = 'merge' } = req.body;
   if (!Array.isArray(bets)) {
     return res.status(400).json({ error: '无效的数据格式。' });
   }
 
   try {
-    // 1. Delete all existing bets for the user
-    const { error: deleteErr } = await supabase
-      .from('bets')
-      .delete()
-      .eq('user_id', req.user.id);
+    // mode='replace': 强制替换所有数据（仅用于数据修复场景，需显式传入）
+    // mode='merge': 智能合并（默认），只更新/插入前端传来的数据，不删除其他数据
 
-    if (deleteErr) throw deleteErr;
+    if (mode === 'replace') {
+      // ⚠️ 危险操作：删除所有现有数据并重新插入
+      // 仅在用户明确执行"数据修复"或"完整导入"操作时使用
+      console.warn(`[REPLACE MODE] User ${req.user.id} is replacing all bets. Count: ${bets.length}`);
 
-    if (bets.length === 0) {
-      return res.json({ message: '同步成功(清空)。' });
+      const { error: deleteErr } = await supabase
+        .from('bets')
+        .delete()
+        .eq('user_id', req.user.id);
+
+      if (deleteErr) throw deleteErr;
+
+      if (bets.length === 0) {
+        return res.json({ message: '同步成功(清空)。' });
+      }
+
+      const dbBets = bets.map(b => ({
+        id: b.id,
+        user_id: req.user!.id,
+        basket_id: b.basketId,
+        lottery_type: b.lotteryType,
+        content: b.content,
+        total: b.total,
+        timestamp: b.timestamp,
+        items: JSON.stringify(b.items),
+        manual_win_type: b.manualWinType || null,
+        manual_win_amount: b.manualWinAmount !== undefined ? b.manualWinAmount : null,
+        frozen_win_amount: b.frozenWinAmount !== undefined ? b.frozenWinAmount : null,
+        frozen_win_type: b.frozenWinType || null,
+        is_frozen: b.isFrozen ? 1 : 0
+      }));
+
+      const { error: insertErr } = await supabase
+        .from('bets')
+        .insert(dbBets);
+
+      if (insertErr) throw insertErr;
+
+      return res.json({ message: '同步成功(替换模式)！', mode: 'replace' });
     }
 
-    // 2. Map frontend ConfirmedBet[] into database insert structure
-    const dbBets = bets.map(b => ({
-      id: b.id,
-      user_id: req.user!.id,
-      basket_id: b.basketId,
-      lottery_type: b.lotteryType,
-      content: b.content,
-      total: b.total,
-      timestamp: b.timestamp,
-      items: JSON.stringify(b.items),
-      manual_win_type: b.manualWinType || null,
-      manual_win_amount: b.manualWinAmount !== undefined ? b.manualWinAmount : null,
-      frozen_win_amount: b.frozenWinAmount !== undefined ? b.frozenWinAmount : null,
-      frozen_win_type: b.frozenWinType || null,
-      is_frozen: b.isFrozen ? 1 : 0
-    }));
-
-    // 3. Batch insert
-    const { error: insertErr } = await supabase
+    // 默认：安全的合并模式
+    // 1. 获取服务器现有的所有注单 ID
+    const { data: existingBets, error: fetchErr } = await supabase
       .from('bets')
-      .insert(dbBets);
+      .select('id')
+      .eq('user_id', req.user.id);
 
-    if (insertErr) throw insertErr;
+    if (fetchErr) throw fetchErr;
 
-    res.json({ message: '同步成功！' });
+    const existingIds = new Set(existingBets?.map(b => b.id) || []);
+    const incomingIds = new Set(bets.map(b => b.id));
+
+    // 2. 分类：需要插入的新注单 vs 需要更新的现有注单
+    const toInsert = bets.filter(b => !existingIds.has(b.id));
+    const toUpdate = bets.filter(b => existingIds.has(b.id));
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // 3. 批量插入新注单
+    if (toInsert.length > 0) {
+      const dbBetsInsert = toInsert.map(b => ({
+        id: b.id,
+        user_id: req.user!.id,
+        basket_id: b.basketId,
+        lottery_type: b.lotteryType,
+        content: b.content,
+        total: b.total,
+        timestamp: b.timestamp,
+        items: JSON.stringify(b.items),
+        manual_win_type: b.manualWinType || null,
+        manual_win_amount: b.manualWinAmount !== undefined ? b.manualWinAmount : null,
+        frozen_win_amount: b.frozenWinAmount !== undefined ? b.frozenWinAmount : null,
+        frozen_win_type: b.frozenWinType || null,
+        is_frozen: b.isFrozen ? 1 : 0
+      }));
+
+      const { error: insertErr } = await supabase
+        .from('bets')
+        .insert(dbBetsInsert);
+
+      if (insertErr) throw insertErr;
+      insertedCount = toInsert.length;
+    }
+
+    // 4. 批量更新现有注单（逐条更新，因为 Supabase 不支持批量 upsert with update）
+    for (const bet of toUpdate) {
+      const { error: updateErr } = await supabase
+        .from('bets')
+        .update({
+          basket_id: bet.basketId,
+          lottery_type: bet.lotteryType,
+          content: bet.content,
+          total: bet.total,
+          timestamp: bet.timestamp,
+          items: JSON.stringify(bet.items),
+          manual_win_type: bet.manualWinType || null,
+          manual_win_amount: bet.manualWinAmount !== undefined ? bet.manualWinAmount : null,
+          frozen_win_amount: bet.frozenWinAmount !== undefined ? bet.frozenWinAmount : null,
+          frozen_win_type: bet.frozenWinType || null,
+          is_frozen: bet.isFrozen ? 1 : 0
+        })
+        .eq('id', bet.id)
+        .eq('user_id', req.user.id);
+
+      if (updateErr) {
+        console.error(`Failed to update bet ${bet.id}:`, updateErr);
+      } else {
+        updatedCount++;
+      }
+    }
+
+    res.json({
+      message: '同步成功(合并模式)！',
+      mode: 'merge',
+      inserted: insertedCount,
+      updated: updatedCount,
+      total: bets.length
+    });
   } catch (err) {
     console.error('Batch sync bets error:', err);
     res.status(500).json({ error: '同步注单数据失败。' });

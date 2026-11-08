@@ -376,11 +376,6 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
   
   // Pre-processing for user habits
   textForPatterns = textForPatterns.replace(/[\(\)（）′']/g, ' '); // Rule 3: ignore () and '
-  
-  // Pre-processing
-  textForPatterns = textForPatterns.replace(/免/g, '兔');
-  textForPatterns = textForPatterns.replace(/兰/g, '蓝');
-  textForPatterns = textForPatterns.replace(/侯/g, '猴');
 
   // Identify Lottery Type using a regex that includes aliases
   const typeRegex = new RegExp(`(${lotteryTypes.join('|')}|${LOTTERY_ALIASES})`, 'i');
