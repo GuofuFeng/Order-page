@@ -179,6 +179,7 @@ export const REGEX_MULTI_TAIL_ADVANCED = new RegExp(BOUNDARY + '(?:([二三四�
 export const REGEX_SIX_ZODIAC = new RegExp(BOUNDARY + '(?:六中|六肖|6中|6肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){6})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FIVE_ZODIAC = new RegExp(BOUNDARY + '(?:五中|五肖|5中|5肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，.、/\\-*]*){5})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_FOUR_ZODIAC = new RegExp(BOUNDARY + '(?:四中|四肖|4中|4肖)((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){4})[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_COMBINATION_WIN_TUO_MULTI = new RegExp(BOUNDARY_COMBO + '((?:\\d{1,2}[\\s,，。；;.、/\\-*\\+]+)+\\d{1,2})[拖拖]((?:\\d{1,2}[\\s,，。；;.、/\\-*\\+]+)+\\d{1,2})[^\\d\\n\\r]*?(三中三|二中二|特碰)[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_COMBINATION_WIN = new RegExp(BOUNDARY_COMBO + '(?=[^\\n\\r]*?(?:三中三|二中二|特碰))(?:(三中三二中二|二中二三中三|三中三|二中二|二中2|特碰)[^\\d\\n\\r马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]*?(?:复试|复式|复)?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)(?:[^\\d\\n\\r]*?(?:复试|复式|复)?(三中三二中二|二中二三中三|三中三|二中二|特碰)(?:复试|复式|复)?)?[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_COMBINATION_TUO = new RegExp(BOUNDARY_COMBO + '(?=[^\\n\\r]*?(?:三中三|二中二|特碰))(?:(三中三二中二|二中二三中三|三中三|二中二|二中2|特碰)[^\\d\\n\\r马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑]*?)?((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)[拖拖]((?:(?:\\d{1,2}尾|[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]|\\d{1,2})[\\s,，。；;.、/\\-*\\+]*)+)(?:[^\\d\\n\\r]*?(三中三二中二|二中二三中三|三中三|二中二|特碰))?[^\\d\\n\\r]*?(?:各号|每号|各组|每组|每组各|各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_MULTI_ZODIAC = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕][\\s,，。；;.、/\\-*]*){2,12})(?<![二三四五六七八九十2-9]|10|两)(?:连肖|连)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:各|每|买|压|个)?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖|拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
@@ -197,6 +198,7 @@ export const REGEX_MULTI_ZODIAC_V2 = new RegExp(BOUNDARY + '((?:[马蛇龙兔虎
 export const REGEX_MULTI_ZODIAC_MULTI_GROUP = new RegExp(BOUNDARY + '([二三四五六23456两])(连肖|连|肖)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?((?:[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12}[，,、\\s]+)+[马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]{2,12})[^\\d\\n\\r]*?(?:各|每|买|压|个)?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_NOT_IN = new RegExp(BOUNDARY_STRICT + '(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^马蛇龙兔虎牛鼠猪狗鸡猴羊\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊\\d]+(?:[\\s,，。；;.、/\\-*\\+]+[马蛇龙兔虎牛鼠猪狗鸡猴羊\\d]+)*)[^马蛇龙兔虎牛鼠猪狗鸡猴羊\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_NOT_IN_REVERSE = new RegExp(BOUNDARY_STRICT + '([马蛇龙兔虎牛鼠猪狗鸡猴羊\\d]+(?:[\\s,，。；;.、/\\-*\\+]+[马蛇龙鼠猪狗鸡猴羊\\d]+)*)[^马蛇龙兔虎牛鼠猪狗鸡猴羊\\d\\n\\r]*?(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
+export const REGEX_NOT_IN_TAIL = new RegExp(BOUNDARY_STRICT + '((?:\\d(?:[\\s,，。；;.、/\\-*\\+]+|(?=尾)))+)尾[^\\d\\n\\r]*?(\\d+|[一二三四五六七八九十]+)(?:不中|中)[^\\d\\n\\r]*?(?:各|每|买|压|个)?[^\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_BAO = new RegExp(BOUNDARY + '(?:(?:包肖|包|特码|特)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:包肖|包|特码|特))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_TE_XIAO = new RegExp(BOUNDARY + '(?:(?:特肖)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:特肖))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
 export const REGEX_PING = new RegExp(BOUNDARY + '(?:(?:平特一肖|平特肖|平特|平肖|平)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)|([马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑⚙⚘⚡⚗⚛⚐⚑⚒⚔⚕]+)[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(?:平特一肖|平特肖|平特|平肖|平))(?:[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(各|每|买|压|个))?[^马蛇龙兔虎牛鼠猪狗鸡猴羊家野男女天地吉凶美丑\\d\\n\\r]*?(\\d+(?:\\.\\d+)?|[零一二三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾两廿卅佰仟]+)(?:米|个|元|块|斤|文|闷)?', 'g');
@@ -588,6 +590,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
     addMatches(REGEX_TUO_ZODIAC_V4, 'TUO_ZODIAC_V4');
     addMatches(REGEX_SIX_ZODIAC, 'SIX_ZODIAC');
     addMatches(REGEX_COMBINATION_TUO, 'COMBINATION_TUO');
+    addMatches(REGEX_COMBINATION_WIN_TUO_MULTI, 'COMBINATION_WIN_TUO_MULTI');
     addMatches(REGEX_COMBINATION_WIN, 'COMBINATION_WIN');
     addMatches(REGEX_FIVE_ZODIAC, 'FIVE_ZODIAC');
     addMatches(REGEX_FOUR_ZODIAC, 'FOUR_ZODIAC');
@@ -602,6 +605,7 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
   // Light patterns always run
   addMatches(REGEX_RANGE_EACH, 'RANGE_EACH');
   addMatches(REGEX_EXCLUSION, 'EXCLUSION');
+  addMatches(REGEX_NOT_IN_TAIL, 'NOT_IN_TAIL');
   addMatches(REGEX_NOT_IN, 'NOT_IN');
   addMatches(REGEX_NOT_IN_REVERSE, 'NOT_IN_REVERSE');
   addMatches(REGEX_PING, 'PING');
@@ -1165,6 +1169,41 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
         }
         break;
       }
+      case 'NOT_IN_TAIL': {
+        const tailsStr = groups[1];
+        const xStr = groups[2];
+        const amt = chineseToNumber(groups[3]);
+
+        const x = chineseToNumber(xStr);
+        const tails = tailsStr.match(/\d/g);
+        const numsList: number[] = [];
+
+        if (tails) {
+          tails.forEach(tailChar => {
+            const tail = parseInt(tailChar);
+            for (let i = 1; i <= 49; i++) {
+              if (i % 10 === tail) {
+                numsList.push(i);
+              }
+            }
+          });
+        }
+
+        const nums = Array.from(new Set(numsList)).sort((a, b) => a - b);
+
+        if (nums.length === x) {
+          const bet = { x, numbers: nums, amount: amt };
+          item.notInBets.push(bet);
+          item.total = amt;
+          result.parsedNotInBets.push(bet);
+          result.lastAmount = amt;
+        } else if (nums.length > x) {
+          result.errors.push(`${x}不中号码过多 (当前${nums.length}个)`);
+        } else {
+          result.errors.push(`${x}不中号码不足 (当前${nums.length}个)`);
+        }
+        break;
+      }
       case 'NOT_IN':
       case 'NOT_IN_REVERSE': {
         const isReverse = match.type === 'NOT_IN_REVERSE';
@@ -1410,6 +1449,65 @@ const parseBetInputOriginal = (inputText: string): ParsedInput => {
           }
         }
         result.lastAmount = 0;
+        break;
+      }
+      case 'COMBINATION_WIN_TUO_MULTI': {
+        const baseStr = groups[1];
+        const followerStr = groups[2];
+        const typeStr = groups[3];
+        const amt = chineseToNumber(groups[4]);
+
+        const type = typeStr as '三中三' | '二中二' | '特碰';
+        const targetSize = type === '三中三' ? 3 : 2;
+
+        // Parse base numbers
+        const baseMatches = baseStr.match(/\d{1,2}/g);
+        const baseNumbers: number[] = [];
+        if (baseMatches) {
+          baseMatches.forEach(m => {
+            const n = parseInt(m);
+            if (n >= 1 && n <= 49) baseNumbers.push(n);
+          });
+        }
+
+        // Parse follower numbers
+        const followerMatches = followerStr.match(/\d{1,2}/g);
+        const followerNumbers: number[] = [];
+        if (followerMatches) {
+          followerMatches.forEach(m => {
+            const n = parseInt(m);
+            if (n >= 1 && n <= 49) followerNumbers.push(n);
+          });
+        }
+
+        // 生成所有组合：每个 base 分别与每个 follower 组合
+        const allTuoGroups: number[][] = [];
+        baseNumbers.forEach(base => {
+          followerNumbers.forEach(follower => {
+            const combined = [base, follower].sort((a, b) => a - b);
+            if (combined.length === targetSize) {
+              allTuoGroups.push(combined);
+            }
+          });
+        });
+
+        if (allTuoGroups.length > 0) {
+          const bet: CombinationWinBet = {
+            type,
+            numbers: allTuoGroups[0],
+            amount: amt,
+            isTuo: true,
+            tuoBase: baseStr.trim(),
+            tuoFollowers: followerStr.trim(),
+            tuoCount: allTuoGroups.length,
+            tuoGroups: allTuoGroups
+          };
+          item.combinationWinBets.push(bet);
+          item.total += amt * allTuoGroups.length;
+          result.parsedCombinationWinBets.push(bet);
+        }
+
+        result.lastAmount = amt;
         break;
       }
       case 'COMBINATION_TUO': {

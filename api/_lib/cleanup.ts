@@ -124,30 +124,42 @@ router.post('/points-history', async (req, res) => {
  * POST /api/cleanup/run-all
  * 执行所有清理任务（注单 + 流水日志）
  * 定时任务每天凌晨 3 点调用此接口
+ *
+ * 注：自动清理注单功能已禁用，改为手动清理模式
  */
 router.post('/run-all', async (req, res) => {
   try {
     console.log(`[CLEANUP] Starting daily cleanup at ${new Date().toISOString()}`);
 
-    // 1. 清理注单（直接调用逻辑，不走 HTTP，避免 Vercel Serverless 环境中的自调用问题）
-    const betsDaysToKeep = 30;
-    const betsCutoffTimestamp = Date.now() - betsDaysToKeep * 24 * 60 * 60 * 1000;
+    // 1. 清理注单（已禁用自动清理，需手动触发 /api/cleanup/bets）
+    // 如需启用自动清理注单，请将下面的变量改为 true
+    const AUTO_CLEANUP_BETS_ENABLED = false;
 
-    const { data: deletedBets, error: betsError } = await supabase
-      .from('bets')
-      .delete()
-      .lt('timestamp', betsCutoffTimestamp)
-      .select('id, user_id, timestamp');
+    let betsDeletedCount = 0;
+    let betsByUser: Record<number, number> = {};
 
-    if (betsError) throw betsError;
+    if (AUTO_CLEANUP_BETS_ENABLED) {
+      const betsDaysToKeep = 30;
+      const betsCutoffTimestamp = Date.now() - betsDaysToKeep * 24 * 60 * 60 * 1000;
 
-    const betsDeletedCount = deletedBets?.length || 0;
-    const betsByUser: Record<number, number> = {};
-    (deletedBets || []).forEach((bet: any) => {
-      betsByUser[bet.user_id] = (betsByUser[bet.user_id] || 0) + 1;
-    });
+      const { data: deletedBets, error: betsError } = await supabase
+        .from('bets')
+        .delete()
+        .lt('timestamp', betsCutoffTimestamp)
+        .select('id, user_id, timestamp');
 
-    console.log(`[CLEANUP] Deleted ${betsDeletedCount} bets older than ${betsDaysToKeep} days`);
+      if (betsError) throw betsError;
+
+      betsDeletedCount = deletedBets?.length || 0;
+      (deletedBets || []).forEach((bet: any) => {
+        betsByUser[bet.user_id] = (betsByUser[bet.user_id] || 0) + 1;
+      });
+
+      console.log(`[CLEANUP] Deleted ${betsDeletedCount} bets older than ${betsDaysToKeep} days`);
+    } else {
+      console.log('[CLEANUP] Auto cleanup for bets is DISABLED (manual cleanup only)');
+
+    }
 
     // 2. 清理流水日志
     const pointsDaysToKeep = 180;
@@ -175,10 +187,11 @@ router.post('/run-all', async (req, res) => {
       success: true,
       message: '每日清理任务完成',
       bets: {
-        success: true,
+        success: !AUTO_CLEANUP_BETS_ENABLED ? false : true,
         deletedCount: betsDeletedCount,
         byUser: betsByUser,
-        cutoffDate: new Date(betsCutoffTimestamp).toISOString()
+        cutoffDate: AUTO_CLEANUP_BETS_ENABLED ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+        disabled: !AUTO_CLEANUP_BETS_ENABLED
       },
       pointsHistory: {
         success: true,

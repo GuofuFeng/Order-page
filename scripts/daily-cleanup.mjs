@@ -3,6 +3,15 @@
 /**
  * 每日自动清理脚本
  *
+ * 【重要】注单自动清理功能已禁用，改为手动清理模式
+ *
+ * 当前行为：
+ *   - 自动清理：仅清理超过 180 天的流水日志
+ *   - 手动清理：需手动调用 /api/cleanup/bets 清理超过 30 天的注单
+ *
+ * 如需重新启用注单自动清理：
+ *   修改 api/_lib/cleanup.ts 中的 AUTO_CLEANUP_BETS_ENABLED 为 true
+ *
  * 用途：清理超过 30 天的注单和超过 180 天的流水日志
  * 调用方式：
  *   1. 手动执行：node scripts/daily-cleanup.mjs
@@ -59,10 +68,16 @@ async function runCleanup() {
     const result = await response.json();
 
     console.log('[SUCCESS] Cleanup completed:');
-    console.log(`  - Bets deleted: ${result.bets?.deletedCount || 0}`);
+
+    if (result.bets?.disabled) {
+      console.log('  - Bets cleanup: DISABLED (manual cleanup only)');
+    } else {
+      console.log(`  - Bets deleted: ${result.bets?.deletedCount || 0}`);
+    }
+
     console.log(`  - Points history deleted: ${result.pointsHistory?.deletedCount || 0}`);
 
-    if (result.bets?.byUser) {
+    if (result.bets?.byUser && Object.keys(result.bets.byUser).length > 0) {
       console.log('  - Bets by user:', result.bets.byUser);
     }
 

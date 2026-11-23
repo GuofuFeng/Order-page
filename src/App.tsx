@@ -648,7 +648,7 @@ export default function App() {
   const [selectedLotteryType, setSelectedLotteryType] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_LOTTERY_TYPE, lotteryTypes[0]));
   const [isLotteryTypeLocked, setIsLotteryTypeLocked] = useState<boolean>(() => loadFromStorage(STORAGE_KEYS.IS_LOTTERY_TYPE_LOCKED, false));
   const [selectedBasketId, setSelectedBasketId] = useState<string>(() => loadFromStorage(STORAGE_KEYS.SELECTED_BASKET_ID, 'A'));
-  const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E']);
+  const [baskets, setBaskets] = useState<string[]>(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']);
 
   const [allPendingBets, setAllPendingBets] = useState<Record<string, BetOrder[]>>({});
   const hasPendingSyncedRef = useRef(false); // Track if pending bets have been synced from server
